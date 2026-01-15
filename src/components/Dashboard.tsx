@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Activity, CheckCircle, AlertTriangle, XCircle, Server, Database, Cloud, RefreshCw, Network, Clock } from "lucide-react";
+import { Activity, AlertTriangle, Server, Database, Cloud, RefreshCw, Network } from "lucide-react";
 import { format } from "date-fns";
 
 // --- Types ---
@@ -50,6 +50,7 @@ interface PodInfo {
   restarts: number;
   age: string;
   node?: string;
+  namespace?: string;
 }
 
 interface ServiceStatus {
@@ -206,7 +207,7 @@ const MOCK_FULL_HEALTH: HealthResponse = {
 
 const StatusBadge = ({ status }: { status: string }) => {
   const normStatus = status.toUpperCase();
-  let variant: "default" | "secondary" | "destructive" | "outline" | "section_header" | "success" | "warning" = "default";
+  let variant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" = "default";
   
   if (["UP", "HEALTHY", "OK", "ACTIVE", "RUNNING"].includes(normStatus)) variant = "success";
   else if (["DOWN", "FAILED", "ERROR", "CRITICAL"].includes(normStatus)) variant = "destructive";
@@ -272,26 +273,51 @@ const ServiceConnectivityMap = ({ matrix }: { matrix: ConnectivityCheck[] }) => 
 
 export default function InfrastructureDashboard() {
   const [data, setData] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchData = async () => {
-    setLoading(true);
-    // Simulate network delay
-    setTimeout(() => {
-        setData(MOCK_FULL_HEALTH);
-        setLastUpdated(new Date());
-        setLoading(false);
-    }, 800);
-  };
-
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000); // Poll every 30s
-    return () => clearInterval(interval);
+    // Initial fetch
+    let mounted = true;
+    
+    const load = () => {
+      setLoading(true);
+      // Simulate network delay
+      setTimeout(() => {
+        if (mounted) {
+            setData(MOCK_FULL_HEALTH);
+            setLastUpdated(new Date());
+            setLoading(false);
+        }
+      }, 800);
+    };
+
+    load();
+
+    const interval = setInterval(() => {
+        // Silent update
+        if (mounted) {
+             setData(prev => prev ? {...prev, timestamp: new Date().toISOString()} : MOCK_FULL_HEALTH);
+             setLastUpdated(new Date());
+        }
+    }, 30000); 
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
-  if (!data && loading) {
+  const manualRefresh = () => {
+      setLoading(true);
+       setTimeout(() => {
+            setData(MOCK_FULL_HEALTH);
+            setLastUpdated(new Date());
+            setLoading(false);
+      }, 500);
+  };
+
+  if (loading && !data) {
      return <div className="flex h-screen items-center justify-center">
          <div className="flex flex-col items-center gap-4">
              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
@@ -314,7 +340,7 @@ export default function InfrastructureDashboard() {
            <span className="text-xs text-muted-foreground tabular-nums">
              Updated: {lastUpdated ? format(lastUpdated, "HH:mm:ss") : "--:--:--"}
            </span>
-           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+           <Button variant="outline" size="sm" onClick={manualRefresh} disabled={loading}>
              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
              Refresh
            </Button>
