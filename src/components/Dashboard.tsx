@@ -1,541 +1,344 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from 'react';
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { Activity, AlertTriangle, Server, Database, Cloud, RefreshCw, Network } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RefreshCw, Activity, Database, Server, AlertCircle, CheckCircle2, XCircle, Search, Network, ArrowRight } from "lucide-react";
+
 import { format } from "date-fns";
 
-// --- Types ---
-
-interface HealthResponse {
-  timestamp: string;
-  overall_status: string;
-  kubernetes_infrastructure: {
-    ingress_nginx: K8sComponentStatus;
-    cert_manager: K8sComponentStatus;
-    calico_network: K8sComponentStatus;
-    load_balancer: LoadBalancerStatus;
-  };
-  application_services: ServiceStatus[];
-  dependencies: {
-    redis: DependencyStatus;
-    postgresql: DatabaseStatus;
-  };
-  connectivity_matrix: ConnectivityCheck[];
-  recent_events: K8sEvent[];
-}
-
-interface K8sComponentStatus {
-  status: string;
-  ready_replicas?: number;
-  total_replicas?: number;
-  restart_count?: number;
-  pods?: PodInfo[];
-}
-
-interface LoadBalancerStatus {
-  status: string;
-  external_ip: string;
-  ports: string[];
-}
-
-interface PodInfo {
-  name: string;
-  status: string;
-  ready: boolean;
-  restarts: number;
-  age: string;
-  node?: string;
-  namespace?: string;
-}
-
-interface ServiceStatus {
-  name: string;
-  status: string;
-  response_time_ms: number;
-  health_endpoint?: string;
-}
-
-interface DependencyStatus {
-  status: string;
-  connected: boolean;
-  response_time_ms: number;
-  host?: string;
-  port?: number;
-  database_name?: string;
-}
-
-interface DatabaseStatus extends DependencyStatus {
-  url?: string;
-}
-
-interface ConnectivityCheck {
-  source: string;
-  target: string;
-  status: string;
-  response_time_ms: number;
-  error_message?: string;
-  last_check?: string;
-}
-
-interface K8sEvent {
-  type: string;
-  reason: string;
-  message: string;
-  object: string;
-  namespace: string;
-  timestamp: string;
-  count?: number;
-}
-
-
-// --- Mock Data ---
-
-const MOCK_FULL_HEALTH: HealthResponse = {
-  timestamp: new Date().toISOString(),
-  overall_status: "HEALTHY",
-  kubernetes_infrastructure: {
-    ingress_nginx: {
-      status: "UP",
-      ready_replicas: 1,
-      total_replicas: 1,
-      restart_count: 0,
-      pods: [
-        {
-          name: "ingress-nginx-controller-abc",
-          status: "Running",
-          ready: true,
-          restarts: 0,
-          age: "2d",
-          node: "lke-node-1"
-        }
-      ]
-    },
-    cert_manager: {
-      status: "UP",
-      ready_replicas: 1,
-      total_replicas: 1,
-      restart_count: 0,
-      pods: []
-    },
-    calico_network: { status: "UP" },
-    load_balancer: {
-      status: "ACTIVE",
-      external_ip: "172.232.85.240",
-      ports: ["80/TCP", "443/TCP"]
-    }
-  },
-  application_services: [
-    {
-      name: "auth-service",
-      status: "UP",
-      response_time_ms: 45,
-      health_endpoint: "http://auth-service:8071/auth-service/actuator/health"
-    },
-    {
-      name: "admin-core-service",
-      status: "UP",
-      response_time_ms: 62
-    },
-    { "name": "media-service", "status": "UP", "response_time_ms": 12 },
-    { "name": "assessment-service", "status": "UP", "response_time_ms": 30 },
-    { "name": "notification-service", "status": "UP", "response_time_ms": 25 }
-  ],
-  dependencies: {
-    redis: {
-      status: "UP",
-      connected: true,
-      response_time_ms: 2,
-      host: "redis",
-      port: 6379
-    },
-    postgresql: {
-      status: "UP",
-      connected: true,
-      response_time_ms: 15,
-      database_name: "vacademy_db"
-    }
-  },
-  connectivity_matrix: [
-    {
-      source: "auth-service",
-      target: "admin-core-service",
-      status: "OK",
-      response_time_ms: 23
-    },
-    {
-      source: "admin-core-service",
-      target: "auth-service",
-      status: "OK",
-      response_time_ms: 18
-    },
-     {
-      source: "admin-core-service",
-      target: "media-service",
-      status: "FAILED",
-      response_time_ms: -1,
-      error_message: "Connection refused",
-      last_check: new Date().toISOString()
-    }
-  ],
-  recent_events: [
-    {
-      type: "Warning",
-      reason: "Unhealthy",
-      message: "Liveness probe failed",
-      object: "pod/old-pod-xyz",
-      namespace: "default",
-      timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString()
-    },
-    {
-      type: "Warning",
-      reason: "FailedScheduling",
-      message: "0/3 nodes are available: 3 Insufficient cpu.",
-      object: "pod/redis-xyz",
-      namespace: "default",
-      timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-      count: 5
-    }
-  ]
-};
+import { useServiceLatency } from "@/hooks/useServiceLatency";
+import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
+import type { PodInfo, K8sComponentStatus } from "@/types/diagnostics";
 
 // --- Components ---
 
 const StatusBadge = ({ status }: { status: string }) => {
-  const normStatus = status.toUpperCase();
-  let variant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" = "default";
+  const normStatus = status?.toUpperCase() || "UNKNOWN";
+  let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+  let className = "";
   
-  if (["UP", "HEALTHY", "OK", "ACTIVE", "RUNNING"].includes(normStatus)) variant = "success";
-  else if (["DOWN", "FAILED", "ERROR", "CRITICAL"].includes(normStatus)) variant = "destructive";
-  else if (["WARNING", "DEGRADED"].includes(normStatus)) variant = "warning";
-  else variant = "secondary";
-
-  return <Badge variant={variant}>{status}</Badge>;
-};
-
-const ServiceCard = ({ service }: { service: ServiceStatus }) => (
-  <Card className="flex flex-row items-center justify-between p-4 mb-2">
-    <div className="flex items-center gap-4">
-      <div className={`p-2 rounded-full ${service.status === 'UP' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-        <Activity className="h-4 w-4" />
-      </div>
-      <div>
-        <h4 className="font-semibold text-sm">{service.name}</h4>
-        <p className="text-xs text-muted-foreground">{service.response_time_ms}ms latency</p>
-      </div>
-    </div>
-    <StatusBadge status={service.status} />
-  </Card>
-);
-
-const PodRow = ({ pod }: { pod: PodInfo }) => (
-  <div className="flex items-center justify-between py-2 border-b last:border-0">
-    <div className="flex flex-col">
-      <span className="font-medium text-sm">{pod.name}</span>
-      <span className="text-xs text-muted-foreground">{pod.namespace}</span>
-    </div>
-    <div className="flex items-center gap-4">
-      <span className="text-xs text-muted-foreground">{pod.age}</span>
-      <Badge variant="outline" className={pod.ready ? "border-green-500 text-green-500" : "border-yellow-500 text-yellow-500"}>
-        {pod.status}
-      </Badge>
-    </div>
-  </div>
-);
-
-const ServiceConnectivityMap = ({ matrix }: { matrix: ConnectivityCheck[] }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    {matrix.map((conn, idx) => (
-      <Card key={idx} className="p-4 flex flex-col gap-2">
-        <div className="flex items-center justify-between mb-2">
-           <Badge variant="outline" className="text-xs">{conn.source}</Badge>
-           <Activity className="w-4 h-4 text-muted-foreground" />
-           <Badge variant="outline" className="text-xs">{conn.target}</Badge>
-        </div>
-        
-        <div className="flex justify-between items-center mt-2">
-            <span className="text-sm font-semibold">{conn.response_time_ms > 0 ? `${conn.response_time_ms}ms` : 'N/A'}</span>
-            <StatusBadge status={conn.status} />
-        </div>
-        {conn.error_message && (
-             <p className="text-xs text-destructive mt-1 bg-destructive/10 p-1 rounded line-clamp-2">{conn.error_message}</p>
-        )}
-      </Card>
-    ))}
-  </div>
-);
-
-
-
-export default function InfrastructureDashboard() {
-  const [data, setData] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-  useEffect(() => {
-    // Initial fetch
-    let mounted = true;
-    
-    const load = () => {
-      setLoading(true);
-      // Simulate network delay
-      setTimeout(() => {
-        if (mounted) {
-            setData(MOCK_FULL_HEALTH);
-            setLastUpdated(new Date());
-            setLoading(false);
-        }
-      }, 800);
-    };
-
-    load();
-
-    const interval = setInterval(() => {
-        // Silent update
-        if (mounted) {
-             setData(prev => prev ? {...prev, timestamp: new Date().toISOString()} : MOCK_FULL_HEALTH);
-             setLastUpdated(new Date());
-        }
-    }, 30000); 
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
-
-  const manualRefresh = () => {
-      setLoading(true);
-       setTimeout(() => {
-            setData(MOCK_FULL_HEALTH);
-            setLastUpdated(new Date());
-            setLoading(false);
-      }, 500);
-  };
-
-  if (loading && !data) {
-     return <div className="flex h-screen items-center justify-center">
-         <div className="flex flex-col items-center gap-4">
-             <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-             <p className="text-muted-foreground">Loading Diagnostics...</p>
-         </div>
-     </div>
+  if (["UP", "HEALTHY", "OK", "ACTIVE", "RUNNING"].includes(normStatus)) {
+      variant = "outline";
+      className = "border-green-500 text-green-600 bg-green-50";
+  }
+  else if (["DOWN", "FAILED", "ERROR", "CRITICAL", "CRASHLOOPBACKOFF"].includes(normStatus)) {
+      variant = "destructive";
+  }
+  else if (["WARNING", "DEGRADED", "PENDING"].includes(normStatus)) {
+      variant = "secondary"; // Yellow-ish usually
+      className = "bg-yellow-100 text-yellow-800 hover:bg-yellow-200";
   }
 
-  if (!data) return null;
+  return <Badge variant={variant} className={className}>{status}</Badge>;
+};
 
-  return (
-    <div className="min-h-screen bg-background text-foreground p-6 md:p-8 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Infrastructure Diagnostics</h1>
-          <p className="text-muted-foreground">Real-time system health and connectivity monitoring.</p>
+const LatencyCard = ({ name, latencyMs, status }: { name: string, latencyMs: number | null, status: string }) => {
+    let color = "bg-gray-100 text-gray-500";
+    if (status === "UP") {
+        if (latencyMs && latencyMs < 200) color = "bg-green-100 text-green-700";
+        else if (latencyMs && latencyMs < 800) color = "bg-yellow-100 text-yellow-700";
+        else color = "bg-red-100 text-red-700";
+    } else if (status === "DOWN") {
+        color = "bg-red-100 text-red-700";
+    }
+
+    return (
+        <div className={`flex flex-col p-3 rounded-lg border ${color} transition-all cursor-pointer hover:opacity-80`}>
+            <div className="flex justify-between items-center mb-1">
+                <span className="font-semibold text-xs uppercase tracking-wider">{name.replace("-service", "")}</span>
+                {status === "UP" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+            </div>
+            <div className="text-2xl font-bold">
+                {latencyMs !== null && latencyMs >= 0 ? 
+                    `${latencyMs}ms` : 
+                    (status === "PENDING" ? "..." : "ERR")
+                }
+            </div>
+            <div className="text-[10px] opacity-80 font-medium">
+                {status === "PENDING" ? "Checking..." : (status === "UP" ? (latencyMs && latencyMs < 200 ? "Excellent" : "Fair") : "Critical")}
+            </div>
         </div>
-        <div className="flex items-center gap-2">
-           <span className="text-xs text-muted-foreground tabular-nums">
-             Updated: {lastUpdated ? format(lastUpdated, "HH:mm:ss") : "--:--:--"}
-           </span>
-           <Button variant="outline" size="sm" onClick={manualRefresh} disabled={loading}>
-             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-             Refresh
-           </Button>
-        </div>
-      </div>
+    );
+};
 
-        {/* Top Level Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overall Status</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-500">{data.overall_status}</div>
-            <p className="text-xs text-muted-foreground">System is operating normally</p>
-          </CardContent>
-        </Card>
-         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Services Active</CardTitle>
-            <Server className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.application_services.length}</div>
-            <p className="text-xs text-muted-foreground">
-                {(data.application_services.reduce((acc, s) => acc + s.response_time_ms, 0) / data.application_services.length).toFixed(0)}ms avg latency
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Database</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-             <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold">{data.dependencies.postgresql.status}</div>
-             </div>
-             <p className="text-xs text-muted-foreground">{data.dependencies.postgresql.response_time_ms}ms response time</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kubernetes Events</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.recent_events.length}</div>
-            <p className="text-xs text-muted-foreground">Warnings in last hour</p>
-          </CardContent>
-        </Card>
-      </div>
+export default function Dashboard() {
+    // 1. Hooks
+    const { results: latencyResults, refreshAll: refreshLatency } = useServiceLatency();
+    const { data: infraData, loading: infraLoading, lastUpdated, refresh: refreshInfra } = useInfrastructureHealth();
 
+    // 2. State for Deep Dive Table
+    const [searchTerm, setSearchTerm] = useState("");
+    const [showProblemsOnly, setShowProblemsOnly] = useState(false);
+    const [selectedPod, setSelectedPod] = useState<PodInfo | null>(null);
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="kubernetes">Kubernetes</TabsTrigger>
-          <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="connectivity">Connectivity</TabsTrigger>
-        </TabsList>
+    // 3. Derived Data for Pods
+    const allPods = useMemo(() => {
+        if (!infraData?.kubernetes_infrastructure) return [];
+        const pods: PodInfo[] = [];
         
-        <TabsContent value="overview" className="space-y-4">
-           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-              <Card className="col-span-4">
-                <CardHeader>
-                  <CardTitle>Application Health</CardTitle>
-                   <CardDescription>
-                    Core microservices status and latency.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {data.application_services.map(service => (
-                        <div key={service.name} className="flex items-center justify-between">
-                             <div className="flex items-center gap-2">
-                                <span className={`w-2 h-2 rounded-full ${service.status === 'UP' ? 'bg-green-500' : 'bg-red-500'}`} />
-                                <span className="font-medium">{service.name}</span>
-                             </div>
-                             <div className="flex items-center gap-4">
-                                <span className="text-sm text-muted-foreground">{service.response_time_ms}ms</span>
-                                <Progress value={Math.max(5, 100 - (service.response_time_ms / 2))} className="w-[100px]" />
-                             </div>
-                        </div>
-                    ))}
-                </CardContent>
-              </Card>
+        Object.values(infraData.kubernetes_infrastructure).forEach((component) => {
+             // Check if it's a component with pods
+             if ((component as K8sComponentStatus).pods) {
+                 (component as K8sComponentStatus).pods?.forEach(p => pods.push(p));
+             }
+        });
+        return pods;
+    }, [infraData]);
 
-              <Card className="col-span-3">
-                <CardHeader>
-                  <CardTitle>Infrastructure</CardTitle>
-                  <CardDescription>
-                    Key infrastructure components.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Cloud className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Ingress Nginx</span>
-                        </div>
-                         <StatusBadge status={data.kubernetes_infrastructure.ingress_nginx.status} />
-                    </div>
-                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Network className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Load Balancer</span>
-                        </div>
-                         <StatusBadge status={data.kubernetes_infrastructure.load_balancer.status} />
-                    </div>
-                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Database className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Redis Cache</span>
-                        </div>
-                         <StatusBadge status={data.dependencies.redis.status} />
-                    </div>
-                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Activity className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Calico Network</span>
-                        </div>
-                         <StatusBadge status={data.kubernetes_infrastructure.calico_network.status} />
-                    </div>
-                </CardContent>
-              </Card>
-           </div>
-        </TabsContent>
+    const filteredPods = useMemo(() => {
+        return allPods.filter(pod => {
+            const matchesSearch = pod.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesProblem = showProblemsOnly ? (pod.status !== "Running" || pod.restarts > 0) : true;
+            return matchesSearch && matchesProblem;
+        });
+    }, [allPods, searchTerm, showProblemsOnly]);
 
-        <TabsContent value="kubernetes" className="space-y-4">
-           <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                  <CardHeader>
-                      <CardTitle>Ingress Controller</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                       <div className="space-y-4">
-                           <div className="flex justify-between">
-                               <span>Replicas</span>
-                               <span className="font-mono">{data.kubernetes_infrastructure.ingress_nginx.ready_replicas} / {data.kubernetes_infrastructure.ingress_nginx.total_replicas}</span>
-                           </div>
-                            <Separator />
-                           <h4 className="text-sm font-semibold mb-2">Pods</h4>
-                           {data.kubernetes_infrastructure.ingress_nginx.pods?.map((pod, i) => (
-                               <PodRow key={i} pod={{...pod, namespace: 'ingress-nginx'}} />
-                           ))}
-                       </div>
-                  </CardContent>
-              </Card>
-               <Card>
-                  <CardHeader>
-                      <CardTitle>Cluster Events</CardTitle>
-                      <CardDescription>Warnings and Errors in the last hour</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[300px] w-full pr-4">
-                       {data.recent_events.map((evt, i) => (
-                           <div key={i} className="mb-4 last:mb-0 border-l-2 border-yellow-500 pl-4 py-1">
-                                <div className="flex items-center justify-between mb-1">
-                                    <span className="text-sm font-semibold text-yellow-500">{evt.reason}</span>
-                                    <span className="text-xs text-muted-foreground">{format(new Date(evt.timestamp), 'HH:mm')}</span>
-                                </div>
-                                <p className="text-sm">{evt.message}</p>
-                                <p className="text-xs text-muted-foreground mt-1">{evt.object}</p>
-                           </div>
-                       ))}
-                       {data.recent_events.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No recent events.</p>}
-                    </ScrollArea>
-                  </CardContent>
-              </Card>
-           </div>
-        </TabsContent>
-
-        <TabsContent value="services" className="space-y-4">
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {data.application_services.map(svc => (
-                    <ServiceCard key={svc.name} service={svc} />
-                ))}
+    // 4. Render
+    if (infraLoading && !infraData) {
+         return (
+             <div className="flex h-screen w-full items-center justify-center">
+                 <div className="flex flex-col items-center gap-4">
+                     <RefreshCw className="h-10 w-10 animate-spin text-primary" />
+                     <p className="text-muted-foreground animate-pulse">Running System Diagnostics...</p>
+                 </div>
              </div>
-        </TabsContent>
+         );
+    }
 
-        <TabsContent value="connectivity" className="space-y-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Mesh Connectivity Matrix</CardTitle>
-                    <CardDescription>Real-time checks between microservices to ensure network policies are correct.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ServiceConnectivityMap matrix={data.connectivity_matrix} />
-                </CardContent>
-            </Card>
-        </TabsContent>
+    // Fallback if data is null (e.g. error)
+    if (!infraData) {
+        return (
+            <div className="p-8 text-center text-red-500">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4" />
+                <h2 className="text-xl font-bold">Failed to load diagnostics</h2>
+                <Button onClick={() => window.location.reload()} className="mt-4" variant="outline">Retry</Button>
+            </div>
+        );
+    }
 
-      </Tabs>
-    </div>
-  );
+    return (
+        <div className="min-h-screen bg-slate-50/50 p-6 md:p-8 space-y-8 animate-in fade-in duration-500">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                        System Diagnostics
+                    </h1>
+                    <p className="text-muted-foreground">Real-time health monitoring & availability.</p>
+                </div>
+                <div className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm">
+                    <span className="text-xs text-muted-foreground tabular-nums px-2">
+                        Last Updated: {lastUpdated ? format(lastUpdated, "HH:mm:ss") : "--:--:--"}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={() => { refreshLatency(); refreshInfra(); }}>
+                        <RefreshCw className={`mr-2 h-4 w-4 ${infraLoading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </Button>
+                </div>
+            </div>
+
+            {/* ZONE 1: THE PULSE (Client-Side Latency) */}
+            <section>
+                <div className="flex items-center gap-2 mb-4">
+                    <Activity className="h-5 w-5 text-blue-500" />
+                    <h2 className="text-lg font-semibold">Client-Side Availability (Pulse)</h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    {Object.values(latencyResults).map((res) => (
+                        <LatencyCard 
+                            key={res.service} 
+                            name={res.service} 
+                            latencyMs={res.pingLatencyMs} 
+                            status={res.pingStatus} 
+                        />
+                    ))}
+                    {Object.keys(latencyResults).length === 0 && (
+                        <p className="text-sm text-muted-foreground col-span-full">Initializing heartbeat...</p>
+                    )}
+                </div>
+            </section>
+
+            {/* ZONE 2: DATABASE & BACKEND MATRIX */}
+            <section>
+                <div className="flex items-center gap-2 mb-4">
+                    <Database className="h-5 w-5 text-indigo-500" />
+                    <h2 className="text-lg font-semibold">Service Deep Health Matrix</h2>
+                </div>
+                <Card className="shadow-sm">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Service Name</TableHead>
+                                <TableHead>DB Connection</TableHead>
+                                <TableHead>DB Latency</TableHead>
+                                <TableHead>Status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.values(latencyResults).map((res) => (
+                                <TableRow key={res.service}>
+                                    <TableCell className="font-medium">{res.service}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${res.dbStatus === 'UP' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                            {res.dbStatus}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="font-mono text-xs">
+                                        {res.dbLatencyMs !== null && res.dbLatencyMs >= 0 ? `${res.dbLatencyMs}ms` : "-"}
+                                    </TableCell>
+                                    <TableCell>
+                                        <StatusBadge status={res.pingStatus === 'UP' && res.dbStatus === 'UP' ? 'HEALTHY' : 'DEGRADED'} />
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </Card>
+            </section>
+
+             {/* ZONE 3: MESH CONNECTIVITY MATRIX */}
+             <section>
+                 <div className="flex items-center gap-2 mb-4">
+                     <Network className="h-5 w-5 text-pink-500" />
+                     <h2 className="text-lg font-semibold">Service Mesh Connectivity</h2>
+                 </div>
+                 {infraData && infraData.connectivity_matrix && infraData.connectivity_matrix.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {infraData.connectivity_matrix.map((conn, idx) => (
+                            <Card key={idx} className="p-4 flex flex-col gap-2">
+                                <div className="flex items-center justify-between mb-2">
+                                <Badge variant="outline" className="text-xs">{conn.source}</Badge>
+                                <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                                <Badge variant="outline" className="text-xs">{conn.target}</Badge>
+                                </div>
+                                
+                                <div className="flex justify-between items-center mt-2">
+                                    <span className="text-sm font-semibold">{conn.response_time_ms > 0 ? `${conn.response_time_ms}ms` : 'N/A'}</span>
+                                    <StatusBadge status={conn.status} />
+                                </div>
+                                {conn.error_message && (
+                                    <p className="text-xs text-destructive mt-1 bg-destructive/10 p-1 rounded line-clamp-2">{conn.error_message}</p>
+                                )}
+                            </Card>
+                        ))}
+                    </div>
+                 ) : (
+                     <Card className="p-8 flex flex-col items-center justify-center text-muted-foreground">
+                        <Network className="h-8 w-8 mb-2 opacity-20" />
+                        <p>No connectivity data available.</p>
+                     </Card>
+                 )}
+            </section>
+
+             {/* ZONE 3: KUBERNETES DEEP DIVE */}
+             <section>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <Server className="h-5 w-5 text-purple-500" />
+                         <h2 className="text-lg font-semibold">Kubernetes Pod Debugger</h2>
+                    </div>
+                   <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 border rounded-md px-3 py-1 bg-white">
+                            <Search className="h-4 w-4 text-muted-foreground" />
+                            <input 
+                                className="text-sm outline-none bg-transparent"
+                                placeholder="Filter pods..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <Button 
+                            variant={showProblemsOnly ? "destructive" : "outline"}
+                            size="sm"
+                            onClick={() => setShowProblemsOnly(!showProblemsOnly)}
+                        >
+                            {showProblemsOnly ? "Showing Issues" : "Show Problems Only"}
+                        </Button>
+                   </div>
+                </div>
+                
+                <Card className="shadow-sm">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Pod Name</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Restarts</TableHead>
+                                <TableHead>Termination Reason</TableHead>
+                                <TableHead>Age</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredPods.map((pod, i) => (
+                                <TableRow key={pod.name + i} className={pod.status !== "Running" ? "bg-red-50/50" : ""}>
+                                    <TableCell className="font-medium text-xs">{pod.name}</TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className={
+                                            pod.status === "Running" ? "border-green-500 text-green-600" : "border-red-500 text-red-600 bg-red-50"
+                                        }>
+                                            {pod.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <span className={pod.restarts > 5 ? "text-red-600 font-bold" : ""}>{pod.restarts}</span>
+                                    </TableCell>
+                                    <TableCell>
+                                        {pod.termination_reason ? (
+                                             <div className="flex flex-col">
+                                                 <span className="text-xs font-bold text-red-600">{pod.termination_reason}</span>
+                                                 {pod.last_exit_code && <span className="text-[10px] text-muted-foreground">Code: {pod.last_exit_code}</span>}
+                                             </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">-</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-xs text-muted-foreground">{pod.age}</TableCell>
+                                    <TableCell className="text-right">
+                                        {pod.logs && pod.logs.length > 0 && (
+                                            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedPod(pod)}>
+                                                View Logs
+                                            </Button>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {filteredPods.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                        No Pods found matching filters.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </Card>
+            </section>
+
+             {/* Logs Dialog */}
+             <Dialog open={!!selectedPod} onOpenChange={(open) => !open && setSelectedPod(null)}>
+                <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                             <AlertCircle className="h-5 w-5 text-red-500" />
+                             Crash Logs: <span className="font-mono text-sm bg-slate-100 px-2 rounded">{selectedPod?.name}</span>
+                        </DialogTitle>
+                        <DialogDescription>
+                            Most recent logs from the terminated container.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="flex-1 w-full rounded-md border bg-slate-950 p-4">
+                        <pre className="text-xs font-mono text-green-400 whitespace-pre-wrap leading-relaxed">
+                            {selectedPod?.logs?.join("\n") || "No logs available."}
+                        </pre>
+                    </ScrollArea>
+                </DialogContent>
+             </Dialog>
+
+        </div>
+    );
 }

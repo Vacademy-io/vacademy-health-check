@@ -10,4 +10,43 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      '/auth-service': {
+        target: 'https://backend-stage.vacademy.io',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/admin-core-service': {
+        target: 'https://backend-stage.vacademy.io',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/media-service': {
+        target: 'https://backend-stage.vacademy.io',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/assessment-service': {
+        target: 'https://backend-stage.vacademy.io',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/notification-service': {
+        target: 'https://backend-stage.vacademy.io',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/ai-service': {
+        target: 'https://backend-stage.vacademy.io',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/community-service': {
+        target: 'https://backend-stage.vacademy.io',
+        changeOrigin: true,
+        secure: false,
+      },
+    }
+  }
 })
