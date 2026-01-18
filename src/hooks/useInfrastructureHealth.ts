@@ -20,8 +20,17 @@ export const useInfrastructureHealth = () => {
             });
             clearTimeout(id);
 
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("text/html")) {
+                // If the server returns HTML (e.g. 404 page, 502 gateway error, or SPA fallback),
+                // we should not try to parse it as JSON.
+                const text = await response.text();
+                console.error("Health API returned HTML instead of JSON. Check API URL or Proxy config.", text.substring(0, 150));
+                throw new Error("Received HTML instead of JSON (likely 404 or Proxy Error).");
+            }
+
             if (!response.ok) {
-                throw new Error(`Failed to fetch health data: ${response.status}`);
+                throw new Error(`Failed to fetch health data: ${response.status} ${response.statusText}`);
             }
 
             const json: HealthResponse = await response.json();
