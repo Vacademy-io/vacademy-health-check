@@ -59,52 +59,113 @@ const LatencyCard = ({ name, latencyMs, status, jvm, history }: {
     latencyMs: number | null;
     status: string;
     history?: number[];
-    jvm?: { heap_percent: number; gc_pause_ms_last: number; threads_blocked: number; };
+    jvm?: { heap_percent: number; gc_pause_ms_last: number; threads_blocked: number; threads_waiting: number; heap_used_mb: number; heap_max_mb: number; };
 }) => {
+    // ── Root cause diagnosis ────────────────────────────────────────────────
+    // Figure out the most likely reason for the current latency level.
+    const diagnosis: { label: string; detail: string; color: string } | null =
+        (() => {
+            if (!jvm || !latencyMs) return null;
+
+            // GC pause > half the observed latency → GC is the culprit
+            if (jvm.gc_pause_ms_last > 100 && jvm.gc_pause_ms_last > latencyMs * 0.4) {
+                return {
+                    label: "⚡ GC pause is the bottleneck",
+                    detail: `Avg GC pause ${jvm.gc_pause_ms_last}ms is eating into response time. Tune heap or switch to ZGC.`,
+                    color: "text-red-600 bg-red-50 border-red-200",
+                };
+            }
+            // High heap → GC is about to spike
+            if (jvm.heap_percent > 85) {
+                return {
+                    label: "⚠ Heap near limit → GC pressure",
+                    detail: `Heap ${jvm.heap_used_mb}MB / ${jvm.heap_max_mb}MB (${jvm.heap_percent}%). GC will run frequently. Increase -Xmx.`,
+                    color: "text-orange-600 bg-orange-50 border-orange-200",
+                };
+            }
+            // Thread contention
+            if (jvm.threads_blocked > 0) {
+                return {
+                    label: `🔒 ${jvm.threads_blocked} thread${jvm.threads_blocked > 1 ? 's' : ''} blocked`,
+                    detail: "Threads are blocked waiting on a lock or I/O. May cause request queuing under load.",
+                    color: "text-yellow-700 bg-yellow-50 border-yellow-200",
+                };
+            }
+            // Latency looks high but JVM is healthy → network or DB
+            if (latencyMs > 300) {
+                return {
+                    label: "🌐 Check DB / network",
+                    detail: "JVM is healthy but latency is high. Likely cause: slow DB query or network round-trip. See DB Matrix below.",
+                    color: "text-blue-600 bg-blue-50 border-blue-200",
+                };
+            }
+            return null;
+        })();
+
+    // ── Card colour (adjusted — don't call it Excellent if GC is dominant) ──
     let color = "bg-gray-100 text-gray-500";
+    const isGcDominated = jvm && latencyMs && jvm.gc_pause_ms_last > latencyMs * 0.4;
     if (status === "UP") {
-        if (latencyMs && latencyMs < 200) color = "bg-green-100 text-green-700";
+        if (latencyMs && latencyMs < 200 && !isGcDominated) color = "bg-green-100 text-green-700";
         else if (latencyMs && latencyMs < 800) color = "bg-yellow-100 text-yellow-700";
         else color = "bg-red-100 text-red-700";
     } else if (status === "DOWN") {
         color = "bg-red-100 text-red-700";
     }
 
+    const statusLabel = status === "PENDING" ? "Checking…"
+        : status !== "UP" ? "Unreachable"
+        : isGcDominated ? "GC Impact"
+        : latencyMs && latencyMs < 200 ? "Excellent"
+        : latencyMs && latencyMs < 500 ? "Fair"
+        : "Slow";
+
+    const [showDiagnosis, setShowDiagnosis] = useState(false);
+
     return (
-        <div className={`flex flex-col p-3 rounded-lg border ${color} transition-all cursor-pointer hover:opacity-80`}>
+        <div
+            className={`flex flex-col p-3 rounded-lg border ${color} transition-all`}
+            onMouseEnter={() => setShowDiagnosis(true)}
+            onMouseLeave={() => setShowDiagnosis(false)}
+        >
             <div className="flex justify-between items-center mb-1">
                 <span className="font-semibold text-xs uppercase tracking-wider">{name.replace("-service", "")}</span>
                 {status === "UP" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
             </div>
             <div className="text-2xl font-bold">
-                {latencyMs !== null && latencyMs >= 0 ? 
-                    `${latencyMs}ms` : 
-                    (status === "PENDING" ? "..." : "ERR")
+                {latencyMs !== null && latencyMs >= 0 ?
+                    `${latencyMs}ms` :
+                    (status === "PENDING" ? "…" : "ERR")
                 }
             </div>
-            <div className="text-[10px] opacity-80 font-medium">
-                {status === "PENDING" ? "Checking..." : (status === "UP" ? (latencyMs && latencyMs < 200 ? "Excellent" : "Fair") : "Critical")}
-            </div>
-            {/* JVM warning badges */}
-            {jvm && (
+            <div className="text-[10px] opacity-80 font-medium mb-1">{statusLabel}</div>
+
+            {/* Root cause diagnosis — shown always if present */}
+            {diagnosis && (
+                <div className={`mt-1 rounded border text-[9px] px-1.5 py-1 leading-tight ${diagnosis.color}`}>
+                    <div className="font-bold">{diagnosis.label}</div>
+                    {showDiagnosis && (
+                        <div className="mt-0.5 opacity-90">{diagnosis.detail}</div>
+                    )}
+                </div>
+            )}
+
+            {/* JVM numbers when no diagnosis (JVM is fine, show raw data quietly) */}
+            {!diagnosis && jvm && (
                 <div className="flex flex-wrap gap-1 mt-1">
-                    {jvm.heap_percent > 80 && (
-                        <span className="text-[9px] bg-orange-100 text-orange-700 rounded px-1 flex items-center gap-0.5">
-                            <Cpu className="w-2.5 h-2.5" /> Heap {jvm.heap_percent}%
+                    {jvm.heap_percent > 60 && (
+                        <span className="text-[9px] opacity-60 rounded px-1 flex items-center gap-0.5">
+                            <Cpu className="w-2.5 h-2.5" /> {jvm.heap_percent}%
                         </span>
                     )}
-                    {jvm.gc_pause_ms_last > 100 && (
-                        <span className="text-[9px] bg-red-100 text-red-700 rounded px-1 flex items-center gap-0.5">
-                            <AlertTriangle className="w-2.5 h-2.5" /> GC {jvm.gc_pause_ms_last}ms
-                        </span>
-                    )}
-                    {jvm.threads_blocked > 0 && (
-                        <span className="text-[9px] bg-yellow-100 text-yellow-700 rounded px-1">
-                            🔒 {jvm.threads_blocked} blocked
+                    {jvm.gc_pause_ms_last > 20 && (
+                        <span className="text-[9px] opacity-60 rounded px-1">
+                            GC ~{jvm.gc_pause_ms_last}ms
                         </span>
                     )}
                 </div>
             )}
+
             {/* Sparkline */}
             {history && history.length > 1 && (
                 <div className="mt-2 opacity-70">
