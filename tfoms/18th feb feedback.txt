@@ -1,0 +1,262 @@
+
+E - POR Requirements Finalisation Meeting
+Video
+Shreyash Jain
+Feb 17 2026, 3:45 PM
+English (Global)
+Upgrade to get GPT-powered summary
+Summarize your meeting and surface important keywords,
+meeting overview, action items, notes and more.
+Upgrade
+
+
+
+It. 
+Hello. Hello. 
+Hello. 
+Am I audible? Himang, Am I audible? 
+Yes, you are audible. 
+Okay, so I'm waiting for the whole. 
+Team to join and let us know that if everyone is there then we can start. Hello everyone. So I'm just waiting for a go ahead that everyone has joined so that. 
+I can start briefing you guys. 
+Sir, attendance please. 
+Sir. 
+Good evening sir. 
+Good evening. Okay, anyone else who is joining or can we start? 
+Shreyas Ji, please start. 
+Okay, cool. 
+So I'll just quickly tell you what the agenda is for this meeting and then I'll just want to run few. 
+Things with you so that you guys are. 
+Fine with whatever we have thought. And if there are any suggestions or any feedback, we will be able to quickly take those. We want to finalize the requirements so that we can move to the next part where we want to start with the designing of the ui. But before designing it's important to have a logical understanding of the whole system. And that's what we are trying. Our team is trying to map based on the data that we had, based on the data we got from the PDFs based on the data of the few feedback points that we have received on the WhatsApp group. 
+Right. 
+So starting with sharing my screen and please let me know if it is. 
+Visible on your end. Is it visible? Okay. 
+Am I audible to everyone? Because I can't see your faces. 
+I can just see the names. 
+Yes, audible. 
+Okay, cool. 
+So one by one I'll be going with the hierarchies and like, you know, what are the key capabilities and what views that they will be having and what actions they can take on the system. 
+Right. 
+So in, in a gist like you know, there are two different portals that we are currently working. One is the web portal, another is the mobile app. Now on these portals also we have different roles, right? And initially in the first phase of things, it's important for us to keep things as simple and not complicate things. So that. Because if we get into deep like you know, there will be a lot of things. But the main focus is to have a flow so that we can have a working system for reporting these. And currently we are focusing on the two use case por and the chart sheet for that. We have thought about creating as discussed, two different portals. One is the mobile app, second is the web portal. 
+Now for the mobile app users, based on the credentials that they will have two roles, like that. 
+Is the FBO or the tax Task force team. 
+And second is basically the same mobile app will be used by the FSO and on the regional officers. Right. And both we will call them as digital latte app. 
+Right. 
+But the, but the functions for both the roles will be different. Of course the UI also will be different in few terms but in general, like you know, the job for FBO will be to create a POR and CAESAR forms and for the FSO part it will be more about verifying and forwarding it. The first step for these FBO and the task force team will be to come on this portal login and then they should have process to see the previously created POS from them and then to quickly create these POR and Caesar forms. Now as a request will come. So our request will come to the TForms Cloud. So this T forms cloud is basically the back end system, the server that we will have that has all the data points and will cater all the computations that will come to the server. 
+So this is, you know, I'll move on to this part but before that I want to cover the role specific tasks. Then we have a web portal. These web portals will have three different. 
+Type of roles fro FDO and dfo. 
+We will be seeing what these different roles we are expecting what to do on the portals. Now I'm coming one by one to different types of roles. So first role we'll start with the FBO Beat officer and the Task four Constable. 
+Right. 
+So the primary interface for them will be mobile app. What are the key capabilities and views they will be able to create the PoR issue form A that is Pur issue, form B seizure form and form C safe custody. I think this will be like, you know, in this phase we are trying to just cover form A and form B Form C. We can like, you know, have a planning in the upcoming phase. Right? Because inform A and B our team has a lot of things to cover. Maybe we can pick the pharmc in the later phase. Right now they'll also take care of the witness record punch witness description that we recently added. And this mobile app will also have the offline mode so that if they are in forest areas and the remote areas, they could easily access it without Internet. 
+So what are the data visibility scope that they will have? It is kind of coming in a restricted zone. So they can only see the reports that are created by themselves. Like you know, the por, the seizure reports that are created. They cannot see any regional based or zone based or central based reports. They'll be only able to see the reports that they have created by themselves. And they can after creating they Cannot edit After submission. After submission they will. They cannot edit. So this is the primary like you know, action capabilities and the view level accesses for FBO then coming to the second level, that is section level, FSO. 
+And arrow, that is the task force. 
+So they will also that you are telling from the beginning regarding this task force team. So what do you mean by the task force team there in the FPO and apart from FBA task force team. 
+So FBO will be comprising. So basically what we are trying to do is for the mobile use case we want to just have two different use case that is reporting creating a por or the seizure form. And the other role they will be only verifying and forwarding. So that is FSO level. So like you know, currently we can have multiple roles that we can name or we can put. But the main two action tasks on the mobile end will be like you know, creating and or all else basically verifying it. 
+So any PR eat, any kind of pur either the concerned beat officer of that range will book. Otherwise from task force also the beat officer will only book because in transfer also there will be two beat officers, section officers, the arrow range officer, they have jurisdiction across the district. But there also the beat officer will only book. So if you go down, could you please go down? Then again I think that terminology was coming here. Here also the same terminology was coming. So I just wanted to make it clear that this be it officer role will remain FB only. The only thing it will be either the FBO of the concerned range jurisdiction or FBO task force. Means from the task force also we have to authorize only the concerned to beat officers for booking those P. Understood. 
+So Siddharthi, in this case now what we will do is the logins that we will create, we will be creating based on a particular role. So it's up to our system to keep as many roles like you know, in the initial phase I want to limit the number of roles so that we can like, you know, have a seamless flow only for these roles. And then with time we can add more roles in the system. So like, you know, whatever we call them, like you know, FBO is a good term. And even for the FBO that you said it will two FBO will be at the task force level. Also we will be giving them like you know, a common role. 
+Right? 
+So it's up to us what role name we give, right? So we can call them as FBO itself. And then when we are assigning or when we are adding the user to the system we will be adding them under this role. 
+Yes. Right. 
+So it's up to us like you know, it's up to the. I understand the naming is a concern but in technically like you know, we will have multiple roles and we will assign a user to our role. That's what technologically it is what it is. Right. But whatever name we want to give to this role, we can update it. That's what I'm saying. Am I making sense? 
+Yes. 
+Yes. 
+Okay, so in this is what viewing capability then I'm coming to the FSO level. That is the second role that I've kept. They will also be having the mobile view only. 
+Right. 
+So for them also we expect them to use the digital Arti app that we have like you know, created. But their task or their capabilities would be different with from compared with the FBO level. So there would be more on the investigation and verification part. So basically collect 161 statements expert opinions if they want to add. Then what I have done is I've tried to add these based on the documents that we got. So we'll also have to think how we will be able to create a UI so that it complies with what these documents that were given to us. But still in the UI UX when we will be reviewing that we will be asking more details. 
+But the main overview or understanding is basically this level will be more into investigation part and in terms of the so this is actionable part so they will be able to add any expert opinions if they want to add. 
+Right. 
+So any call analysis. So based on these 63b certificate evidence 60 35bnss 41a crpc right. So like this and then for in terms of the data visibility scope so they will have a universal visibility so instant view of all POs in their jurisdiction. We all reports within their section. So because they are section level so they will be having the access of all the sections level por under their jurisdictions. Is there any questions on this part? 
+Sorry. First level. In data available scope it was restricted. Can only see reports created by themselves. 
+And each other for fbo. 
+Yes. 
+Yes sir. 
+Complete jurisdiction. Universal visibility in their jurisdiction will be. 
+Visible only visible to each other. 
+Means Inca in Kavali are they charge option on the left side char sheet preparation for non wildlife cases. Up more up from the first diagram. Yes. Which FDO has highlighted. Can you zoom here the left side FBO create por and Caesar form right side FSO doctor verify in forward only verification and can Shreyansji can They also edit the por if there are any corrections. 
+So this I will have to ask you guys but what we will do is we will keep multiple permissions for different role and for a role if you want to add that permission we will be able to do with the admin portal. So let's say for a particular role you want to give them the access to edit a por, right? So we will be adding that permission. 
+So that we will restrict only to the range officer to edit the pur for fso. This is fine to verify. For example so Fro cancel chase so edit just verification and forward FSO Dr. Or lantivircuan Tiger. The point is legally we cannot edit or correct the pur. The legally thing is we have to cancel the pur as a whole. But what our lawyer is suggesting is if there are any typographical mistakes then we will give a paro the power to rectify those typographical mistakes. That will better. But we that if FRO is editing any pur so we should have a digital trail means it should also get recorded that why FRO has edited and there should be remarks that. 
+So what I am suggesting is that we will have digital trail for each and everything. Not just the updates but also for view also let's say someone views a pur then also we will add like you know this guy at this role viewed this particular por at this time. 
+Right? 
+So digital trail will not only will done for the any editable or creating part but it will also be done for view part. So this is something that we have taken into the account. Yes. 
+Okay. 
+Can we move ahead? 
+Yes sir. 
+Okay, so then we come to the range level. So that is fro, right? So and also I have added fro task force, right? So they will now our view changes like you know now we would want them to come to web portal. Correct me if I'm wrong. Will FRO have access to the web or the laptop or the like? Or we should keep them on mobile. So my question is that will FRO will have access to laptops or systems or we should keep them only accessible with the mobile app. Like I'm asking this. 
+They have full fledged office with system and computer operator so they will be required to have this web portal access also. 
+Siddharthi, what we are doing is when we are writing this web portal. So in this web portal even if they log in by their mobile like you know, let's say they go on chrome and then they log in there. Then also the View will be responsive with mobile. 
+Right. 
+So even if they're stuck with like you know, not using laptop, so they can go to the website on their mobile and they can log in from there also. So this is the facility that we are providing for the web portals also. Right. So even if you don't have laptop and you can go and open a browser on your phone and then log in there. So then also you will be able to see the mobile view of this same portal. 
+Okay. 
+So then coming to the third point, that is the key capabilities for the range level. So they will be able to issue order form E and form F that we got from the compounding chart sheet document that you shared. Right. And then non compoundable forward to FDO for procusition orders. So this is one second is confession record accused confession. So these are the two main compounding and confession, two different actions that they range level officers can take. And then in the in terms of visibility they will have the visibility of all the range level pors. So basically all pors in their range and full access to all sections and beats of course because range is at top level. So they will have access to all these section levels and the beats levels pur Also. Any question. 
+And in this I also I'll be adding this point that you shared that fro can edit the por after submission. 
+Okay. 
+Good. 
+Moving on to the next part. That is division level fdo. So they will also we will expect them to have a web portal. Right. So same web portal will be accessible on mobile also with the login credentials. So the key capabilities and the view will basically be procreation issue the orders and major approvals. So in these approvals these like you know we read it about if the value Is greater than 500 rupees cases then we will be needing their approval. So all those approvals will be coming to the FDO on the web portal as a notification and then they will have to either approve disapprove those cases. So we will be discussing more on this part when we will be designing and then you know working on this part. So we will be adding more light on this part. 
+Then their next job will be to have a oversight monitor fro performance. 
+Right. 
+So in terms of the visibility they will have view level access to all the pors in their division. Right. So for example we are talking about khammam. So they will have access to the full khammam or satupalli. 
+Right. 
+So based on the FDO here one. 
+Issue is there everywhere I have seen in this flowchart it is mentioned 500 so not 500. The act says that critical cases which are offense value of more than 50 000. 
+Okay. 
+Or teak cases. 50000 is up to 50000 fro can compound and also 3 wheeler auto. But if there is any 4 wheeler case it does not matter. Whatever is the value of the offense any 4 wheeler cases will definitely go to FDO. But 3 cases and less than 50000 the range officer can compound. 
+Okay, so when we are talking about fro then we will be saying for any high level as well as any four level wheeler. 
+Right? 
+Four wheeler and plus teak cases means all other species can be done by fro. But te wherever this Te wood is there that will come again to fdo. 
+Okay. 
+Then I'll go to the district. So this is. 
+Yes. 
+So basically on in the this was division. 
+Sorry sir. 
+Sir. 1 some cases we are. We will do the trivial also. You mentioned that one also trivial cases. 
+So can you give me one example of that please? 
+For example some cases sometimes we use it to leave the that vehicle. 
+No. 
+At that time we. We charges them 50 rupees like that. Only then that compounding we called trivial case. 
+And what is the flow like? You know who at what role it is governed. 
+It is if any like pressures come political like that sometimes benefit of doubt. We will do the cases like that We. We do the trivial. If it is not in offense after inquiries we will do the trivial. 
+Okay. And who. 
+Who will be responsible in. 
+In. In yearly ones like that. 
+Okay. 
+But like my question is who will be responsible for adding such cases? 
+Fdo. 
+Fdo. So I'll. 
+I'll be having a few more questions. 
+I'll be posting on the group on this part. 
+So then the district level DFO they will also. We will expect them to come on the web portal. So this will be. We are also calling this as HQ Command center. Right. So they'll have a strategic view the GIS heat maps and the of the entire district. Right. So all the cases that are linked to a GPS like you know, latitude and longitude. They'll have a heat map of all these such cases. So they'll have the task force control direct task to task force teams Admin Master data Species list. Fine. So basically all the master data list will be present here. 
+And they are. 
+They will be having access to add anything or update anything on the master data. Then they'll have the global access like full visibility of common division. Satyupalli division and the task force. 
+So this is the district level DFO level. 
+Anything else that Siddharthi, maybe you want to add. 
+Sir, in fourth level range. 
+Level reason division level or range level? 
+Range level. Because mentioned that compounding or prosecution is the only procedure. But there is another procedure, sir. That one C A vehicle was seized. The vehicle was produced in the authorized officer in the district officer court. 
+And. 
+A person produced before the MY state for remanding for prosecution. And the vehicle was released or confiscated by the authorized officer and person were remanded and sent for jail. If any criminal case was disturbed against him. Regularly. This is the procedures. 
+Okay. And which points mention this? Like where can I read about this point? 
+So I got this document, sir. 
+I sent a word document in our group. 
+Okay. 
+Just now please verify it. Manam only vacantly confiscated. Correct. 
+Will send the case for prosecution orders to the fbo. So. Direct prosecution order. The manam. M office inquiry start section 44 office. 
+Yes sir. As per IP Forest 1967 all sections are compoundable, sir. 
+Except 62. 62, sir. Next encoding encroachment cases. We will never compound, sir. Generally task force range of sir and confiscated field practicality. 
+Two options. 
+Yes sir. Especially in certain cases only Sir. Altering boundary. Boundary marks and defacing are the counterfeiting marks API Forest act law that is somewhere around two years. The non punishable and non compoundable. 
+Mention JST component that value mentioned area non compoundable. 
+Sir, can you explain us? 
+So what has been discussed? Is he regarding this flow which was there near the fro. So from fro Specifically if there are vehicle cases. Yeah. So here on the serial number three you have given option that compounding is one option. And you have given non compoundable forward to fro for prosecution orders. So apart from it, one option is to be given that if it is a vehicle case then in those cases there has to be option that FRO can simultaneously arrest the accused and demand them to the court. It will go in one direction parallelly and in the second direction he will forward the vehicle file to the FBO for confiscation. So in the same case it will run in two codes. 
+One will be with the magistrate who will look after the arrest of the accused and all those bond procedure and simultaneously with the FDO who can confiscate the vehicles only in vehicle cases. 
+So I'll say they'll have two nodes here. So because parallel two simultaneous things will be going, right? 
+So one will be. 
+So they will be going for approval. The second part was the approval Part and first was that they can also have arrest. 
+Like can you please repeat. 
+Means arrest and send for remand to local magistrate. And the second where you have written approval rather than approval, it will be send to FDO for confiscation of vehicle. FDO for confiscation proceedings under section 44. 
+So I'll come to the first flow that is now the case disposal. Before that we have offense reporting flow. The sequence of actions for field staff using the digital RT mobile application. Right. So starting will come from detect offense, capture evidence. So we will be providing multiple steps like you know, forms in this and based on the type of the office, we'll have multiple different UIs. Right. So in this case for example, there was a like, you know, was it a vehicle related case or something like that we need to find. And then based on what all possibilities are there, we will have options. 
+Hello, please go ahead. 
+Yes. 
+So capture evidence, input details. Now input details can also be done via voice and text. Like in the voice we will be. Initially we will be giving option to like, you know, record the voice in English and we will be able to transcribe the voice in English. 
+Right. 
+And with time we will want to add more regional language into this voice model. But in text. You can add text in any language. So when you are adding a line, adding in a text form, then record punch witness in this step only. And then we will have. Because these are the common things that are in all the forms. So then they can either have form A or form B or form C. So this is regarding the network. Like you know, if there is no network, we will be able to sync in the server and later we. 
+Will be able to. 
+The intent is there. 
+We can then notify FSO fro, FDO and dfo. 
+Second workflow is for case disposal decision workflow. So it's for determining whether a case undergoes compounding or prosecution. 
+So this basically por received. So FSO investigation based on 41 axis. 
+Offense type is compoundable. If yes, this will have to change like you know, greater than 50,000. 
+Else then FDO dfo. So this is the flow and if. 
+Right, if it is not compoundable, then we'll have a different flow. 
+So fro sends to fdo. 
+So this is something that we will also share and you can also review this again. So this is something that we got from the. This is something that we got from. 
+The details that you guys provided. 
+Any questions in this? So I'll now go to the mobile app designs or like, you know, the Flow that we have thought. So initially the initial flow will be user login, right? So user login we will be giving the biometric login in this case and a PIN based login like just how we get in irctc, right? So you'll have a pin, if not pin, then you can set a biometric login. Then you will get into the dashboard and then based on the type of role of the user that we discussed, if it is a field officer, then you they'll have this option. If it is and come if that role has only investigation, then you will. 
+Get into this, right? 
+So then when the new offense is reported, so basically they'll have detect offense they'll have a button to add offense with the flow that we discussed and in terms. So finally. So basically create por, capture evidence, record, punch a witness, generate sees a report. If like that is the case, generate safe custody, then review and sign. And then if the network is available directly will sync to the server. And then it will be notified to FSO and fro. 
+Right. 
+If it is a case of investigation then view assign cases and then add. 
+Statements, notices like that. 
+So if. If the use case is just investigation then they will not expecting them to create a new offense. They will be just viewing the assigned cases and then they can add their notices or statement if they want to. 
+Add just like that. So previously how we have discussed. So this is similar to what we have discussed. 
+So this is also a document that I will be giving you. Like this is something that we have finalized with our team. This is basically screen by screen like you know what we are expecting to put on this different flows and screens. So this is also document that we. 
+Will be sharing you. 
+And then we have a web similar to this we also have a web flows. So as the user logins they get into a dashboard and then we will have a role check if it is FRO or FDO or dfo. And based on that the range dashboard or a division dashboard or a district command center will open. 
+Right. 
+So if it is a fro, then we will have process the case option will come case management, review the por and evidence and then there will be a decision engine, right. So based on what we have discussed just now. So these are few things that you know we. We will be able to share with you and then like you know you can give a go ahead. So I have taken down the current like you know feature feedback that we got, right. So I think these are the things that we are planning and then the next steps for Us will be to share the designs like you know how we have. So we have already thought in terms of the product how we want to move ahead. But in terms of the ui we will be now sharing you after your approval. 
+We'll be now working on that part. 
+Cool. 
+So any other questions at this point or anything else that you want to discuss? 
+Fdo sethupalli any comments from fdu satupalli. 
+Sir, one submission sir. Just clarification with respect to this compounding offenses. Sir. But as per any please. FDO is authorized officers or subdivision. Compound only if the forest produce value is less than 50,000 and fro can. 
+Compound three wheeler cases. As per Forest act submission. 
+But it is only any fast moving vehicle. It has to come to FDO sir. 
+Section. 
+There is a prosecution rules are there sir, 1969 compounding and prosecution rules Sir. I'll share with you sir. That is the word mentioned in the. 
+19Th Telangana Forest Act. Telangana Forest Compounding and Prosecution rules rule number 8 1969. So Forest Divisional Officer or subdivisional officer all the forest offense produce involved does not exceed 50,000. The Ranger shall be competent to compound the offense under section 59 by passing order in this behalf. Every order will be passed in for me and shall be communicated. Point number three. Forest range officers may compound any offense involving non teak, timber and fuel wood can carried in autos and T2 Wheeler. The specific Gandhi fro compounding, chase, Compound chess with the explicit Gandhi they should not compound any offense involving fast moving motorized vehicles containing red sandalwood and teeth exemption 3 only red sandals, sandalwood and teeth. Critical cases. So critical cases. 
+The statement just now that you said we cannot find that statement in the PDF that we have received. Is there a way for us to get. Because you know these are the things that we'll get from now only then we can take care of them. Later on we'll have to again update things. 
+So what I request Shayanshi, you just go to this Telangana Forest department website. On the website they have given link of all the related forest acts rules and everything. So because Telangana Forest act only talks about sections which we have to put in the pur. But how to compound and how to prosecute it is given separately under Telangana forest offense rules 1969. So all those PDF are now available on the website. So we will share the link also. So so from there you can get all those documents. 
+Please share the link. And then so that we can take those things also in our consideration. So like you know our Team like Himang from our team is basically doing the research. And his team is basically making these all things possible. And I'm just like. You know just like whatever they these guys are giving. I'm just telling you guys so it's good for us. 
+You. First pilot project implement successful. Successful pilot project complete RAM Replicate condition to successful implementation in common district. So one more suggestion is there from task force team. What they saying is he as you have given this option for in the flowchart that fro will ask for prosecution orders from fbo. So there should be an option from legal sell team. The FBO should be able to generate that prosecution order and send back to fro online. 
+Okay. 
+That prosecution order has been issued and. And based on that we can from the district level check it for which cases prosecution order has been given and for which cases it is still pending. 
+Okay. 
+For filing of charges. 
+Sir. Sorry. Compounding stage. Previous data compounding key as. As per supreme court guidelines once. Repeated habituated smuggler. 
+Okay. Okay. Means what he's saying is. As we discussed last time there should be an option to dump all the existing cases since the formation of Telangana state at least from 2014 onwards. So that whatever cases are there our team can dump those accused details. So that while picking up the cases our beat officers and fros will have an idea whether this person has already committed any offense in the past or not. And whether he is a repeated offender or not. 
+I totally agree sir. 
+But like you know as I said. 
+Like we have limited time and like I think this can be a next phase. We. We have a lot of things that we are. We are getting ideas and more iterations will come. We'll for sure plan a next. Because my aim will then be distracted by you know a lot of things are here. So our aim as discussed was to first like you know have a very good flow for creating this por and chart sheets. And with time on this we'll get more iterations and such feedback and we will have a next phase where we can add all these points and it will become a better system with time. 
+Correct. So in the meantime we will do this offline cross check and do the online pur. Once it is successfully implemented then we can go on this online database and dumb system from where we can do the verification 100%. 
+So from our team we are like you know we are. We were working on this. But after this meeting we will take these points and then our next job will be to start with the UI UX of the things. And like you Know you guys can expect the UI UX by the next week, Monday or Tuesday and then we will again have a like, you know, review. If you want to take that review offline and give us feedback well and good. If you want to have a meeting just like this, open to that. Right. So just like, you know, my expectations from your team will be to quickly help us with the reveal process. That's all. 
+And Inca is not valid suggestions. So what has suggested is it is not a very big deal whenever there are cases for compounding or inquiry with the fdo. He is suggesting that generally lot of times this inquiry notice offline is taking lot of time when the whole process is moving online just for calling inquiry. The same thing can be generated online that whatever name offender is there in the case details in the standard format, they have to it can be generated and if required they can print it and write the date of whatever inquiry it is there and sign and dispatch. 
+Okay. 
+And right now are we going for the WhatsApp alert system that we had discussed last time? 
+Yes, yes, we are going. And like on 10th of February I I asked this question on the group that we will be needing a meta business account and you updated us that you will be taking account. So wanted to know the status, what. 
+Is required from our side. 
+So there is a meta business account that needs to be taken. So Facebook WhatsApp is a product of a meta. Meta is a company. And then we'll have to register ourselves with a meta. Right? And then when we register we will also have to take a new number, a fresh WhatsApp number. So. So these are the two things that we will have to do. 
+I think last time we had discussed so in the group we had discussed that we have one official number which is not in use. 
+Okay. 
+That number we will provide to you and on that number you can get that meta account and that number can be utilized then. 
+Correct? 
+Correct. 
+So we will then just want the meta account and if our team member can access that account. So we will be then so what the process is that we need to request the API access to meta and we will have to give our reasons why we want it and then they will approve and then we will get. 
+The API access like that. 
+So that SIM card has to be activated and kept in mobile. That's it. Any other requirement. 
+So generally like you know, I have previously worked with private companies so in that case they asked for the letter incorporation also. But I this time like because we are working with the government. So we are not sure what requirements will come. So let us quickly come like you know, see what options we have there. And I think we will be updating in one or two days. 
+Last time we had also discussed regarding domain, you needed to use it for front date, front end development, email for sending and back end backend API URL. So domain name I had shared. 
+Yes. 
+Anything else you need? 
+I think for now that's also domain name and WhatsApp are the two things. I think that's all for now. 
+So what is the next phase and what is our next step? 
+So as I told like, you know, the team will now start working on the UI UX part and the next week like you know, because you know, today I'm considering that we got the final requirements and then next week, maybe on Monday or Tuesday we will be updating you with the screenshot, the UI UX designs of the mobile app as well as the web app. 
+Right. 
+And then we will be giving for review and we will be expecting a response for that designs. And then parallelly we are starting the development also. 
+Parallel development of what? 
+So this system. So currently we are focusing on the backend. After the designs approval we will start the front end part. 
+So you will then design the front end. 
+After the approval we'll design the front end. But we have a lot of things to like, you know, as a boilerplate there are a lot of things to start the setup part. So our team is like you know, after this meeting we are planning to start that development phase also. 
+And I think already from our side we have updated the list of all the beats and sections ranges that we have. So accordingly you can create all the logins that are required from your site, right? 
+100 yes. So initially we will be giving all the logins but I would want to have a system so that your team or anyone from your team can manage these because it's anytime you have any updates like you know, you'll have to reach our team better. You should also have a way someone who is allotted can add users and then maybe delete users. 
+So what we will do is we have a one app for patrolling in the field and monitoring and that admin is there with us. So the person who is managing the that admin, the same person I have added here on this group, satish our data processing officer. So he will be given this task to make any changes, whatever required during any transfers or postings of beat officers so that accordingly he can do those changes. 
+Yes, yes. 
+So on Monday Web app and mobile apps uiux. 
+Right. So that part UIUX review and response. 
+So we'll in the meantime if there are any doubts or anything you please ask. So what will happen is we have our legal task force team. Legal team and the task force team. So they will reply immediately there any further doubts. And then on Monday we will have another review as we decide for closing this. 
+Yes. 
+Yes. 100%. 
+And so after this meeting we will also provide them. 
+We had discussed this in detail. Our honorable PCCF and Hawk madam had visited Kam and Kam district last week. So our circle had also impressed upon her that this is the first time in the Telangana state we are going to have this kind of system. So she appreciated it. But she's saying if we want to have a statewide launch then before that immediately you show us a successful model. And if you are able to successfully do it in the common district then we can take it to the state level and then do a big launch through honorable ministers. 
+100%. 
+We as a team are very excited for this 100%. 
+Suggestions. 
+Right? 
+Thank you very much. 
+Thank you. 
+Thank you everyone for joining. Have a good day. 
+Bye. 
+
+
+
+
+
+

@@ -1,0 +1,602 @@
+Business Requirement Specification (BRS)
+1. Applications Involved
+• ERP System
+o Centralized repository for Purchase Orders (POs), approvals, and financial
+transactions.
+• Supplier Web App
+o Portal Views:
+▪ Administrators (Web Portal)
+▪ Procurement Field Team (Android App)
+▪ Suppliers (Lightweight Web App via link)
+• WhatsApp Integration
+o Notifications (daily greetings, reminders, alerts)
+o Enquiries (two-way communication with suppliers)
+2. Multi-Lingual Support
+• Supplier Web App: Interface available in multiple languages.
+• WhatsApp Integration: Messages delivered in supplier’s opted language.
+• Language Change Option: Supplier can switch preferred language anytime.
+3. Supplier Web App Portal
+i. Supplier Onboarding
+• Consent Form
+o Aadhaar-based OTP signature (template provided by Business).
+• Declaration by Field Officer
+• Preliminary GST Verification
+• Phone & Email Verification
+• Daily Greetings via WhatsApp (in opted language) with 3 options:
+o Navigate to Portal: Opens supplier web interface.
+o Let’s Meet: Creates task for Field Officer; supplier notified via App.
+o Change Language: Updates preferred language.
+ii. Supplier Evaluation (SE)
+• Triggered automatically post-onboarding.
+• Evaluation scope: Owner + Employees.
+• Supplier Improvement Plan (SIP):
+o Manual creation option.
+o Automatic SIP generation based on SE responses.
+iii. Supplier Web Portal Access
+• Authentication: OTP-based login.
+• Supplier Menu Options:
+o Material Rate Card
+o Share Quotes (rates + quantity)
+o Transaction History
+o Ledger
+o QC Reports
+o Debit Notes
+o Record Shipment Details
+o Raise Enquiry
+iv. Admin View (Supplier Web App Portal)
+• Daily Rate Card Updates
+o Product Category, Material, Area-specific.
+o Supplier-wise incentive prices.
+o Manual input for PlasticWala Price.
+• Supplier Audit Calendar
+o Track NCs to closure with photo/video proofs.
+• SIP Monitoring
+o Track trainings to closure with photo/video proofs.
+• Supplier Requests Tracking
+o Reassign requests based on Field Officer availability.
+v. Field Officer’s App Portal
+• Supplier Onboarding (upload KYC documents).
+• Respond to supplier quotes.
+• Generate POs: Push to ERP for approval workflow.
+• Track Shipments
+• Address Enquiries and track to closure
+• Escalation Mechanism for issues with Supplier
+6. Key Compliance & Security Requirements
+• Aadhaar OTP-based consent for onboarding.
+• GST, Email, Phone, Address verification during onboarding.
+• OTP authentication for portal access.
+• Secure integration between ERP ↔ Supplier Web App ↔ WhatsApp.
+
+
+
+
+
+
+
+
+
+
+
+Play
+
+Mute
+Remaining Time -1:37:40
+View complete GPT-powered meeting notes
+Skim through the meeting in minutes by GPT-powered summary, notes, action items and more.
+Login
+
+Project SMPP
+Video
+Shreyash Jain
+Feb 16 2026, 12:00 PM
+English (Global)
+Mobile-Friendly Onboarding: Field agents can onboard suppliers via a mobile app, ensuring consent and data accuracy digitally.
+Semi-Automated GST Verification: Proposal for API-based GST verification; manual checks as backup while subscription costs are evaluated.
+Annual Supplier Evaluation: Mandatory evaluations post-onboarding, tracked for audits, with immediate business transactions allowed regardless of completion.
+Centralized Supplier Portal: SSMP portal provides daily updates and task management, accommodating language preferences for better engagement.
+Dynamic Pricing Model: Supplier-specific pricing adjusts based on geography and product, allowing frequent updates to streamline procurement.
+WhatsApp for Notifications: ERP Next sends real-time PO notifications to suppliers, ensuring transparent communication and audit trails.
+Notes
+Supplier Onboarding and Evaluation
+The project prioritizes a mobile-friendly supplier onboarding process with consent capture and validation to ensure data accuracy and compliance (09:50).
+
+Supplier Onboarding as Priority (09:50)
+
+Field agents can initiate onboarding onsite or remotely via a mobile-friendly web app.
+Consent must be recorded digitally using OTP-based signing to confirm supplier agreement.
+Field officers declare accuracy of collected data, adding accountability to the onboarding process.
+Business team will provide consent content; technical team focuses on capturing and storing consent.
+GST Verification and Data Validation (13:10)
+
+Proposal to semi-automate GST verification via third-party APIs like Clear Text or Master India.
+Manual verification remains fallback if API access is not feasible; subscription costs to be evaluated by business team.
+Supplier mobile number and email must match GST portal data to ensure authenticity.
+Shreyash to assist in API access procurement and provide vendor details.
+Supplier Evaluation and Improvement Plan (18:30)
+
+Supplier evaluation triggered automatically post-onboarding with questionnaires for owners and workers.
+Evaluation outcome leads to a supplier improvement plan (SIP), designed initially for manual input but structured for future automation.
+Evaluation forms require dual sign-off from field officer and supplier, secured via OTP.
+Configurable timelines (e.g., 10 or 30 days) will hold field officers accountable to complete evaluations promptly.
+Evaluation Frequency and Tracking (25:00)
+
+Evaluations are recurring but mandatory at least once annually at onboarding.
+System to track evaluation counts and dates per supplier for audit and follow-up.
+Business transactions can start immediately upon onboarding, independent of evaluation completion.
+Supplier Web Portal and Communication
+The supplier portal (SSMP) will centralize supplier interactions, daily updates, and task management while respecting language preferences (09:50).
+
+Daily WhatsApp Greetings and Navigation Options (17:50)
+
+Suppliers receive daily greeting messages with buttons to navigate to the portal or request a meeting with a field officer.
+“Let’s meet” requests auto-create tasks for assigned field officers and notify procurement heads for tracking.
+Language change option available to accommodate supplier preferences and improve engagement.
+Task Management and Escalations (54:00)
+
+Queries raised by suppliers create tasks assigned to field officers, with comments and status tracking until closure.
+Free-text query option preferred over detailed category selection to simplify user experience and reduce complexity.
+Internal escalation mechanism enables suppliers’ issues to be escalated to managers if field officers cannot resolve them.
+Admin has authority to reassign tasks or suppliers to different field officers temporarily or permanently.
+Supplier Query and Dispute Window (53:30)
+
+Time-bound windows (e.g., one week) limit when suppliers can raise disputes on QC reports, debit notes, or payment advice.
+After the predefined period, related inquiry options are removed from supplier portal menus.
+General inquiries can be raised anytime, supporting ongoing communication without limitations.
+Supplier Transaction History Access (52:30)
+
+Suppliers can filter and fetch transaction details by PO number, invoice, or date range.
+This empowers suppliers with transparency and self-service on past transactions without direct field officer intervention.
+Pricing, Rate Cards, and Purchase Order Workflow
+The system will manage dynamic, region-specific pricing with flexible supplier markup and seamless order processing integrated with ERP Next (28:50).
+
+Dynamic Supplier-Specific Pricing Model (29:30)
+
+Base rate cards input daily by admins, segmented by product category and geography.
+Supplier-specific price adjustments allowed as absolute markup or markdown values (e.g., +0.25 rupees), configurable by time period.
+Allows weekly, quarterly, or daily updates to incentivize procurement and simplify rate management.
+Purchase Request (PR) and Purchase Order (PO) Integration (37:50)
+
+Field officers generate PRs from supplier quotes directly within SSMP, which triggers creation of POs in ERP Next via APIs.
+ERP Next handles PO approval workflows; only approved POs are communicated to suppliers.
+PO details sent back to SSMP for record-keeping and supplier communication via WhatsApp or portal.
+ERP Next also sends official PO emails to suppliers and field officers for audit trail and compliance.
+Real-Time PO Notification Considerations (44:15)
+
+Discussed minimizing communication delays by allowing ERP Next to send PO notifications directly to suppliers.
+SSMP maintains PO records and handles communications for transparency and reporting.
+API-based atomic transaction ensures field officers receive immediate success/failure feedback on PO creation attempts.
+Negotiation and Offline Communication (36:00)
+
+Suppliers can propose alternative prices in SSMP which field officers negotiate offline if needed.
+Only final agreed prices result in PR/PO generation to avoid multiple system transactions.
+Document Management and Shipment Tracking
+The project aims to digitize mandatory document submission and shipment initiation to reduce operational friction and improve gate security (01:08:00).
+
+Supplier Upload of Mandatory Shipment Documents (01:09:30)
+
+Suppliers will upload documents like Eway Bills, invoices, and LR/RC copies via SSMP directly.
+Field officers support suppliers during document upload to ensure compliance.
+Current practice has field officers uploading documents; SSMP aims to transfer responsibility to suppliers over time.
+QR Code-Based Vehicle Entry System (01:12:00)
+
+Upon document upload completion, SSMP generates a secure QR code for the truck driver.
+Security teams at segregation centers scan QR codes to verify shipment readiness before gate entry.
+Security scanning restricted to authorized personnel with API-based security to prevent misuse.
+The solution will scale to 15–20 segregation centers nationally by year-end, each with dedicated security teams.
+Shipment Initiation and Verification Workflow (01:07:30)
+
+Suppliers or field officers initiate shipment status with document uploads and photo/GPS verification via SSMP.
+Field officers review and approve uploaded documents to complete shipment initiation process.
+Technical Infrastructure and Integration Requirements
+The system relies on cloud infrastructure, WhatsApp business APIs, and ERP Next integration with careful cost and security considerations (01:16:00).
+
+WhatsApp Business API Setup (01:16:00)
+
+Requires phone number and Meta Business Manager access for configuration.
+Krishna to provide credentials and activate WhatsApp API within two days.
+Initial message quota of about 1,000 messages available for free.
+ERP Next API Access and Environment (01:18:00)
+
+ERP Next QA environment API access pending due to vendor availability; expected within 2 days.
+QA environment preferred over development for stable integration testing.
+Cloud Infrastructure Costs and Hosting (01:22:00)
+
+Hosting SSMP backend and database on AWS or Google Cloud estimated at ₹5,000 to ₹10,000 per month post free tier.
+Infrastructure runs 24/7 with permanent charges based on server uptime and resource usage.
+Initial 3-6 months free tier to be leveraged before final hosting decision (cloud vs on-premise).
+GST and Supplier Verification APIs (01:19:20)
+
+Subscription-based APIs from Clear Text, Master India, and others proposed for supplier data verification.
+Business team to evaluate subscription costs and authorize procurement.
+Existing ERP Next GST integration uses open APIs without subscription.
+Payment Gateway Integration (01:26:00)
+
+Proposal to use CSB Bank’s native payment APIs instead of third-party gateways like Razorpay.
+CSB Bank offers setup with free transactions post setup fee, reducing vendor costs.
+Technical team requires support from Krishna’s side to facilitate API integration and testing.
+Project Management, Communication, and Collaboration
+Strong emphasis placed on weekly demos, responsiveness, and transparent communication to keep development on track and minimize delays (01:28:00).
+
+Weekly Demos and Feedback Loops (01:28:30)
+
+Krishna insists on live weekly demos over videos to capture immediate user feedback.
+Shreyash commits to sharing updated plans and progress weekly on Mondays and Saturdays.
+Timely responsiveness from business and technical teams critical to avoid development delays and cost overruns.
+Stakeholder Involvement and Group Communication (01:33:30)
+
+Key business users Narendra, Swaroop, and advisor Padmanaban to be added to project communication channels immediately.
+Krishna emphasizes collaborative learning and mutual support between business and technical teams.
+Shared responsibility to keep momentum and make timely decisions to meet project timelines.
+Resource Utilization and Cost Awareness (01:31:00)
+
+Krishna highlights the importance of efficient resource use to avoid unnecessary costs and delays.
+Business team urged to provide clear, timely requirements and approvals to keep development focused.
+Documentation and Transparency (01:25:45)
+
+Shreyash to set up GitHub and share access for transparency of code and decisions.
+All API credentials, infrastructure setup, and technical decisions to be documented and communicated regularly.
+Action items
+Krishna
+Provide WhatsApp Business phone number and Meta business manager access credentials ASAP (01:17:00)
+Share ERP Next QA environment API access post coordination with ERP vendor expected by Tuesday or Wednesday (01:18:00)
+Confirm business team’s subscription decision on GST verification APIs from third-party providers (01:20:00)
+Share supplier onboarding field data required by business team after this meeting (14:55)
+Add key stakeholders Narendra, Swaroop, and Padmanajan to communication groups immediately (01:33:40)
+Support setup of payment gateway directly with CSB bank APIs (01:27:00)
+Ensure business team is responsive to development queries for timely decision-making (01:31:00)
+Shreyash Jain
+Prepare and share a detailed flow document including GST verification semi-automated process and supplier onboarding requirements (15:00)
+Assist in identifying vendors providing GST verification APIs and coordinate subscription details (01:19:00)
+Develop supplier onboarding with consent and declaration capturing functionality respecting language preferences (11:00)
+Implement configurable supplier evaluation timelines and tracking system (25:00)
+Build supplier portal features for querying transactions, raising and tracking inquiries, and receiving daily WhatsApp messages with navigation and help options (18:00)
+Design rate card and price negotiation workflows including supplier-specific markup configurations and area-wise pricing (29:00)
+Develop API interactions for purchase request creation and PO status integration between SSMP and ERP Next with status updates and error handling (38:00)
+Provide weekly updates and demos (live preferred) starting with 70% completion of wireframes by 24th (01:29:00)
+Set up GitHub and project transparency tools; maintain communication for all decisions and developments (01:26:00)
+Take responsibility for cloud infrastructure setup under free trial at first, estimate costs, and recommend hosting solution based on business input (01:22:00)
+Facilitate internal escalation mechanisms in SSMP for unresolved supplier queries and task reassignment by admin (01:04:00)
+Administrative Team / Business Team
+Provide onboarding form field requirements to development team after meeting (14:00)
+Engage actively in weekly reviews and provide prompt feedback on demos (01:30:00)
+Support and validate supplier evaluation questionnaire and onboarding consent content (13:00)
+Participate in decisions concerning subscription to third-party APIs and infrastructure hosting (01:19:00)
+
+-------- 
+
+
+Good morning. 
+Good morning. 
+Perfect. 
+Hello, Shayansh here. 
+Hello sir. 
+Good morning Krishna. Hello. All right, I think we are good to start. Let's not any further ado. Let's get rocking. 
+Yes. 
+Yes. 
+Would you like to share my screen? Yes. 
+Yes. So I think we can start with the document that you shared. 
+Okay. Trying to share my screen. 
+It. 
+Yep. Visible. 
+Hello. 
+Yeah, hello. 
+Okay, so I don't know whether this makes any sense or not. So from in terms of the three different applications that are required for us, ERP system is something where we typically pull and push the data from our apps and the backend components. The other one is the supplier web portal. So portal will have multiple actors in it. The administrators team, the procurement field team and probably suppliers as well. Right. And then the WhatsApp integration. So, so the basically supplier web portal will be called ssmp, right? SRI Chakra Supplier Management Program. So we can name our app like that and WhatsApp integration we calling just as Vova Wawa WhatsApp integration and web app because it does the both. 
+So you know, in our codes basically when we are naming the code component we can name in this fashion SSMP for web application ERP next will be ERP next for ERP WhatsApp integration we can call it Wawa kind of Vawa. Sounds like Vava. Okay. So basically the main purpose of this WhatsApp integration is to share the notifications and inquiries or any kind of a communication between to initiate. So basically if it is taking too much of you know, message passing between company and the supplier, we should be able to navigate our suppliers to web app from web app. They should be able to get the info that they need rather than, you know, too much of a message sharing in the WhatsApp. So that's why for communication medium not to complete a transaction in the WhatsApp. 
+And, and I mean that is not called out here. But language preference should be respected for the suppliers either in the web app or in the WhatsApp. That's what second line is all about now in terms of sequence of our activities. So the first and foremost, I think as a priority task the supplier onboarding each is the number one requirement wherein our field agents should be able to initiate a supplier onboarding at the customer, at the supplier premises or from anywhere they are if they have the details already in place, they should be able to do from their desk. So it has to be mobile friendly interface mainly built for mobile and it should be, you know, accessed in the web as well. Okay. 
+And first and foremost as part of the onboarding is to get the user's consent or the supplier's consent. And the consent format and consent terms and conditions will be shared by a business team. But we as a technical team should have a provision to ensure the supplier reads it and shares their confirmation via other based OTP kind of signing so that they approve that. I mean they provide that consent form. So the consent form is more exhaustive and elaborate which should take care of both why we are taking that information and all that. So anyway, the content wise is taken care by business team so we don't have to worry about. All we have to worry about is how do we take the consent and record that concept. Okay, that is very important. 
+And and then the declaration by field officer that yes, this is what is received, this is what is seen at the premise at the supplier premises and this information is accurate to the best of his or her knowledge. So that is the declaration by field officer after the consent and then you know next steps will go. The preliminary GST verification So is there any open APIs available for us to. Whenever a supplier gives their GST information, is it possible for us to go and check in the GST portal, the entity name the places of business, any other information like mobile number or email ID from the portal and verify against the data that they provide to see whether they match or not. If they do not match, field officers should be able to question it and probably get it corrected at the time itself. 
+So these are certain validations. If our tool can do as part of our onboarding process well and good. If not, I mean yeah, probably we are doing offline manual verification also. But if we can do a level of check, whatever is possible and at the time of onboarding itself that will be great. 
+So to answer it I have prepared a document prepared a document of required will be needing from your end in this I have added two, three things. So one you just now at the top named this a verification and then one you also told us about GS verification. So there is a portals from government known as GST Suvida provider and for those entities Clear Text or Master India. These are few companies that provide also. Right. So what my proposal would be that. Okay, am I audible? 
+Yes, yes you're audible. Please carry on. 
+Yeah, so my proposal will be there can be in the semi automated way. What we do is we when we are onboarding have a tag or a status that you know EST needs to be verified and a team from admin Portal manually, it can be verified. Second option is that, you know, if we can get the APIs from these third party, either clear Text or Master India, then we can automate it fully. Okay, so I will be helping you with the companies, you know, for which, you know, we can reach them and then get these APIs. Access, access. 
+Sure, sure. I mean it, I, I believe it is some subscription based access. 
+So we have based access. So number of times you hit the API. So let's say number of times we use the GST APIs, the paper use APIs. 
+All right, yeah, do let me know and let business take a call whether they're willing to subscribe to these services and. All right, so that's one. So yeah, I think Narendra will have to share the information as part of onboarding. What are the fields that you need to be captured? So accordingly, they will generate the onboarding form. So right after this call, please send an email with all the details. So I think our team will share the fields that we have to capture as part of our onboarding. So this will be supplied to you guys. Okay, so that is the one. So once supplier is onboarded, the next step is like this, like daily greeting Messages to via WhatsApp in whatever language that customer has opted for. 
+I mean, this is what I mean that we, during our preliminary discussions we thought this would be the right way to do it. It could change also, but keep that in mind. So we'll decide how the actual flow will start. But at this point in time what were thinking is because most of the supplier, if at all he or she needs an info, they will go to the portal login and then, you know, get the details that they want with regards to their transaction history or QC reports or whatever. However, as a practice, what we thought is we will send a greetings, you know, good morning greetings or welcome greetings every day in the morning just to get, just to initiate that touch point with the supplier. Okay. So as part of that message we will have two buttons or one. 
+Two, yeah, two options for the supplier. One is the, of course, navigate to portal so they can go to the portal. And we have plethora of options there, what they wants to do and then if at all they don't want to go to portal, but they have certain concern and they want a person to come to their premises and address or a person to reach out to them to address need not be always going there physically. So let's meet should actually Create a task for our sales executive. Every supplier will be tagged to our field office field procurement team. 
+And when supplier initiates let's meet message or let's meet request, a task should be created for our field officer with a view to the total procurement head also so that he can track whether the person you know addressed that suppliers query or not. So basically a task gets created for field officer and field officer will have to take action to address that particular query either by physically meeting or calling them or do whatever. I don't know what that is. And then they should be able to track that task to closure also. Right. So that flow also should be created in our supplier app. SSMP app. And lastly change language. If at all they're bored of talking in a particular language, they can change that language. 
+So these probably are three options I guess very, I mean is essential in that, you know, in the. In that welcome message, right? 
+Correct. 
+Okay. So that's our first task to get, I mean to get started with this whole project. Maybe the supplier onboarding is the first step. So once that is taken care and this initiation taken care, the next part is the supplier evaluation form that the task again is. Evaluation task should get automatically triggered as part of. I mean after onboarding, once the supplier code is created in erp next supplier evaluation task should be created and the questionnaire for that will be shared by our business team. Again, what are the questionnaires for owners? What are the questionnaires for employees? What are the questionnaires? So, so probably there will be two tasks. One for the employer, one for the worker for that supplier and against that field officer and supplier improvement plan. So eventually it will be automated. Shreyas. 
+But to begin with I think they are still conceiving what is the right way to do. So they wanted to do it manually. But I think we should design our solution in such a way that tomorrow if it gets automated, how do they associate actions depending upon the score that they get for each question? Say for example there is a first aid this thing and question and there are four options. The first option is say there is no first aid. So for if the score is one there what is the action plan and what kind of trick training is required or what kind of guidance is required. That's how I think SIP will be created that they will do it manually today. But I think we should structure whether we should be associate easily for this core. 
+This is the action that they have to do. So that's how our end product should look like. 
+So I think I'll need more understanding on this but maybe you know we can have other meeting for specific need. But. 
+All right. 
+Sure we can. 
+All right. Yeah. But yeah. So supplier improvement plan is outcome of the evaluation task by. By our field officer. Okay. That's the end product. 
+Just a quick addition here that every evaluation that we do there will be a sign off at both the parties. So there is a authentication of this evaluation form at both ends be it the person who is recording the data plus the person who is. Who is confirming the information to us. 
+Okay. 
+Which is. Which is like a record being kept that these are the data being shared. This was what they spoke and accepted. And that information also would go just like very similar to the onboarding of model that there will be an OTP based. This is the technically this is the actual SRI Chakra Supplier management program this part of it. So that's why this module can be still considered or taken as data which needs more authentication and also confirmation at both ends. And one important binding criteria also is that whenever the registration is happening the mobile numbers of registration, onboarding registration from should match with the GST information that is available including the email. 
+So based on this I think we need to have some kind of a tying with the information that is also being taken across that supplier for at a later date. 
+So in the process we'll have a validation and whatever data we get from that GST we have to like you know, put a tag that you know, verified with the phone number or not. 
+Very true. Yes. So on the supplier evaluation if you need more time we can definitely spend explain what needs to be done. 
+Okay. So that's the probably second step in the web app. Then the third one would be supplier web portal access. Right. So now we try to quick addition. 
+Again this entire supplier evaluation would go onto the app of the field officer first. So the information is recorded on an app on the mobile of the field officer. So the. 
+So it will be kind of two parts. One. One part will be that part where and one part where they are giving it will can be on the suppliers. 
+The supplier also can receive a PDF after. After the recording happens and the PDF gets signed by both the parties. So there's no main transaction. These questions need not show up in the supplier app anyway. 
+So he just gets the final report. Final PDF? 
+Yes, yes. After the entire recording is done. 
+Yeah. I think probably concept is that supplier by themselves do not have access to these questions and answers for editing or whatever or adding also they only get acknowledgment of what answers they have provided. 
+And that also before, after the sign up, right. Like when they will be authenticating, then they can start this process. And then after the process they will be getting the PDF after the process, whatever records were given by them. 
+Correct. But once they receive the PDF there should be an option for them to acknowledge that PDF that will be kind of sign off from them that yes, these answers I have given and I acknowledge these answers. 
+Okay, so that this will be kind of one time for each supplier or it can happen multiple times for each supplier. 
+This part it can be recurring, but one time at least for a year or while onboarding this is mandatory. Then there is a frequency of these questions being sent to the supplier again, but that can be driven through our field agent app. So the field agent would go whenever that is to be. 
+And how much distance, you know, in terms of the time we have from onboarding and evaluation. Let's say some onboarded. 
+How much time they should go together? Technically they should go together. Once the onboarding is done, the supplier evaluation also should be complete and his data should be available with us. 
+But I think his question is around, should we have a time to say, for example, if I am getting onboarded on February 1st evaluation. 
+I mean you should be open. We'll not close the queue for now. 
+Yeah, maybe in a one month time. 
+Yeah, we can set that time. Right now the queue should be pending. As in the field agent should. Should be shown that he has 10 evaluations pending under him who have been. 
+Onboarded and he should complete. 
+Yeah, just to have, I mean that. Can we make that configurable? Like basically we can say okay, after onboarding is completed, evaluation is pending. It could, it should be done by say 10 days. I mean initially we'll set it as 10 days or 30 days, whatever team decides. And tomorrow they say, oh no, 30 days is too much going forward, it should be one week. So they should be able to come and change it seven days. That way what happens is field officer is accountable to complete the task in timely manner. So let's make it configurable, let the team decide whatever time they would like to do it. 
+Correct. Also like, you know what I'll suggest is after a new supplier is onboarded, we can have a status for those particular new suppliers that evaluation or not. Because I think the first evaluation will be something that can be trackable. Right. And after that then they can, you know, manually, they can something, you know, they can have a button where they can say like you know, start a new evaluation. Something like. 
+Correct. Yeah, yeah. Maybe a counter also like how many times we have done this evaluation somewhere that also I mean maybe a child table will count, you know, count up those rows will tell us how many times we have done and what are. 
+The dates which we have the first evaluation. We can tag it like you know, this was the first evaluation. 
+Correct. Correct. Yeah, perfect. I think that that's good idea. All right. So once that is all done, you know evaluation is anyway parallel activity because see one thing to note here is Shreyas, whether he is evaluated or not, once they are onboarded and if they have the material that we can trade, we can do the business with the business transactions will go on. Right. So evaluation is only our requirement. It's not supplier obligation, it's our obligation. So our business transactions can initiate once he's, he or she is onboarded. Right. So that is the requirement. So now the web portal messages on a daily basis should go to the supplier once he is onboarded irrespective of SC status evaluation status. Okay. 
+Now I mean this is what I could when we could think of initially but material supplier menu options could vary but this is what it is basically every day morning I think it is admin of the SSMP module to update the rate cards on a daily basis. They will have some fixed time, maybe nine, between nine and 9:30 they will update on a daily basis. And after 9:30 whatever that day's rates are applicable will be showing up to the supplier screen like we discussed. Right. The material code, the rate cards should be product category wise and area wise also. So that logic should be inbuilt here. Accordingly the team should input the rates. So that part is still left open sir, like were talking about supplier specific rate also. Right. So had a deep discussion with Shreyas as well. 
+So, so I, I, I believe we are aligned on that idea. Right. We don't want to specify absolute numbers to supplier because it adds creates additional work for the admin. Instead of fixed value for supplier for example your rate is today 40 but for certain supplier you would like to give it leave up to 41. So instead of giving an absolute number as 41 at the supplier level we can actually give some kind of percentage. Yeah percentage or some number obsolete number. But that is only the markup number or the delta number one. So if you give 40 so if you give the value as one so up to 41 with the supplier. Your field officer can negotiate the price. 
+But If I'm giving 41 and all, it is additional work because each supplier you have to go and update on a daily basis. But if it's one, you can decide, okay, for this quarter, this is my leeway for the next quarter. Maybe I'll give up to 2 rupees. It's up to you. So you can change the frequency of updating the supplier. Weights will come down drastically if you go with this strategy instead of giving. 
+Absolute number to minimize this activity. I understand the manual we can do. Let's have a. The manual input of classic. We give a reference number. That reference number can still be played around across all suppliers and we'll do a initial configuring or maybe a week wise configuring for each supplier. On psala. Is it plus 0.5 or plus 0.25 or minus 0.2 personal use cases? 
+Correct. 
+We configure and keep it as a weekly basis. Or it can be dynamic also whatever we put in that should only be displayed to that guy for that. 
+Correct? Correct. So you can update it weekly, quarterly. It's up to you. But you know, at a point. 
+It can sometimes be. You can actually keep it as a day. Day wise requirement also for that day just in case we need some specific material from that supplier or we want to incentivize it. 
+So what we can do. 
+Level. Yeah, please go. 
+When you are setting a percentage now you can also set like tell what time it is applicable. Let's say it is applicable only for one day. It automatically after that day we jump to the like you know, whatever base price it came to. 
+Understood. So for us right now the model might not be a percentage basis thing because the market then you have too much of decimals to work on. So we can put an absolute number there and that number can be in passive or rupees. 
+Yeah. 
+So that can be kept open for the suppliers to be. To be changed here at the admin level. 
+Yeah. So some signed value. It could be decimal also and it could be plus or minus also. 
+So it will mean rupees, right? 
+Yeah. If I say and unit it could be 0.25 also. Yeah, correct. Rupees only and yeah, I think the. I think requirement wise. Clear. Right. So time bound. Time bound. Markup value for markup or down value for suppliers. That, that is region wise and product wise. 
+Correct? 
+Correct. 
+Okay. Yeah. Region wise. Here we can take it as you want. You want state level or city Level region specifically to have that also some control. 
+Right, then let's do it. So instead of putting it as a region, it's more of a supplier driven thing. So that showcases our. We'll bucket the suppliers based on the. 
+Regions that are that you will take care. 
+There is some punching happening internally on the value to be changed. 
+The only thing that you know, just take care about is when we have a particular data set for a supplier. Let's say we are collecting some data. So that point, whatever we data point we are calling it as area like you know, for that supplier we make sure at the time of onboarding we have those data points. 
+You mean the geography or the tagging that you are doing for that supply, right? 
+That. 
+Yes, yes. We are referring those data points in these. 
+So the. Okay, just to clarify here the great card when we mentioned it as area specific. It is, it is for a particular geography of that sub of that area that we are trying to work with in the pre segregation centers. Let's say there are three centers in Hyderabad. Amongst the three centers there might be one area which might be slightly lower depending on the demand in that area and then there might be another area where the demand is high. So we would like to have that kind of a comparison in terms of rate card display. 
+Okay. 
+Okay. 
+Okay. But a supplier is also linked to an area, right? A supplier. 
+Yes, yes, that is very clear. On day one he's mapped to a particular pre segregation center and he's also mapped to a particular supplier. Onboarding field agent. 
+Correct. 
+So there are two mappings that happen. 
+Okay. 
+One, one to the hub or the center which we are trying to create. And number two, there is also a person mapping. So for you again I'm. I'm trying to simplify this task. This, the area specific thing can still be bucketed as part of the geography when we do the onboarding. So we will use it that way as in we pull out the information that and put those rates there. 
+Okay. Is it clear? 
+Yes, yes. 
+Okay. So yeah moving on the menu options is what rate card and from the rate card the you know the quotes and all will start. See I mean we don't have to what you call have multiple transactions for completing the pivot release process. So initially say for example a pet clear bottle cost they might have shared our price is 40 and for whatever reason customer is not as a supplier is not willing to you know select that price. They can mention 40 point, you know 10 or whatever. And share the code so and then that code should be visible to our field officer and he can call up the supplier and negotiate the price, right? Maybe in the end they may, they may supply at our published price itself. So. But. But sharing code initially can be. 
+Can be provisioned in the screen and rest of the conversation can go. Can happen offline. But if the shared code itself is happy with the cost with our field officer team, he should have an option to generate the PO for the code or generate the pr. We need PR first, right? Purchase request is first, right? So the from the code the sales engineer say sorry, Field officer should be able to create the PR in ERP Next from this from our SSMP page itself. Basically we will have an API call to ERP Next to create the pr and once in the ERP Next it will follow its own process PRPO and then release the PO gets released from ERPnext to supplier directly. Maybe SSMP need not share it. ERP Next can also directly communicate that WhatsApp. 
+This is where I think we have to decide should we go should we have it through SSMP itself so that we have complete history of messages that we shared via WhatsApp or can ERP Next push the data directly also at. 
+Times what will be the Ideally what I would suggest is that SMPP because it's an independent system, it should have its own whole database and it should know the whole story, right? So whatever data needs to be like that is coming from ERP Next that you know, what we can do is like if that data is just for the sake for communication, then it's fine find that we will not save it. If that data needs to be used somewhere or in the SMMPP app, we need something for reporting, then we should also save that data. 
+So in this case the document PO submission whenever it because it gets created in ERP Next and the idea I mean ideal way to complete I inform this detail to supplier is to send this notification then and there, right? Or it will be two way hop. ERP Next will send it to SSMP and then send it to supplier to avoid this hop. What we can do is ERP can next can directly send the pivot details to the supplier and at the same time ERP Next can also invoke some API in the SSMP just to record the entry that against the supplier the SOAPBO is created. And here are the details. So tomorrow if SSMP has to query anything against the I know for the supplier in the ERP Next they can leverage this P.O. 
+I will basically have a better model. Like you know the reason I am saying I'll just quickly share my screen. Okay, so is my screen visible? So you know what I should happen? Is this there. 
+Not visible yet? Yeah, now it is. 
+Okay, so this is rsmp, this is ERP Next. 
+Ssmp. 
+It's SSMP SS. 
+And this is ERP next. What happens is that if there is a use case supplier who is here so this person. So whenever they request for like you know, whenever there is a request from the field officer for generating a po. So it will. It should ideally because everything that is being connected with SSMP and the RR apps currently, there are two apps that are currently connected and this is the backend. I will say. So backend is connected to multiple portals. It's connected to the web app also and as well as the mobile app also. Right. So backend is common. Backend is not two different backends. It is the same. Right now it will also update the ERP next. And this will now have the ledger. This will have the ledger. 
+And because the main functionalities are with the backend for communication, this will then communicate to the supplier. So this should be the process. So this is a field officer or field. 
+So I think the flow is logical. There's a quick question that I have sh the supplier. The communication or the conversation is happening between the supplier and the field agent at this spot or at the time of finalizing the order. Let there be a initiation from the supplier saying that this is my final price and that the field agent would push into the SSNP group. So which means there is a grail of the court. The court is accepted or moving moved ahead by the SA field agent into the SSMP and that goes into ERP next for preparation of the po. 
+Correct. 
+So once the PO is done, there can be two ways. Again this is the thought that we have. One is for a record that we want to create even in the ERP next on communication to the vendor, we will email trans email of the PO to the registered mail ID of that candidate. The rest of the information, the same PDF of the PO can come back to SSNP and from there the communication goes to somewhere. So it's like a two. Two modes of communication. One, direct email from the ERP next out to his email id, the registered email ID and two, going back into the web app. Web app or the WhatsApp. 
+And this registered email id is of the supplier? Yes, because that again goes back into. 
+Our the GST link. 
+Okay, so I just want to understand like why we want ERP next to send this email. 
+It's more about creating that record of POs being generated by European Next and sending it to the email id. However, the SSMD right now is not interacting with his email any which way now in this model. So we want an official record also to go back into this, okay, into. 
+His email so that we can also track a communication of emails with that supplier. 
+More towards the audit perspective because there might also be somebody who might say that oh, you are sending it to WhatsApp. We don't know what's happening in WhatsApp, whether that is cracked or not. But here there is an official record going into his email, then there is a communication happening on WhatsApp. 
+Internal. 
+To. 
+Send WhatsApp as well as emails. 
+So we can do that. Anything on ssmp there might be a question somebody might ask that, look, your ERP is not talking to a supplier and then you put a layer in between and there is some tweaking that you might be doing or on the internal auditor's perspective, we want the ERP to directly talk to them at least at one place. 
+Okay. 
+No, I mean sir, that is legally not required. So why sayas I was thinking on those lines is that ERB next can send the notifications to supplier. Is the timing right? For example, now ERPnext creates a PO, say at 10:00am in the morning, right now, the moment it is created, if ERPnext sends either a WhatsApp or email to the end supplier. So it probably takes in one minute or two minutes. Within two minutes customer supplier knows and he starts working on the shipment because at times what happens is with our field officer, he knows everything is ready with the supplier, he asked them to prepare, you know, load the material and all. By the time you load the material, you will get the P. It has to be very instantaneous. 
+So at that point in time I was not sure whether if ERPnext sends the PO details to SSMP and then SSMP sends details to the supplier, if there is any communication failure or whatever, the supplier may not get the PO right in time. That is what if we can avoid that hop, it will better in terms of ensuring business runs without any issue. 
+I, I totally I now I'm understanding the whole picture. My but what I'll suggest is because this SS MP app will be the interface for that particular field officer also who is trying to generate the po. So if so internally the communication that happens between SSMP backend and the ERP next will be via APIs. Right? So the how the APIs behave is they will be atomic in nature. Like you know, if the API says that, you know, if everything has been done correctly, the ledger has been created, only then we will be able to push the notification on WhatsApp or email. Right? And if it says something went wrong, then we will show the field officer also, you know, something went wrong. Please try again. And this process of will be like, you know, like, you know, spontaneous. 
+Like it will not be something like, you know, after one minute it is giving this. So the reason I'm saying is it will be very intuitive for the field person who is basically generating the PO that you know, if it got succeed or fail, right? 
+Okay, correct. So what you're saying is the po, the format of the PO and everything will be done at SSMP backend level, even the form layout and all that. 
+No, no. So what I'm saying is as soon as this field visitor requests appear, it will go to the ssmp because this is the app, mobile app for this field officer, right? And then as soon as this request comes to our backend, we will send this request to the ERP next where we will be expecting the ERP next to record the ledger. And if it records the ledger successfully, it will respond to our portal back. That's saying that you know, the record has been created successfully. And because like, you know, this is a very helpful response because if something was bad or some issue was created, then we can also get a response of error so that we can like, you know, cancel the whole process here itself. 
+This is clear because PO gets created in ERP next based on your first request. 
+Yes. 
+However, the PO will not be readily available for transaction unless it costs completes its approval life cycle. So there could be one or two levels of approval life cycle wherein depending upon the transaction amount of the PO, if it is less than 1 lakh, there is one process, if it is greater than 1 lakh, and I'm just giving an example, there could be another. And it could mean it may take say half an hour to one hour for the whole process to complete. Now and sometimes there will be the primary person is approved, not approved, available, so they will call up secondary approval whatever. It takes some time for the ERP next to create the po and only the approved PO should be shared with the supplier. 
+This was something that was missing on mind. So now because you know, in such case, even we can't then send the communication to the supplier because then we would want to and like, you know, get a request again from the ERP next to our portal saying that this PO is not successfully approved or generated. 
+Huh. So that's what I'm trying to say is as soon as the PO gets created and approved in ERP next, it sends out an email notification like what Sarup was suggesting earlier. It will send out a PO to email ID of supplier and also the email ID of field officer. So they both will receive that PO is created. Now the PO details are sent back to ssmp, the number itself. Right. So once the PO number is submitted back to ssmp can actually fetch that PDF, right? Could be to any from an email. Maybe we can send 1 33rd email ID with some, you know, predetermined subject line and all with attachment. That attachment can be fetched and stored in the SSMP also for WhatsApp communication later on. 
+Correct, Correct. Correct, Correct. Now, now this is I think more, much better because you know, the first understanding is getting to the ERP next and they should be the first person to send the email. Correct? 
+Yeah. So later on, I mean SSMP definitely needs the PO number. No doubt about that. We all agree on that. Just because for tomorrow to query anything on anything in the ERP next against that po, this PO number is useful. So SSM store whatever pos are created against that supplier for that material. That should be maintained as a small mini database in ssmp. I agree. 
+I think this totally makes sense. Just quickly take a screenshot also and post in the group. Please continue. 
+Yeah, sure. 
+There might be one scenario, Shayan, that you just mentioned on if a PO request has gone and there is a. One is acceptance of the PO and then the PO is being released. Number two is there might be an issue where the PO cannot be accepted for varied reasons. Be the price or be the one volume quantity or anything. Can that communication also go back to both the. At least the field agent first. But look in this request, these things are not approved. I'm not going to get approved. Yes, he reworks on it and then sends a fresh approval. 
+Yes, is the validation part I think we can keep at our end. 
+So the point that I'm making is if the field agent is sending his request once, it doesn't mean that it goes through the complete approval process and comes back. There can be a back and forth where the PO can get rejected, PO can get amended or PO can. The value can still happen at the approval phase. 
+Yeah. So whatever finally happens at least like you know, we should have a update on our end also that is ssmpn. So that. So we can also have in the ledger in future if something. Some. Some previous orders or request he needs to crack or something like. 
+Like. 
+Yes, yes. Yeah, that's it. 
+So I think should I add this update this what you call flow here or is it okay? 
+No, no. So after this meeting we will be sharing our detailed flow or discussion points that we are discussing. We will be adding those points also. 
+Perfect. I'm still sharing my screen, right? You can see my screen visible. 
+Visible. 
+Okay, perfect. The next, all these options should be available for suppliers for you know, fetch any detail that they want through some filter criteria. Right. You know, they can give P1 number or they can give you know, dates or PO or against some invoice number. They should be able to fetch this data. And I know for the reference, for whatever reasons. Okay. And I mean this is all about querying their, you know, their past transactions with us. First two are for initiating a new transaction interest followed by querying, you know, the history. The last one is about raising the inquiry or I mean raise dispute. I felt little bit negative. Hence, you know, inquiry or raise a question or raise a query, you know, whatever, something like that. 
+A provision for them to, you know, raise some query should you give a, you know, time for any past history. Like for example, debit note is generated at say on 1st of February. They cannot raise a query against that on March 1st. Right. 
+One month after one month that can be predefined. We can fix it. 
+We can fix it. 
+Anything, any transaction. Maybe we give a week's time. That also will put it as a condition in the PO saying that any inquiry or query regarding the quality or reports that come from us, it has a dining and thorough one. 
+Okay. Okay. So I think shares in this case, right? So for example QC reports, debit notes. Yeah, these are the ones which will have transaction. I mean we should have time bound, concern, reasoning, raising window for other things. It's okay. Raised inquiry in general they can raise anything. But against the debit note or against QC report or against payment advice that should be dealt within pre configured timeline that we decide within one week only they should. After one week they can simply say sorry Baba. 
+So like you know, these options that are coming, let's say there was a QC report so we can decide what options are there for how many days for them. And after that we can Just remove the those options that are coming for them. 
+Makes sense, you can do that. But then maybe there might be as a condition we'll put it in the PO that any kind of inquiry can be fixed within this timeline still, that can still be valid and then we can go and close it. 
+That's part of our consent form also. So we will add that line of item. But yeah, technically what you said is right. Option only for the time period and beyond that option will be removed. 
+Also we need to discuss for these options that we will be adding like you know, what will be the whole flow and what boundary conditions then it can have. Because I think these needs to be specifically discussed. Let's say for example a QC report or some inquiries generated from the suppliers and then what are the possibilities, what options they will get? And we need to think about those also, right? 
+Generally, I mean if we give more options then it will be endless. With our QC reports, my suggestion is let's give a free form text for them to, you know, raise that query. Say for example, generally QC report will say moisture example. I'm just saying one example moisture content is out of five tons that they supplied maybe one ton. Is moisture a very random example. So that they say no, this we don't agree. So. And we cannot give a very customized report in this case, you know, grace query against each line item. Because tomorrow if there is any addition to that QC report, there will be cascading effect on multiple forms like this we create which is to. So if to implement a change, it takes more time. 
+Correct. Now let's say if that query comes to us on overall QC report query comes just like you know, you mentioned. Let's say there is a dispute or there is an inquiry on that QC report, then what are the possibilities on our end that we can. 
+That I think our team can help like what type of queries they can rise and what options they should have to raise the query and how should we. How should it be notified to our field team and procurement team that I think you should. We should design. 
+Sir, one thing that we can do is if it's a. There is a specific question when we are talking about raising query and we are saying that if I am the supplier and I have an issue in my QC report that can still be taken offline instead of putting it there as each number because he wants to fight on each option if given correct. So he has issue on QC report and then he says that I have been deducted X value which should not be X It should be some other number so that negotiation can happen and the query can be closed once we do that. So let it be a free flow text on saying that I want confirmation on this. Let him write whatever he wants and there can be field agent who can assist him doing that. 
+Because right now we also expect that even if you give them that buildup of this thing, those guys still need some support in terms of managing those queries. So the kind of level of application usage that our suppliers might have instead of detailing, let it be a free flow test. Allow them to raise a query and that query to be resolved. Both are recorded at our place so that we. We also have this for future information that all queries raised or resolved. Something like that. 
+So let's take this approach Shreya. So let's not complicate this item. So if QC against qc there could be one form for raising the query and query is very straightforward one remarks are one concern field and then race query. This raised query will create a task for field officer, associated field officer for sure and with a view to the admin also basically capturing the thread of conversation on the query. And at the end of the day it should be tracked to closer else it should be shown as an open to do item for a field officer his or her responsibility to take it to closure. We will only track the updates on this particular query in the form of comments, correct? Okay, that. I mean it's should be like an email. 
+Yeah, comments and then status also where we are having resolved or still in progress. Something like that. 
+Absolutely. Yeah. So if at all, I mean we can also say who is the owner of that. 
+So for example status is where are you? 
+Status is in progress. Who is the owner for this? Is it supplier or field officer? 
+100%. 
+So that takes care of the supplier menu options. Then we'll come to the admin view which is anyway parallel view. 
+These things should be put on. Take it up this Apply audit calendar and SID 100 please take it into the other group. Oh it should not come in the supplier transaction flow. This is purely a audit flow. 
+Okay. Okay. So this is another that we talked about, right? Regular audit this thing. And according. I mean the input here is that we should take it under circular evaluation only. Calendar also should be part of. Should be part of evaluation phase audit calendar. All that will come there. Yeah. I mean basically how frequently should we audit a particular supplier? What are the audit checklists? No, those. We should be able to publish it and help our field officers to. To track those audit Here one point to note is the supplier audit is not conducted by the same field officer who is associated to the supplier. So audit who should conduct the audit should be will be assigned by the admin. 
+So basically the admin will take care whether you know whether X does it for Y or Y does it for X. So that kind of mapping will be done by the administrator. So here we just only have to provision that supplier for suppliers audit calendar should be published and who conducts this audit and it should not be defaulted to the same supplier. And if by mistake if he selects the same supplier who is mapped to the supplier we should send a. We should prompt the vent mill. He actually the owner of the supplier goals account manager for the supplier. So please choose some other supplier so. 
+That you can override that. We can still overwrite but then let there be a problem. 
+Oh okay. Yeah. So basically yeah we can do the. 
+Repeat of the same thing through the same supplier same field agent. This has to go into that. 
+No no but it the admin this is to publish the admin calendar from the admin view. Once it publishes field manager supply I mean field officer will have it in their view that yeah now I have to conduct an audit for so and so supplier. This is the admin view to publish this calendar. This is part of admins activity admins role. Rather this is only to determine what audits you will come. So it could be one audit assigned to multiple suppliers. 
+And also one field with one field officer will be there for them. You know one too many can happen for field team also. 
+Yes one too many can happen once. One field officer can be account manager for multiple suppliers but one supplier will. 
+Have only one field officer. That's very clear. It's a one one. 
+What if person goes only. 
+There'S an assignment option. 
+You can temporarily reassign to somebody. 
+Admin should have the rights to reassign. 
+But only one at any point in. 
+Time only anything leaving out you map those to the new fellow. 
+No, leaving out is fine but temporarily I will have on a vacation for one week. 
+We can have somebody else for one week. 
+Okay. 
+Or somebody next level possibility suppliers. The FS immediate boss can still work on it. 
+So yeah. So a daily rate updates and all in the admin view will be managed by supplier. And there is one plastic wall appraisal. This is like our gold and silver script prices. It will be published by somebody in Gujarat. They have an app called plastic walla. They will have product wise rates and also area wise rates. In the, in the, in that app at this point in time, there is no interface for that app to connect offline and get the data. I mean to connect via APIs or do, you know, screen scraping and all. We cannot do so. So we should have an input screen for somebody from the admin team to input those values while we are publishing the rate cards. So against that rate card they should be also able to input the plastic collapse. 
+Okay. 
+That is all correct. Supplier calendar we discussed SAP monitoring. We will discuss in detail later. So let's not worry about it now. Supplier request tracking. Oh, so basically this is what. So whatever raising queries or whatever supplier raises concerns. Right. So those should, the admin should be able to track those suppliers against each field officer. Okay. And for example, if field officer is not available or it is taking more time, the admin team should be able to take action to reassign that supplier or reassign that query to someone else too. 
+And then this reassignment can happen for not just, but it can also for. Happen for onboarding also. Right? 
+Onboarding also. It can happen basically anything that we can categorize as a task in the ssmp. Of course a task has to be. I mean most of the tasks are owned by field officers for sure. Like more than 90% of whatever gets created in the SSMP. As a task, the field officer is the owner, admin is the monitor. Right. So field officer, for whatever reason, if he or she not doing good job or not available or has to be reassigned, admin should be able to reassign those tasks. It could be anything. Could be sc, could be onboarding activity, could be inquiry, you know, could be account manager for that supplier itself. So admin should have the control of reassignment. Reassignment at any point in time. 
+Okay. 
+So reassignment does not mean that the past tasks should be reassigned to them. That, that should be. We, we will not delete any users from the system. Right. So the completed and done cases should always have that past history. The new ones from now on are the ongoing ones will have the new IDs. Right? I mean that is given, isn't it? Okay, so this is, I mean at this point in time, that's what I can foresee for admin could be many also when they should be able to view reports and. All right, like last time you have shown the reports in the admin portal, those I think will anyway be visible for admin view. Correct. 
+So we'll try to, you know what, from our end also we can Provide as a data point to them. 
+Correct. And in the field offices apps portal, of course, these are the activities that they will have. So that's what I was mentioning. Push to ERP for approval workflow. Once that is done, PO details will be shared with our SSMP module and from there you can track the shipments. Right. So SSMP module may say in the WhatsApp or they come to the SSMP portal the supplier and say they have initiated the shipment. So once that initiation happens, I think we should define that workflow. So they should be able to, you know, share some documents with our field officer. Field officer uploads it or. 
+If it is given to the supplier for initiation. If the supplier push everything, the field offer only has the option to preview, check and then verify and get them uploaded again if needed. 
+Okay. 
+So that flow can move. If the supplier is initiating a transaction, we can train them. 
+Okay. For anybody. Not. Not everybody can do this right now. 
+What we discussed the tool was purely for our current need of here this can actually go because supplier is aware that when he's actually pushing the vehicle out, let him take the pictures of the vehicle, the GPS photo. 
+But not every can everybody do that. 
+Somebody else doing on behalf of supplier today at his end. So we want that to happen Currently, even today the supplier is sending us these GPS pictures and then all that to somebody in his team. The same thing we ask him to open this app and then put it here. 
+No, because you see, with our field offices only there is a pushback. It should be easy for me to because today they are very con. It's very convenient to send it to the invo team just via WhatsApp. 
+And But BSC does not have any inward team model also it is just that they have to confirm the ones. 
+It's not about inverting. It's about the same questions that your team is raising today. The supplier also will raise the same. 
+Can be this or something else. Now don't assume that this is the same team. 
+No, I'm not assuming. At the end of the day, What I'm saying is at the end of the day you should not say this flow is curtailing my activities. That should not be. 
+The player will do his job when he's initiating. The supplier is aware that he's supposed to send his material whatever is needed from the supplier. The field agent still will support the supplier if needed. 
+So actually what's happening sh is just to summarize our discussion here. So currently there are certain documents that are mandatory for a supplier to provide to Sri Chakra before they initiate the shipment. The documents are like Eway Bill, invoice build to invoice, Eway bill, LR copy or RC copy. You know, something like that. So there are certain five to six documents that needs to be shared with us before initiating the document, else it will not be allowed at the gate. Right. So we internally have built some application to take care of it. I will run through that application offline with you so that in our SSMP module also we should be able to build that interface for suppliers to upload the documents by themselves going forward currently. 
+So yes, I just asking this question currently how it happens like who uploads it documents? 
+Yeah, currently our field officers will actually are uploading it. I mean this is being done at this point in time in this week. It will be rolled out just to ease out our operations at the gate to ensure all documents are in place before they takes the vehicle. So there's a lot of, a bit of friction is happening between invert teams and our sub field officers and shipment or suppliers that documents are not shared in time. So so to avoid that we are coming up with this process wherein field officers will procure the documents from the suppliers and upload by themselves into this application. Okay. And we will generate a QR code and the QR code will be shared to the driver. 
+So driver of the truck and the driver of the truck, when he comes to our premises will share that code to our security team and security team with the app again that we have developed the app, they when they scan the QR code, all the details of that shipment will be notified to them including the documents. Right. GPS tag photos and all that will be shown. And if all documents in place are security basically at the gate will record the entry of that vehicle, entry not reporting time of that vehicle so that the rest of the process can go on. But with the SSMP module it will not be the field officers, although field officers will work with our suppliers to upload these documents. 
+But at the end of the day it is supplier's responsibility to directly access our supplier interface in SSMP app to upload those documents themselves. 
+On the gate. What what will be used currently? Like what use case will be used on our end? 
+So at our gate also we will have a QR based access. So in fact we built some kind of, it's not, I mean some kind of security to that QR code. Like if a QR code is generated, I cannot scan that QR code by Myself there is some security API code is linked to this, each QR code. And only our suppliers can actually. Sorry, our security people only can scan the code, not any image, not anybody can scan the code. 
+For security. Also we need to create a use case for them. Right? 
+Yeah. Basically an interface for them to take the. I mean make an entry of the vehicle's arrival. Okay. Yeah. So basically the whatever code that we generate as part of our track shipments module that should be tracked by our invert team, other security to record the entry of that vehicle. 
+So we call them security team, right? 
+Correct. 
+Okay. 
+Yeah. So we, I mean basically a person who is managing the truck movement at the center. So they should be able. And here it's not one security team because we will have. We are going to have multiple segregation centers. So there will be multiple security teams, you know, operating from different level. Of course it will be the same logic. I'm just giving you this information. So it is not one. There will be more than 15, 20 by the end of the year across the country. That's the plan. So there will be a separate security centers for each. For each plant. 
+Okay. 
+Okay. So yeah, inquiries. Because inquiries or queries, whatever they are, the field officers are the owners. They should have a screen to take them take each of these inquiries to closers. And also some kind of escalation mechanism. Also for issues with supplier. This is internal escalation, not supplier escalation. Whatever reason, if supplier is not happy with field officers inputs or a conversation, they can internally escalate the inquiry through the boss so that from his end he can actually say what I did whatever I can. And now it is in manager's response manager's pocket to take care of it. So at least you know, if that. If this option is not there and most of the tasks will be at field officers level only. And he will not know what to do because supplier is not budging. 
+So escalation mechanism is required for internal escalation of supplier issues. So yeah. So then yeah, this is generic for most of the modules. So wherever consents are required, declarations are required, all that. You know, we need other based OTP sign offs and declarations. So yeah, and rest is all only generic comments. Nothing, nothing. Nothing related to the process flow. But yeah, I think this should give us some starting point, right? 
+Correct. Correct. So there are a lot of things. And we also have given a. Like, you know, I was. I went through this yesterday, day before yesterday when you shared. So based on that I have also created one more Important requirement, the technical requirement sheet. So if you can just quickly go on the WhatsApp and open the document that I've shared. 
+I. No, my WhatsApp is not on my laptop. 
+I. I'll send your email also. 
+Yeah, yeah, that would help. I'm. I hurriedly rushed to this meeting room. I am not carrying my phone also sorry. 
+I've send you emails. So this basically is more like you know on the API part and what all accesses we will be. So API this is communicated with your WhatsApp business. 
+Okay. So you just need a phone number. Right. 
+And. And meta business manager access the access to configure the apps. 
+Okay. Okay. These are readily available. I will provide it today or tomorrow. Max. So I just need to find time to work with my team member. Yeah, this is done. We can take care of it. WhatsApp is already created. I just need to activate it temporarily with providing my CC details just to get that free. I think there are some thousand to two thousand messages that we can share initially. Right? 
+Thousand messages. 
+Yeah, thousand. Yeah, yeah. That, that. That is pending. I just have to provide my cg otherwise we are good there. ERP Next access. This we need to figure out here. This is where we are currently running into some issues. Yeah, I will also try to share this at the earliest. 
+ERP integration connected to ERP next. 
+Correct, correct. I agree. I mean because we are trying to move the development instance to our QA servers. So it will be appropriate for you for me to share the QA access rather than the development access. So that is the. That is a dependency today. So. And unfortunately the. In fact I had planned this activity last Saturday with my ERP Next vendor and he was unavailable. And he says he'll be back home only on Tuesday tomorrow. So we will connect on tomorrow and hopefully if things go as per the plan, I should be able to, you know, get the QA API. I mean provide the API access for our QA environment. So this will be taken care by. By tomorrow or if not no later than day after tomorrow. Max. 
+The NP third part was SD verification API. So this was at the time of when we are supply validating supplier. So this. As I told you there are some companies Clear text or these three, four companies are there. They readily provide these APIs. So if. If your business team or the team looks about this can help us in this. It will be helpful. 
+Do we have API subscription to any of these? Okay. I think it is required going forward. Right. See for example in ERP Next Shreyas currently what is doing is we have not taken any subscription per se. But then we provide our GST number, right. Automatically it fetches the company name, places of business, I guess few details like that and presents it already. 
+You don't need a subscription Krishna. For these vendors they have a per paper usage. So maybe your vendor would have subscribed those would have account on some. 
+Portal. 
+And charges, you know, the charges are very cheap on these. 
+Okay, okay. No, I don't know about these charges. I mean he never brought it up that this thing exists. I thought he was using some open API just to get the. 
+If he's using something now. So you. He can also suggest this like you know what currently he is using. Then we can use that also. 
+Okay, we'll figure that we'll ask you know, how is he doing it? Okay, yeah. Otherwise also if, I mean if There are any APIs who give, who could give us with more information, we will subscribe to that. That's not a problem. Then comes other verification. So this is another subscription. Dgo, Zoop and Super. 
+So these are the providers that basically work. So generally now these government agencies, they don't give everyone the access. They give these like you know, middlemen, these access and then we as a business have to rely on these. This, this we will take care of. So like you know, this is. We will get an account and you don't need anything. So this fifth part I think you don't need. And for the six part I need your approval. Like you know, should we create on our end or like you know what should be way ahead first. 
+So what will be the requirements of this cloud infrastructure like. 
+Ssmp, portal, backend the database, the im, the storing of the images and all. So this is a AWS account. Like you know that like Amazon is a one of the provider. Google Cloud is one of the providers. So if you have anything, any access currently that you guys suggest to us, we can take as I will be creating on my behalf. 
+No, no, but what will be the charges for this infrastructure? 
+Like so for running the back end and like you know for the database. I like, you know initially when we have a new account for few months they give us free but after that it will basically a database and a server for like you know our use case having around 500 users. So it will be around 500, 5,000 to 10,000 per month. This will be the like you know, amount of monthly charges that we will have to give them. 
+No, that, that for 500 users is it Number of users or number of transactions per. 
+It is basically, it's. It's a computer. So we are taking a computer from them and we will be like, you know, just turning on that computer and we will be hosting. So it's kind of. You are purchasing a computing power from these companies. So and these computing power, let's say we have a computer like you know, 4gb ram, 16gb ram. So like that we will be having our computer and then it will be running our back end there like that. So. 
+No, no, that I understand. But the charges will be based on, you know, them, the number of bytes upload and download or how is it. 
+So it. They have per hour charges for keeping that computer active. So something like that. So we'll have to give permission. 
+So it's like 247 operation. There is no. It's not like fixed up time and downtime. It's it. The business runs 24,7 here. 
+Correct, correct. So we will have to. Yeah, we will have to give permanent charges to them. 
+Yes, yes. So the permanent charges you are saying it will not. It will be around 5,000 to 10,000 per month. 
+Yes. 
+First few months, generally they give free for six, three to six months and after that it will start like that. 
+Okay. Okay. I think to begin, let's go with this free time of what leverage the free period. Meanwhile we can have this offline conversation with us because I mean we, at the end of the day we have to. Because we love to be conscious of the cost also because this five thousand and ten thousand, whatever that number is at the end of the day goes into the procurement cost of this material. So there is a lot of business economics that we have to consider. I. Let's. I mean let's leverage the free time period for now because three to six months is good enough for us to come to some shape. In the next one month or so we will decide and whether to host it in house on prem solution or is it going to be a web vm? We will decide. Okay. 
+Okay. For now I'll be creating these accounts on my end. 
+Right. 
+And then we will. We can start from there. 
+Yeah, yeah. But please ensure that whatever we talked about on the IP part. Okay. 
+In this week we will be setting up the GitHub accounts and we will be giving the access and also we will be trying to communicate whatever decisions we are taking on our end so that it is transparent to you also. Like you know, anytime you want to see what is happening or it should be accessible to you also. 
+Okay. Yeah, and the payment gateway part, see we have bank which does this operations directly. So the CSB bank, I think our FN team discussed with them and they say, you know initially there is certain setup charges and post that it is, I mean any number of transactions, it's free of cost. So we can leverage that. Right. Instead of these third party providers like Razorpay etc. 
+Sorry, can you repeat the last line again? 
+I mean instead of Razorpay or Cash Free or any other third party we can directly have. 
+Only thing that we need to have is like they should have API support. 
+Yes. The bank that we are dealing with today has the API access. We should be able to work on those lines and let's set up one demo account initially and start working with this. 
+Yes. So like in these kind of cases, Krishna, you will have. Your team will have to help us set up these things wherever we need help. 
+Absolutely, absolutely. 
+So I think on the point of 5 and 6 we will take care of those. But other points like you know we will be expecting a response From. 
+I will WhatsApp. I should be able to share by today and tomorrow next give me time till Wednesday GST verification. We will inquire other also we'll have to inquire id I need to read about these providers and see what their costs are. Cloud infrastructure, payment gateway also. Yes, yeah, understood. I mean I understand what's on my plate. Okay, so what's the next step? I think if. Is it clear? 
+Yes. So like you know, I have a lot of understanding but like you know there are few things that I need to take care because I have, I did like you know we did some planning for this month. There are few things that you know that came up in these meetings and we did not keep them. So I'll just reiterate over our planning and then we'll communicate to you like you know what we have planned for this month. Okay. 
+But can we have a weekly touch point at least? 
+Planning that we are doing is basically just for the sake for our team to have a goal of what we are aiming for. But we will have regular meetings weekly also we will try whenever you have time or if you want because when we are working we will have a lot of questions to ask. We'll have a lot of things to discuss. Right. So we will be very like, you know, very in terms of whatever we'll need help. We will be messaging you and we'll be asking for such meetings. And in terms of like we have also shared how we generally work so on each Monday you will get a weekly update on what team is working on and then on each Saturday we will. Or on the next Monday you will get update on what was the update for the last week. 
+What we reason if there are anything for us to show you as a demo, we will be sharing a video of that or we'll be asking for review on. On weekends. Like that. 
+Yeah, yeah. So yeah, that, that is fine. No, yeah. All I'm requesting is weekly connects for the team to see what is shaping up right now in terms of demo. Instead of videos, let's have a live demo that they can quickly share the feedback. 
+Yes, yes. 100. So I think I'll be sharing. So give us few more hours. I'll be updating the require or the planning based on this meeting also. And we. I will be updating you for what we have planned for the first. First. Okay. 
+Okay. So one quick request here, shreya. So on 24th there is some review that is happening internally for the just on the app how it is shaping up. So I, I know nothing. I mean it's. It's not possible to have the actual application screens ready, but can we have the wireframes ready by 24 just to show. 
+Yes, that is already in the agenda for this week. We will be like, you know, will be at least not 100, but at least 70% of the screens I'll be able to provide by 24. 
+Yes, should be fine. Great. Thank you so much. Yeah, thanks. All right. Yeah. So let's. I mean gener. General declaration to my business team also to myself also and to say ass team also. So the. Please, please be very, very responsive to the requests that are coming from Shayas's team because unless we support they will not be able to develop the applications. Right. 
+It's like resources and they will be sitting and because you know, you already. We have already allocated these resources and we don't want to waste their time. Right. That is really important for you as well as for us. 
+Yeah. So they don't want to waste their time and we also don't want to pay them more because the more they take, we have to pay more them more. So it's not good for both parties and it's very important to keep us motivated in this initiative. We have to make decisions. We cannot keep on saying we will do it later because at some point we have to decide and move on. So whatever makes sensible at that point in time, please convey that to the technical team if there is any query raised so that we can move positively towards it. So changes will be there. When change is important then we will do the necessary changes. But for us to make progress day by day it is very important that we all have to be very responsive immediately. 
+If somebody does not see it, call the other person and check the status and update to the technical team. Unless we do that, you know we will be, we struggle a lot later on because we are chasing the timeline here. So yes Shreyas, I think everybody acknowledged that they will be responsive. And from your end also all I request is please have that at least once in a week demo of the flow, whatever it is half complete, 5% complete, 10% complete is okay because immediate feedback when they look at the screen the feedback that they give will give you insights on what this team is expecting the output to be so that in the next iterations it will be easier for us to capture those expectations in design phase itself. 
+Hence that weekly review and weekly capturing of feedback is very important from our team. 
+Trouble your team a lot. Just like you know, just don't get frustrated with our questions and like you know these are very important steps questions and getting respons because you are sitting on the business side of things. You know more about it. We, we are people who are smart people but we'll need your help to make it work practically. 
+Yeah, 100% agree. I mean because at the end of the day you are the owners so we can never be you. Right. Hence sometimes you feel like this point also you don't know. Yeah we don't know. Seriously please help us. Please teach me. Okay teachers. Okay okay. Let's not get frustrated. It's important that we all work together to make this a successful one. Yeah. So yeah we are aligned on that point. Shias, thanks for bringing it up. 
+Also Krishna, if you want to add more people to this group like you know, I don't know if Sarubji is added we can add them here and also like you know we can have a list of emails that we can always whenever there is some communication or some updates we can have that like list of emails we can send those people together. So just these two things we can add. 
+Yeah. So in addition to Swaroopji we have two key members in the room with me, Narendra from our FND team and Padmanaji who is our advisor. You know he has multiple hats so he will also be part of this activity, this project. So I will can I. 
+Can I have an introduction about myself? 
+Yeah yeah please. 
+It's a wonderful opportunity to myself that I'm retired general manager from India so have that banking and my basic profession so maybe coming highly for you. Yeah. As far as a user particularly user friendly mechanism what we, I mean core banking solutions what we use at our banks and all those things can be having added FL for your and whole mechanism making it all so I, I. 
+I, I mean going forward and coming. 
+Across I may be helping I mean I may using the, I mean helping me. 
+I'm very happy for you. 
+Yeah I mean no doubt about that's why I called I, I kind of introduced him as advisor because he has you know tremendous amount of experience as a general manager coming from sbi. You know I mean SBI has Union bank. Sorry Union bank. So you know that experience helps us a lot. So he is advisor from you know not just for one aspect in general as well to make this whole project successful. So he's also a very key stakeholder in this project. So yeah these three Sarobji of course and Narendra and Padmanabanji. So these are the key three business users for us and they will give us you know all the requirements, validate the requirements and ensure venture we are on our toes as well. 
+100 so just let's add them also if possible. 
+I will, I will right away do that so yeah actually the moment I add and my responsibility comes down so it is my, it is in my advantage to add them at the earliest so I'll do it right away. 
+Yeah of course and lower this required in fact in the man of lot. 
+Of. 
+All those guys as far as this kind of effort is. 
+Of. 
+Course we are, it's a learning together. Thanks very much. And a wonderful kind of opportunity to learn more. 
+All right sir, thank you so much. Have your lunches, we'll connect. 
+Sure. 
+Thanks. 
+Thank you so much everyone for joining. 
+Thanks. Thanks Iman, you're very silent contributor. I guess so my part is starting after the business requirement so we'll be helping you on to completing the product. Great, great. Thanks a lot. Yeah, looking forward to work with you more. Thank you. 
+Thank you team. 
+Thank you. 
+Sync with audio
+00:0001:37:40
+1×
+
+
+
+
+
+
+
+

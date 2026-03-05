@@ -1,0 +1,265 @@
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WhatsApp Sub-Supplier Network</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#0b141a",
+                        "wa-header": "#1f2c34",
+                        "wa-bubble-in": "#202c33",
+                        "wa-bubble-out": "#005c4b",
+                        "wa-teal": "#128c7e",
+                        "wa-button-bg": "#2a3942",
+                        "ios-blue": "#007aff"
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374045;
+            border-radius: 3px;
+        }
+        .bg-chat-pattern {
+            background-image: radial-gradient(#1f2c34 2px, transparent 2px);
+            background-size: 24px 24px;
+            opacity: 0.3;
+        }
+        body {
+            min-height: max(884px, 100dvh);
+        }
+        .bubble-tail-in::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -8px;
+            width: 10px;
+            height: 15px;
+            background-color: #202c33;
+            clip-path: polygon(100% 0, 100% 100%, 0 0);
+        }
+        .bubble-tail-out::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: -8px;
+            width: 10px;
+            height: 15px;
+            background-color: #005c4b;
+            clip-path: polygon(0 0, 0 100%, 100% 0);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased overflow-hidden">
+<div class="relative flex h-full max-h-screen w-full flex-col mx-auto max-w-md bg-background-light dark:bg-background-dark shadow-2xl overflow-hidden border-x border-gray-800">
+<div class="h-11 bg-wa-header flex items-end justify-between px-6 pb-2 text-white text-xs font-bold z-20 shrink-0">
+<span>9:41</span>
+<div class="flex gap-1.5">
+<span class="material-symbols-outlined text-[16px]">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-[16px]">wifi</span>
+<span class="material-symbols-outlined text-[16px]">battery_full</span>
+</div>
+</div>
+<header class="bg-wa-header flex items-center justify-between px-2 py-2 z-20 shadow-sm shrink-0 border-b border-white/5">
+<div class="flex items-center gap-1 flex-1 min-w-0">
+<button class="text-ios-blue flex items-center pr-1">
+<span class="material-symbols-outlined text-2xl -ml-1">chevron_left</span>
+<span class="text-lg">12</span>
+</button>
+<div class="flex items-center gap-3 flex-1 min-w-0">
+<div class="relative shrink-0">
+<div class="w-10 h-10 rounded-full bg-cover bg-center border border-gray-600" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAf576HLywiBE3qgBSatGXVGlMi9G5fHECtd06dfEXqYx8H3HY17oyEt8Ybfk76RqS8DTtjFVpljreVLEYQjh8mlYPb2kecmv594CPoCvcYRgJISlMBmu4gtMpc6tlc7pUE3DgCeBlJY4mMRvPpx_duK4xaiLscPDu8nZeaP8vTAPpB_0YTIltXQ-P0a-rB7xECp1rMkzgUmAKMQPW6uLCJFzAsUPdvKKpvVPkjYGtnziZ1aL1S8SygrfBXuqVWrAIfe956XGLjKQ4");'></div>
+<div class="absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-[1px]">
+<span class="material-symbols-outlined text-primary text-[12px] block font-bold leading-none">check_circle</span>
+</div>
+</div>
+<div class="flex flex-col justify-center overflow-hidden">
+<div class="flex items-center gap-1">
+<h1 class="text-white text-base font-bold leading-tight truncate">Sub-Supplier Bot</h1>
+<span class="material-symbols-outlined text-primary text-[14px] fill-current">verified</span>
+</div>
+<p class="text-gray-400 text-[11px] truncate">Official Business Account</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4 px-2 text-ios-blue">
+<button class="flex items-center justify-center"><span class="material-symbols-outlined text-2xl">videocam</span></button>
+<button class="flex items-center justify-center"><span class="material-symbols-outlined text-[22px]">call</span></button>
+</div>
+</header>
+<main class="flex-1 relative overflow-y-auto w-full bg-[#0b141a]">
+<div class="absolute inset-0 bg-chat-pattern pointer-events-none"></div>
+<div class="relative z-10 flex flex-col p-3 pb-24 gap-1.5 min-h-full">
+<div class="flex justify-center my-2">
+<div class="bg-wa-header/80 text-[#ffd279] text-[10px] px-3 py-1.5 rounded-lg text-center max-w-[280px] leading-relaxed shadow-sm backdrop-blur-sm">
+<span class="material-symbols-outlined text-[10px] align-middle mr-1">lock</span>
+                    Messages and calls are end-to-end encrypted.
+                </div>
+</div>
+<div class="flex justify-center mb-2">
+<span class="bg-wa-header/90 text-gray-400 text-[11px] font-medium px-2.5 py-0.5 rounded shadow-sm uppercase tracking-wider">Today</span>
+</div>
+<div class="flex flex-col items-start max-w-[85%] mb-1">
+<div class="bg-wa-bubble-in p-2.5 rounded-2xl rounded-tl-none text-white shadow-sm relative bubble-tail-in">
+<p class="text-[15px] leading-snug">Hello! 👋 Here's your real-time network overview as of today:</p>
+<div class="flex justify-end items-center gap-1 mt-0.5 opacity-50">
+<span class="text-[9px] text-gray-300 uppercase">10:42 AM</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start max-w-[85%] mb-0.5">
+<div class="bg-wa-bubble-in p-2.5 rounded-2xl text-white shadow-sm flex items-center gap-3 w-full">
+<div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-2xl">verified_user</span>
+</div>
+<div class="flex-1">
+<p class="text-[13px] text-gray-400 font-medium leading-none mb-1">Verified Suppliers</p>
+<p class="text-xl font-bold text-white">5 Active</p>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start max-w-[85%] mb-0.5">
+<div class="bg-wa-bubble-in p-2.5 rounded-2xl text-white shadow-sm flex items-center gap-3 w-full border-l-2 border-orange-500/50">
+<div class="w-10 h-10 rounded-xl bg-orange-400/10 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-orange-400 text-2xl">pending_actions</span>
+</div>
+<div class="flex-1">
+<p class="text-[13px] text-gray-400 font-medium leading-none mb-1">Pending Approval</p>
+<p class="text-xl font-bold text-white">2 Pending</p>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start max-w-[85%] mb-2">
+<div class="bg-wa-bubble-in p-2.5 rounded-2xl text-white shadow-sm flex items-center gap-3 w-full">
+<div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-2xl">loyalty</span>
+</div>
+<div class="flex-1">
+<p class="text-[13px] text-gray-400 font-medium leading-none mb-1">Traceability Points</p>
+<p class="text-xl font-bold text-primary">150 Total</p>
+</div>
+</div>
+</div>
+<div class="w-full mb-8">
+<button class="w-full bg-wa-bubble-in hover:bg-wa-header text-primary py-3.5 rounded-xl flex items-center justify-center gap-2.5 shadow-lg border border-white/5 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-xl">share_reviews</span>
+<span class="text-sm font-bold tracking-tight">Share Invitation Link</span>
+</button>
+</div>
+<div class="flex flex-col items-start max-w-[85%] mb-1">
+<div class="bg-wa-bubble-in p-3 rounded-2xl rounded-tl-none text-white shadow-sm relative bubble-tail-in">
+<p class="text-[15px] leading-snug">🚨 <span class="font-bold">Organic Cotton Co.</span> is pending your approval. What would you like to do?</p>
+<div class="flex justify-end items-center mt-1 opacity-50">
+<span class="text-[9px] text-gray-300 uppercase">10:43 AM</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-2 mb-6">
+<button class="w-full bg-[#2a3942] hover:bg-[#32424d] text-ios-blue py-3 rounded-xl font-semibold text-sm border border-white/5 shadow-md">View Details</button>
+<div class="flex gap-2">
+<button class="flex-1 bg-primary text-black py-3 rounded-xl font-bold text-sm shadow-md">Approve</button>
+<button class="flex-1 bg-[#2a3942] text-red-400 py-3 rounded-xl font-semibold text-sm border border-white/5">Reject</button>
+</div>
+</div>
+<div class="flex flex-col items-end w-full mb-3">
+<div class="bg-wa-bubble-out p-2.5 rounded-2xl rounded-tr-none text-white shadow-sm relative bubble-tail-out max-w-[70%]">
+<p class="text-[15px]">View Details</p>
+<div class="flex justify-end items-center gap-1 mt-0.5 opacity-60">
+<span class="text-[9px] text-white/80">10:44 AM</span>
+<span class="material-symbols-outlined text-[14px] text-primary">done_all</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start max-w-[90%] mb-1">
+<div class="bg-wa-bubble-in p-4 rounded-2xl rounded-tl-none text-white shadow-sm relative bubble-tail-in w-full">
+<div class="flex items-center gap-3 mb-3 border-b border-white/10 pb-3">
+<div class="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-3xl">factory</span>
+</div>
+<div>
+<h3 class="font-bold text-lg">Organic Cotton Co.</h3>
+<p class="text-xs text-gray-400">ID: #SUP-9921</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3 mb-4">
+<div class="bg-white/5 p-2 rounded-lg">
+<p class="text-[10px] text-gray-400 uppercase tracking-tighter">Capacity</p>
+<p class="text-sm font-semibold">500 Tons/Mo</p>
+</div>
+<div class="bg-white/5 p-2 rounded-lg">
+<p class="text-[10px] text-gray-400 uppercase tracking-tighter">Location</p>
+<p class="text-sm font-semibold">Ahmedabad, IN</p>
+</div>
+<div class="bg-white/5 p-2 rounded-lg">
+<p class="text-[10px] text-gray-400 uppercase tracking-tighter">Tier</p>
+<p class="text-sm font-semibold">Tier 2 Supplier</p>
+</div>
+<div class="bg-white/5 p-2 rounded-lg">
+<p class="text-[10px] text-gray-400 uppercase tracking-tighter">Compliance</p>
+<p class="text-sm font-semibold text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">verified</span> 100%
+                            </p>
+</div>
+</div>
+<p class="text-[14px] leading-snug mb-3">Ready to proceed with approval for this supplier?</p>
+<div class="flex justify-end items-center mt-1 opacity-50">
+<span class="text-[9px] text-gray-300 uppercase">10:44 AM</span>
+</div>
+</div>
+</div>
+<div class="flex gap-2 mb-10">
+<button class="flex-[2] bg-primary text-black py-3.5 rounded-xl font-bold text-sm shadow-xl active:scale-[0.97] transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg">check_circle</span> Approve Supplier
+                </button>
+<button class="flex-1 bg-[#2a3942] text-red-400 py-3.5 rounded-xl font-semibold text-sm border border-white/5">Reject</button>
+</div>
+</div>
+</main>
+<footer class="bg-wa-header flex items-end gap-2 p-2 px-3 pb-8 sm:pb-4 shrink-0 z-20 sticky bottom-0 border-t border-white/5">
+<button class="mb-1 text-ios-blue">
+<span class="material-symbols-outlined text-3xl font-light">add</span>
+</button>
+<div class="flex-1 bg-[#2a3942] rounded-2xl flex items-center min-h-[38px] px-3 py-1.5 gap-2">
+<input class="bg-transparent border-none text-white placeholder-gray-400 text-[16px] w-full focus:ring-0 p-0 leading-tight" disabled="" placeholder="Message" type="text"/>
+<button class="text-gray-400">
+<span class="material-symbols-outlined text-[24px]">sticky_note_2</span>
+</button>
+<button class="text-gray-400">
+<span class="material-symbols-outlined text-[24px]">photo_camera</span>
+</button>
+</div>
+<button class="mb-1 text-ios-blue">
+<span class="material-symbols-outlined text-[28px] fill-current">mic</span>
+</button>
+</footer>
+<div class="h-6 w-full bg-wa-header absolute bottom-0 z-30 flex justify-center items-center">
+<div class="w-32 h-1.5 bg-white/20 rounded-full"></div>
+</div>
+</div>
+
+</body></html>

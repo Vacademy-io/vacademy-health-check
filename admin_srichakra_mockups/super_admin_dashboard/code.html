@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SSMP Super Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#102216",
+                        "surface-dark": "#162c1f", // Custom surface color for cards
+                        "surface-border": "#23482f", // Border color from example
+                        "text-secondary": "#92c9a4", // Secondary text from example
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #102216; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #23482f; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #326744; 
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-hidden">
+<div class="flex h-screen w-full">
+<!-- Sidebar -->
+<aside class="w-64 h-full flex flex-col bg-background-dark border-r border-surface-border hidden lg:flex shrink-0">
+<div class="p-6 pb-2">
+<div class="flex flex-col gap-1">
+<h1 class="text-white text-xl font-bold leading-normal tracking-tight">SSMP Admin</h1>
+<p class="text-text-secondary text-sm font-normal">Super Admin Portal</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-2 p-4 overflow-y-auto">
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg bg-primary/20 border border-primary/20 text-white group transition-colors" href="#">
+<span class="material-symbols-outlined text-primary">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-border hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-sm font-medium">User Management</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-border hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">monitor_heart</span>
+<span class="text-sm font-medium">System Health</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-border hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="text-sm font-medium">Audit Logs</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-lg text-text-secondary hover:bg-surface-border hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">integration_instructions</span>
+<span class="text-sm font-medium">Integrations</span>
+</a>
+</nav>
+<div class="p-4 border-t border-surface-border">
+<div class="flex items-center gap-3 px-3 py-2">
+<div class="w-8 h-8 rounded-full bg-surface-border flex items-center justify-center text-primary font-bold">SA</div>
+<div>
+<p class="text-sm font-medium text-white">Super Admin</p>
+<p class="text-xs text-text-secondary">admin@ssmp.com</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col h-full relative overflow-hidden bg-background-light dark:bg-background-dark">
+<!-- Top Navbar -->
+<header class="h-16 flex items-center justify-between border-b border-surface-border px-6 bg-background-dark shrink-0 z-10">
+<div class="flex items-center gap-4 text-white">
+<button class="lg:hidden text-white">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<!-- Breadcrumbs or simple title for mobile -->
+<div class="flex items-center gap-2 text-sm text-text-secondary">
+<span>Portal</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-white">Dashboard</span>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center justify-center w-10 h-10 rounded-lg bg-surface-border text-white hover:bg-[#326744] transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="flex items-center justify-center w-10 h-10 rounded-lg bg-surface-border text-white hover:bg-red-900/50 hover:text-red-400 transition-colors">
+<span class="material-symbols-outlined">logout</span>
+</button>
+</div>
+</header>
+<!-- Scrollable Dashboard Content -->
+<div class="flex-1 overflow-y-auto p-4 md:p-8">
+<div class="max-w-7xl mx-auto flex flex-col gap-8">
+<!-- Page Heading -->
+<div class="flex flex-col gap-1">
+<h2 class="text-white text-3xl md:text-4xl font-black leading-tight tracking-tight">Super Admin Dashboard</h2>
+<p class="text-text-secondary text-base font-normal">Overview of system health, users, and critical alerts.</p>
+</div>
+<!-- Metrics Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Card 1: Active Users -->
+<div class="flex flex-col gap-3 rounded-xl p-5 border border-surface-border bg-surface-dark shadow-sm">
+<div class="flex justify-between items-start">
+<p class="text-text-secondary text-sm font-medium uppercase tracking-wider">Active Users</p>
+<span class="material-symbols-outlined text-primary">person</span>
+</div>
+<div class="flex flex-col gap-2">
+<p class="text-white text-3xl font-bold leading-none font-mono">45<span class="text-lg text-text-secondary font-normal">/50</span></p>
+<div class="w-full bg-surface-border rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary h-1.5 rounded-full" style="width: 90%"></div>
+</div>
+</div>
+</div>
+<!-- Card 2: API Health -->
+<div class="flex flex-col gap-3 rounded-xl p-5 border border-surface-border bg-surface-dark shadow-sm">
+<div class="flex justify-between items-start">
+<p class="text-text-secondary text-sm font-medium uppercase tracking-wider">API Health</p>
+<span class="material-symbols-outlined text-primary">check_circle</span>
+</div>
+<div class="flex items-baseline gap-2">
+<p class="text-white text-3xl font-bold leading-none font-mono">99.8%</p>
+<span class="text-xs font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">Stable</span>
+</div>
+<p class="text-xs text-text-secondary">Last checked 2 mins ago</p>
+</div>
+<!-- Card 3: System Load -->
+<div class="flex flex-col gap-3 rounded-xl p-5 border border-surface-border bg-surface-dark shadow-sm">
+<div class="flex justify-between items-start">
+<p class="text-text-secondary text-sm font-medium uppercase tracking-wider">System Load</p>
+<span class="material-symbols-outlined text-yellow-400">memory</span>
+</div>
+<div class="flex items-baseline gap-2">
+<p class="text-white text-3xl font-bold leading-none font-mono">32%</p>
+<span class="text-xs font-medium text-text-secondary">CPU Usage</span>
+</div>
+<div class="w-full bg-surface-border rounded-full h-1.5 overflow-hidden mt-1">
+<div class="bg-primary h-1.5 rounded-full" style="width: 32%"></div>
+</div>
+</div>
+<!-- Card 4: Alerts -->
+<div class="flex flex-col gap-3 rounded-xl p-5 border border-red-900/30 bg-surface-dark shadow-sm relative overflow-hidden">
+<div class="absolute right-0 top-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-red-500 text-6xl">warning</span>
+</div>
+<div class="flex justify-between items-start z-10">
+<p class="text-red-400 text-sm font-medium uppercase tracking-wider">System Alerts</p>
+</div>
+<div class="flex items-baseline gap-2 z-10">
+<p class="text-white text-3xl font-bold leading-none font-mono">3</p>
+<span class="text-xs font-bold text-red-900 bg-red-400 px-2 py-0.5 rounded-full">CRITICAL</span>
+</div>
+<p class="text-xs text-red-300/70 z-10">Action required immediately</p>
+</div>
+</div>
+<!-- Quick Actions -->
+<div class="flex flex-col gap-4">
+<h3 class="text-white text-lg font-bold">Quick Actions</h3>
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+<button class="group flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-surface-border bg-surface-dark hover:bg-surface-border hover:border-primary/50 transition-all cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-surface-border group-hover:bg-primary/20 flex items-center justify-center text-primary transition-colors">
+<span class="material-symbols-outlined">person_add</span>
+</div>
+<span class="text-sm font-bold text-white">Add User</span>
+</button>
+<button class="group flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-surface-border bg-surface-dark hover:bg-surface-border hover:border-primary/50 transition-all cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-surface-border group-hover:bg-primary/20 flex items-center justify-center text-primary transition-colors">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+</div>
+<span class="text-sm font-bold text-white">Create Role</span>
+</button>
+<button class="group flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-surface-border bg-surface-dark hover:bg-surface-border hover:border-primary/50 transition-all cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-surface-border group-hover:bg-primary/20 flex items-center justify-center text-primary transition-colors">
+<span class="material-symbols-outlined">edit_document</span>
+</div>
+<span class="text-sm font-bold text-white">Edit Forms</span>
+</button>
+<button class="group flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-surface-border bg-surface-dark hover:bg-surface-border hover:border-primary/50 transition-all cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-surface-border group-hover:bg-primary/20 flex items-center justify-center text-primary transition-colors">
+<span class="material-symbols-outlined">api</span>
+</div>
+<span class="text-sm font-bold text-white">Manage APIs</span>
+</button>
+<button class="group flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-surface-border bg-surface-dark hover:bg-surface-border hover:border-primary/50 transition-all cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-surface-border group-hover:bg-primary/20 flex items-center justify-center text-primary transition-colors">
+<span class="material-symbols-outlined">download</span>
+</div>
+<span class="text-sm font-bold text-white">Export Data</span>
+</button>
+</div>
+</div>
+<!-- Main Data Split View -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
+<!-- Panel 1: Recent Audit Logs -->
+<div class="flex flex-col rounded-xl border border-surface-border bg-surface-dark overflow-hidden">
+<div class="px-6 py-4 border-b border-surface-border flex justify-between items-center">
+<h3 class="text-white text-lg font-bold">Recent Audit Logs</h3>
+<button class="text-primary text-sm font-medium hover:underline">View All</button>
+</div>
+<div class="flex flex-col divide-y divide-surface-border">
+<!-- Log Item 1 -->
+<div class="flex items-start gap-4 p-4 hover:bg-white/5 transition-colors">
+<div class="w-10 h-10 rounded-full bg-blue-900/30 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-blue-400">price_change</span>
+</div>
+<div class="flex flex-col flex-1">
+<p class="text-sm text-white"><span class="font-bold text-primary">Rajesh</span> modified <span class="font-medium">Rate Card #RC-2023-09</span></p>
+<p class="text-xs text-text-secondary mt-1">10:45 AM • IP: 192.168.1.12</p>
+</div>
+</div>
+<!-- Log Item 2 -->
+<div class="flex items-start gap-4 p-4 hover:bg-white/5 transition-colors">
+<div class="w-10 h-10 rounded-full bg-purple-900/30 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-purple-400">person_add</span>
+</div>
+<div class="flex flex-col flex-1">
+<p class="text-sm text-white"><span class="font-bold text-primary">Priya</span> added new <span class="font-medium">Field Officer</span></p>
+<p class="text-xs text-text-secondary mt-1">09:30 AM • IP: 192.168.1.45</p>
+</div>
+</div>
+<!-- Log Item 3 -->
+<div class="flex items-start gap-4 p-4 hover:bg-white/5 transition-colors">
+<div class="w-10 h-10 rounded-full bg-orange-900/30 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-orange-400">lock_reset</span>
+</div>
+<div class="flex flex-col flex-1">
+<p class="text-sm text-white"><span class="font-bold text-primary">System</span> forced password reset for <span class="font-medium">User #882</span></p>
+<p class="text-xs text-text-secondary mt-1">08:15 AM • Automated</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Panel 2: Pending Configurations -->
+<div class="flex flex-col rounded-xl border border-surface-border bg-surface-dark overflow-hidden">
+<div class="px-6 py-4 border-b border-surface-border flex justify-between items-center">
+<h3 class="text-white text-lg font-bold">Pending Configurations</h3>
+<div class="flex gap-2">
+<span class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+<span class="text-xs text-text-secondary uppercase font-bold tracking-wide">Action Needed</span>
+</div>
+</div>
+<div class="flex flex-col p-4 gap-3">
+<!-- Config Item 1 -->
+<div class="flex items-center justify-between p-4 rounded-lg border border-surface-border bg-background-dark/50">
+<div class="flex items-center gap-3">
+<div class="p-2 rounded bg-[#23482f] text-white">
+<span class="material-symbols-outlined">chat</span>
+</div>
+<div>
+<p class="text-white font-medium text-sm">WhatsApp Template (Tamil)</p>
+<p class="text-text-secondary text-xs">Messaging Integration</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-1 rounded text-xs font-bold bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">PENDING APPROVAL</span>
+<button class="p-1 hover:bg-white/10 rounded text-text-secondary hover:text-white transition">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Config Item 2 -->
+<div class="flex items-center justify-between p-4 rounded-lg border border-red-900/30 bg-red-900/10">
+<div class="flex items-center gap-3">
+<div class="p-2 rounded bg-red-900/40 text-red-200">
+<span class="material-symbols-outlined">local_shipping</span>
+</div>
+<div>
+<p class="text-white font-medium text-sm">Logistics API</p>
+<p class="text-red-300 text-xs">External Connection</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-1 rounded text-xs font-bold bg-red-500/10 text-red-500 border border-red-500/20">CONNECTION ERROR</span>
+<button class="p-1 hover:bg-white/10 rounded text-text-secondary hover:text-white transition">
+<span class="material-symbols-outlined">refresh</span>
+</button>
+</div>
+</div>
+<!-- Config Item 3 -->
+<div class="flex items-center justify-between p-4 rounded-lg border border-surface-border bg-background-dark/50">
+<div class="flex items-center gap-3">
+<div class="p-2 rounded bg-[#23482f] text-white">
+<span class="material-symbols-outlined">badge</span>
+</div>
+<div>
+<p class="text-white font-medium text-sm">New Admin Role Policy</p>
+<p class="text-text-secondary text-xs">Access Control</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-2 py-1 rounded text-xs font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">DRAFT</span>
+<button class="p-1 hover:bg-white/10 rounded text-text-secondary hover:text-white transition">
+<span class="material-symbols-outlined">edit</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

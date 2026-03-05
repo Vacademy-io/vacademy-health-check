@@ -1,0 +1,19 @@
+1.then type of offence like - Encroachment/Wildlife/Forest Produce with vehicle/others, shall come.
+2. Form-A is POR, Form-B (Seizures) shall also come, Form-C (Safe Custody) shall come for FBO Role3.  in POR, Pancha witness description shall also be made
+4. Auto generate of FBO Report
+5. POR year shall generate according to calender year on par with Police FIR, because identification by POR no. is quite difficult for forest staff and as well as Court Personnel.
+Role of DyRO/FSO
+1. Receipt of offence report and POR, Form-B, C, etc., from FBO.
+2. If not compundable, then send report to FRO for obtaining prosecution orders from Authorized Officer/FDO.
+3. INvestigate the case and collect the evidences like EYewitness, expert opinion reports like CCMB, PME (Post Mortem) Report of wild animals, Call analysis, any authentication reprorts of phone.4.  If any technical evidence is there in the case, then Preparing 63B Certificate.
+5. Issue of 35 BNSS (41ACRPC) notice to the accused6.  Collect CrPC 161 Statements of LWs/Prosecution Witnesses by the I.O. 
+7. Recording of accused confession by FRO
+8. Prepare Charge sheet by DROs/FSO themselves in non-wildlife offences, if not by FRO in wildlife offences.
+ROle of FRO
+1. Receipt of Offence reports - POR, Panchana along with connected documents like FOrm-B, C and D,
+2. If case is compoundable, then need of auto generate of Form-F(prabably Charge sheet in compunding case), forwarding to FDO/Authorized Officer
+3. If not compounding, then offence FRO report sent to FDO for issue of Prosecution orders for filing charge sheet
+
+Sir, after registering of POR by the FBO, it should be shown to concerned FSO/DRO login, FRO Login, FDO and DFOs login, irrespective of case status, so that we would have notice.
+Finally POR should be disposed of by way of Collecting C fees in Compoundable cases, auto generate of C.F 140 shall be made provision and uploading of Authorized Officer proceedings made provision and 
+In non compoundable cases, Court order uploading shall be made provision (for acquittal or conviction) , Submitted sir

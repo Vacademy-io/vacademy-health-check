@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SSMP Finance Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#102216",
+                        "surface-dark": "#1a2e22",
+                        "surface-border": "#23482f",
+                        "text-secondary": "#92c9a4"
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display min-h-screen flex flex-col overflow-x-hidden text-slate-900 dark:text-white">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-surface-border bg-white dark:bg-background-dark/95 backdrop-blur">
+<div class="px-6 py-3 flex items-center justify-between gap-6">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3 text-slate-900 dark:text-white">
+<div class="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">payments</span>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-tight">SSMP Finance Admin</h2>
+</div>
+<!-- Search Bar -->
+<div class="hidden md:flex items-center h-10 w-64 bg-slate-100 dark:bg-surface-dark rounded-lg px-3 gap-2 border border-transparent focus-within:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-slate-400 dark:text-text-secondary text-xl">search</span>
+<input class="bg-transparent border-none outline-none text-sm w-full text-slate-700 dark:text-white placeholder-slate-400 dark:placeholder-text-secondary/70 focus:ring-0" placeholder="Search invoices, suppliers..."/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<!-- Nav Links -->
+<nav class="hidden lg:flex items-center gap-8">
+<a class="text-sm font-medium text-slate-900 dark:text-white hover:text-primary transition-colors border-b-2 border-primary pb-0.5" href="#">Dashboard</a>
+<a class="text-sm font-medium text-slate-500 dark:text-text-secondary hover:text-primary dark:hover:text-white transition-colors" href="#">Payments</a>
+<a class="text-sm font-medium text-slate-500 dark:text-text-secondary hover:text-primary dark:hover:text-white transition-colors" href="#">Suppliers</a>
+<a class="text-sm font-medium text-slate-500 dark:text-text-secondary hover:text-primary dark:hover:text-white transition-colors" href="#">Reports</a>
+</nav>
+<!-- Actions -->
+<div class="flex items-center gap-3">
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-slate-100 dark:hover:bg-surface-border text-slate-600 dark:text-white transition-colors relative">
+<span class="material-symbols-outlined text-xl">notifications</span>
+<span class="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white dark:border-background-dark"></span>
+</button>
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-slate-100 dark:hover:bg-surface-border text-slate-600 dark:text-white transition-colors">
+<span class="material-symbols-outlined text-xl">settings</span>
+</button>
+<div class="size-9 rounded-full bg-center bg-cover border border-slate-200 dark:border-surface-border" data-alt="Profile picture of a professional finance administrator" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAzMCMLZb3Y0tT627GoOzvEtdSaviFX_PXHj9c09UN5DYaKOvqnnac8zg8gaqGRoCMdVBj96q-i8IonRtExYpC-100bi40qI375CCBIQSFccbQoZH-nFGujqF6T-ghQWs1jVuUkngKsIOXSK1zVRSIrWc7bRTxKKt9C4H28PY-zk9vv3ij-fDut7VtCvj01ySspF2Dh67UdMi6JRnLTdjDTYZtCeq7mvJ52S6KuNfdfBcXUDY_siBiAr1Sq6BaHMVyQ7BQYuQpbBFbH");'></div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 w-full max-w-[1440px] mx-auto p-6 lg:p-8 flex flex-col gap-8">
+<!-- Stats Row -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="flex flex-col gap-1 p-5 rounded-xl border border-slate-200 dark:border-surface-border bg-white dark:bg-surface-dark shadow-sm">
+<div class="flex items-center justify-between">
+<p class="text-sm font-medium text-slate-500 dark:text-text-secondary">Today's Payments</p>
+<span class="material-symbols-outlined text-primary text-xl">account_balance_wallet</span>
+</div>
+<p class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">₹18.5 L</p>
+<div class="flex items-center gap-1 text-xs text-green-500 mt-1">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span>+12% vs yesterday</span>
+</div>
+</div>
+<div class="flex flex-col gap-1 p-5 rounded-xl border border-slate-200 dark:border-surface-border bg-white dark:bg-surface-dark shadow-sm">
+<div class="flex items-center justify-between">
+<p class="text-sm font-medium text-slate-500 dark:text-text-secondary">Pending Approvals</p>
+<span class="material-symbols-outlined text-orange-400 text-xl">pending_actions</span>
+</div>
+<p class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">8</p>
+<div class="flex items-center gap-1 text-xs text-orange-400 mt-1">
+<span class="material-symbols-outlined text-sm">warning</span>
+<span>2 high priority</span>
+</div>
+</div>
+<div class="flex flex-col gap-1 p-5 rounded-xl border border-slate-200 dark:border-surface-border bg-white dark:bg-surface-dark shadow-sm">
+<div class="flex items-center justify-between">
+<p class="text-sm font-medium text-slate-500 dark:text-text-secondary">This Month Disbursed</p>
+<span class="material-symbols-outlined text-blue-400 text-xl">credit_card</span>
+</div>
+<p class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">₹1.2 Cr</p>
+<div class="flex items-center gap-1 text-xs text-slate-400 mt-1">
+<span>94% of monthly budget</span>
+</div>
+</div>
+<div class="flex flex-col gap-1 p-5 rounded-xl border border-slate-200 dark:border-surface-border bg-white dark:bg-surface-dark shadow-sm">
+<div class="flex items-center justify-between">
+<p class="text-sm font-medium text-slate-500 dark:text-text-secondary">Bank Balance</p>
+<span class="material-symbols-outlined text-primary text-xl">account_balance</span>
+</div>
+<p class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">₹45 L</p>
+<div class="flex items-center gap-1 text-xs text-green-500 mt-1">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span>Healthy</span>
+</div>
+</div>
+</section>
+<!-- Main Table & Actions -->
+<section class="flex flex-col gap-4">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<h3 class="text-xl font-bold text-slate-900 dark:text-white">Payments Awaiting Approval</h3>
+<div class="flex gap-2">
+<button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-dark border border-slate-200 dark:border-surface-border rounded-lg text-sm font-medium text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-surface-border transition-colors">
+<span class="material-symbols-outlined text-base">filter_list</span>
+                        Filter
+                    </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-primary text-background-dark rounded-lg text-sm font-bold hover:bg-opacity-90 transition-colors">
+<span class="material-symbols-outlined text-base">check_circle</span>
+                        Batch Approve
+                    </button>
+</div>
+</div>
+<div class="w-full overflow-hidden rounded-xl border border-slate-200 dark:border-surface-border bg-white dark:bg-surface-dark shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 dark:bg-surface-border/50 border-b border-slate-200 dark:border-surface-border">
+<th class="p-4 text-xs font-semibold text-slate-500 dark:text-text-secondary uppercase tracking-wider">Invoice ID</th>
+<th class="p-4 text-xs font-semibold text-slate-500 dark:text-text-secondary uppercase tracking-wider">Supplier</th>
+<th class="p-4 text-xs font-semibold text-slate-500 dark:text-text-secondary uppercase tracking-wider">Date</th>
+<th class="p-4 text-xs font-semibold text-slate-500 dark:text-text-secondary uppercase tracking-wider">Amount</th>
+<th class="p-4 text-xs font-semibold text-slate-500 dark:text-text-secondary uppercase tracking-wider">Status</th>
+<th class="p-4 text-xs font-semibold text-slate-500 dark:text-text-secondary uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200 dark:divide-surface-border">
+<!-- Row 1 -->
+<tr class="group hover:bg-slate-50 dark:hover:bg-surface-border/30 transition-colors">
+<td class="p-4 text-sm font-medium text-slate-900 dark:text-white">#INV-2024-001</td>
+<td class="p-4 text-sm text-slate-600 dark:text-gray-300">
+<div class="flex flex-col">
+<span class="font-medium text-slate-900 dark:text-white">Sai Enterprises</span>
+<span class="text-xs text-slate-400">ID: SUP-8821</span>
+</div>
+</td>
+<td class="p-4 text-sm text-slate-600 dark:text-text-secondary">Oct 24, 2024</td>
+<td class="p-4 text-sm font-bold text-slate-900 dark:text-white font-mono">₹4,50,000</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400 border border-green-200 dark:border-green-500/20">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+                                        QC Approved
+                                    </span>
+</td>
+<td class="p-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="px-3 py-1.5 text-xs font-bold text-background-dark bg-primary rounded hover:bg-opacity-90 transition-colors">Approve</button>
+<button class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-white border border-slate-300 dark:border-white/20 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">Hold</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="group hover:bg-slate-50 dark:hover:bg-surface-border/30 transition-colors">
+<td class="p-4 text-sm font-medium text-slate-900 dark:text-white">#INV-2024-004</td>
+<td class="p-4 text-sm text-slate-600 dark:text-gray-300">
+<div class="flex flex-col">
+<span class="font-medium text-slate-900 dark:text-white">Apex Logistics</span>
+<span class="text-xs text-slate-400">ID: SUP-1029</span>
+</div>
+</td>
+<td class="p-4 text-sm text-slate-600 dark:text-text-secondary">Oct 23, 2024</td>
+<td class="p-4 text-sm font-bold text-slate-900 dark:text-white font-mono">₹1,20,000</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400 border border-green-200 dark:border-green-500/20">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+                                        QC Approved
+                                    </span>
+</td>
+<td class="p-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="px-3 py-1.5 text-xs font-bold text-background-dark bg-primary rounded hover:bg-opacity-90 transition-colors">Approve</button>
+<button class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-white border border-slate-300 dark:border-white/20 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">Hold</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="group hover:bg-slate-50 dark:hover:bg-surface-border/30 transition-colors">
+<td class="p-4 text-sm font-medium text-slate-900 dark:text-white">#INV-2024-009</td>
+<td class="p-4 text-sm text-slate-600 dark:text-gray-300">
+<div class="flex flex-col">
+<span class="font-medium text-slate-900 dark:text-white">Global Raw Materials</span>
+<span class="text-xs text-slate-400">ID: SUP-4402</span>
+</div>
+</td>
+<td class="p-4 text-sm text-slate-600 dark:text-text-secondary">Oct 22, 2024</td>
+<td class="p-4 text-sm font-bold text-slate-900 dark:text-white font-mono">₹8,75,000</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20">
+<span class="material-symbols-outlined text-[14px]">error</span>
+                                        Disputed
+                                    </span>
+</td>
+<td class="p-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="px-3 py-1.5 text-xs font-bold text-slate-400 bg-slate-200 dark:bg-white/5 dark:text-white/30 rounded cursor-not-allowed" disabled="">Approve</button>
+<button class="px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 rounded">Review</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="group hover:bg-slate-50 dark:hover:bg-surface-border/30 transition-colors">
+<td class="p-4 text-sm font-medium text-slate-900 dark:text-white">#INV-2024-012</td>
+<td class="p-4 text-sm text-slate-600 dark:text-gray-300">
+<div class="flex flex-col">
+<span class="font-medium text-slate-900 dark:text-white">Tech Solutions Ltd</span>
+<span class="text-xs text-slate-400">ID: SUP-9912</span>
+</div>
+</td>
+<td class="p-4 text-sm text-slate-600 dark:text-text-secondary">Oct 21, 2024</td>
+<td class="p-4 text-sm font-bold text-slate-900 dark:text-white font-mono">₹45,000</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400 border border-green-200 dark:border-green-500/20">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+                                        QC Approved
+                                    </span>
+</td>
+<td class="p-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="px-3 py-1.5 text-xs font-bold text-background-dark bg-primary rounded hover:bg-opacity-90 transition-colors">Approve</button>
+<button class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-white border border-slate-300 dark:border-white/20 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">Hold</button>
+</div>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="group hover:bg-slate-50 dark:hover:bg-surface-border/30 transition-colors">
+<td class="p-4 text-sm font-medium text-slate-900 dark:text-white">#INV-2024-015</td>
+<td class="p-4 text-sm text-slate-600 dark:text-gray-300">
+<div class="flex flex-col">
+<span class="font-medium text-slate-900 dark:text-white">BuildMat Supplies</span>
+<span class="text-xs text-slate-400">ID: SUP-1234</span>
+</div>
+</td>
+<td class="p-4 text-sm text-slate-600 dark:text-text-secondary">Oct 21, 2024</td>
+<td class="p-4 text-sm font-bold text-slate-900 dark:text-white font-mono">₹2,10,000</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-500/20">
+<span class="material-symbols-outlined text-[14px]">hourglass_empty</span>
+                                        Pending QC
+                                    </span>
+</td>
+<td class="p-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-white border border-slate-300 dark:border-white/20 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">Details</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 border-t border-slate-200 dark:border-surface-border flex items-center justify-between">
+<p class="text-xs text-slate-500 dark:text-text-secondary">Showing 5 of 8 pending invoices</p>
+<div class="flex gap-2">
+<button class="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Charts & Alerts Section -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
+<!-- Left: Payment Trend Chart -->
+<div class="lg:col-span-2 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h3 class="text-xl font-bold text-slate-900 dark:text-white">Payment Trend</h3>
+<select class="bg-transparent border border-slate-200 dark:border-surface-border rounded-lg text-sm px-2 py-1 outline-none focus:border-primary text-slate-700 dark:text-text-secondary">
+<option>Last 30 Days</option>
+<option>Last Quarter</option>
+<option>YTD</option>
+</select>
+</div>
+<div class="w-full h-80 rounded-xl border border-slate-200 dark:border-surface-border bg-white dark:bg-surface-dark p-6 relative flex flex-col justify-between shadow-sm">
+<!-- Chart Content Simulated with CSS -->
+<div class="flex flex-1 items-end gap-2 sm:gap-4 h-full pt-6">
+<!-- Y-Axis Labels (Absolute) -->
+<div class="absolute left-6 top-6 bottom-12 flex flex-col justify-between text-xs text-slate-400 dark:text-text-secondary/50 pointer-events-none">
+<span>20L</span>
+<span>15L</span>
+<span>10L</span>
+<span>5L</span>
+<span>0</span>
+</div>
+<!-- Bars Container -->
+<div class="ml-10 flex-1 flex items-end justify-between h-full border-b border-slate-100 dark:border-white/10 pb-1">
+<!-- Bar 1 -->
+<div class="w-full mx-1 bg-primary/20 rounded-t-sm relative group h-[30%]">
+<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">Oct 1: ₹6L</div>
+</div>
+<!-- Bar 2 -->
+<div class="w-full mx-1 bg-primary/30 rounded-t-sm relative group h-[45%]"></div>
+<!-- Bar 3 -->
+<div class="w-full mx-1 bg-primary/20 rounded-t-sm relative group h-[25%]"></div>
+<!-- Bar 4 -->
+<div class="w-full mx-1 bg-primary/40 rounded-t-sm relative group h-[60%]"></div>
+<!-- Bar 5 -->
+<div class="w-full mx-1 bg-primary/20 rounded-t-sm relative group h-[35%]"></div>
+<!-- Bar 6 -->
+<div class="w-full mx-1 bg-primary/30 rounded-t-sm relative group h-[50%]"></div>
+<!-- Bar 7 -->
+<div class="w-full mx-1 bg-primary/50 rounded-t-sm relative group h-[75%]"></div>
+<!-- Bar 8 -->
+<div class="w-full mx-1 bg-primary/20 rounded-t-sm relative group h-[40%]"></div>
+<!-- Bar 9 -->
+<div class="w-full mx-1 bg-primary/60 rounded-t-sm relative group h-[85%]">
+<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">Oct 24: ₹17L</div>
+</div>
+<!-- Bar 10 -->
+<div class="w-full mx-1 bg-primary/20 rounded-t-sm relative group h-[30%]"></div>
+<!-- Bar 11 -->
+<div class="w-full mx-1 bg-primary/40 rounded-t-sm relative group h-[55%]"></div>
+<!-- Bar 12 -->
+<div class="w-full mx-1 bg-primary/20 rounded-t-sm relative group h-[20%]"></div>
+</div>
+</div>
+<!-- X Axis Labels -->
+<div class="flex justify-between pl-10 pt-2 text-xs text-slate-400 dark:text-text-secondary/50">
+<span>Oct 1</span>
+<span>Oct 8</span>
+<span>Oct 15</span>
+<span>Oct 24</span>
+</div>
+</div>
+</div>
+<!-- Right: Alerts & Notifications -->
+<div class="flex flex-col gap-4">
+<h3 class="text-xl font-bold text-slate-900 dark:text-white">Alerts &amp; Actions</h3>
+<div class="flex flex-col gap-3">
+<!-- Alert Item 1 -->
+<div class="p-4 rounded-xl border border-red-100 dark:border-red-500/20 bg-red-50 dark:bg-surface-dark flex gap-3 shadow-sm">
+<div class="mt-0.5 min-w-[20px]">
+<span class="material-symbols-outlined text-red-500 text-xl">warning</span>
+</div>
+<div class="flex flex-col gap-1">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Aging Payments Critical</p>
+<p class="text-sm text-slate-600 dark:text-text-secondary leading-snug">
+                                3 invoices for <span class="font-semibold text-slate-800 dark:text-white">Steel Works Ltd</span> are overdue by &gt; 45 days. Immediate action required.
+                            </p>
+<button class="text-xs font-bold text-red-600 dark:text-red-400 self-start mt-1 hover:underline">View Invoices</button>
+</div>
+</div>
+<!-- Alert Item 2 -->
+<div class="p-4 rounded-xl border border-blue-100 dark:border-blue-500/20 bg-blue-50 dark:bg-surface-dark flex gap-3 shadow-sm">
+<div class="mt-0.5 min-w-[20px]">
+<span class="material-symbols-outlined text-blue-500 text-xl">account_balance</span>
+</div>
+<div class="flex flex-col gap-1">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Bank Detail Update</p>
+<p class="text-sm text-slate-600 dark:text-text-secondary leading-snug">
+                                Supplier <span class="font-semibold text-slate-800 dark:text-white">Apex Logistics</span> has updated their primary bank account.
+                            </p>
+<div class="flex gap-3 mt-1">
+<button class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">Verify</button>
+<button class="text-xs font-medium text-slate-500 dark:text-slate-400 hover:underline">Dismiss</button>
+</div>
+</div>
+</div>
+<!-- Alert Item 3 -->
+<div class="p-4 rounded-xl border border-slate-200 dark:border-surface-border bg-white dark:bg-surface-dark flex gap-3 shadow-sm">
+<div class="mt-0.5 min-w-[20px]">
+<span class="material-symbols-outlined text-primary text-xl">event_upcoming</span>
+</div>
+<div class="flex flex-col gap-1">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Scheduled Maintenance</p>
+<p class="text-sm text-slate-600 dark:text-text-secondary leading-snug">
+                                System maintenance scheduled for Oct 28th, 02:00 AM - 04:00 AM.
+                            </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>

@@ -1,0 +1,127 @@
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+TECHNICAL & FINANCIAL PROPOSAL
+For Implementation of Telangana Forest Offense
+Management System (T-FOMS)
+Submitted to:
+Department of Forests, Government of Telangana
+Submitted by:
+Vidyayatan Technologies Pvt. Ltd.
+1. PROJECT BACKGROUND & STRATEGIC VISION
+1.1 Project Context
+The Department of Forests seeks to modernize its offense reporting and monitoring mechanism
+by replacing manual, paper-based workflows with a secure, digital, and data-driven system. The
+objective is to ensure timely reporting, accountability, transparency, and real-time
+intelligence across all forest ranges.
+1.2 Proposed Solution – T-FOMS
+Vidyayatan Technologies proposes the Telangana Forest Offense Management System
+(T-FOMS), modeled on the Crime and Criminal Tracking Network & Systems (CCTNS) used
+by Police Departments.
+T-FOMS will function as the central nervous system for forest offense reporting and
+monitoring, digitizing the “first response” workflow from field to headquarters.
+1.3 Key Objectives
+● Standardization: Digitization of Preliminary Offense Reports (POR) across all ranges
+● Accountability: Biometric login and geo-fenced reporting
+● Real-time Intelligence: Live dashboards for DFOs, Rangers, and PCCF
+2. SCOPE OF WORK
+2.1 Component A – Mobile Application (“The Digital Lathi”)
+Target Users: Forest Guards / Beat Officers
+Platform: Android (Native / Flutter)
+Features:
+1. Offline Store-and-Forward Architecture for deep forest areas
+2. Voice-to-Text AI for dictation and structured POR creation
+3. Mandatory GPS (Lat/Long) & Timestamp Capture
+4. Restricted Media Upload – live camera capture only
+5. Biometric Login (Fingerprint / Face ID)
+2.2 Component B – Admin Command Portal (“The HQ”)
+Target Users: DFOs, Rangers, PCCF
+Platform: Web-based (ReactJS)
+Features:
+1. Live Kanban Dashboard (Reported → Verified → Charge Sheet → Closed)
+2. Automated PDF Generation of PORs & Seizure Lists (Govt formats)
+3. GIS Heatmaps for offense hotspot visualization
+3. TECHNICAL ARCHITECTURE
+Layer Technology
+Frontend ReactJS (Web), Flutter (Mobile)
+Backend Java Spring Boot
+Database PostgreSQL + PostGIS
+Infrastructure Docker / Kubernetes
+AI Services Python Microservice (Voice-to-Text)
+The architecture is enterprise-grade, scalable, and compliant with government
+e-Governance standards.
+4. IMPLEMENTATION ROADMAP (45 DAYS)
+Phase 1 (Weeks 1–2):
+Requirement workshops, POR finalization, DB design
+Phase 2 (Weeks 3–4):
+Mobile app core features, web dashboard, API integration
+Phase 3 (Week 5):
+AI voice-to-text integration, PDF engine, field simulations
+Phase 4 (Week 6):
+Deployment, training, go-live & handover
+5. RESOURCE PLAN
+Role Level
+Backend Architect Senior
+Mobile Lead Senior
+Frontend Lead Senior
+Project Manager Senior
+QA Engineer Mid-Level
+6. FINANCIAL PROPOSAL
+6.1 Cost Summary
+Description Amount (INR)
+Development & Resource Cost ₹5,85,000
+Technology & Management Fees ₹2,20,000
+Total (Excl. GST) ₹8,05,000
+GST (18%) ₹1,44,900
+Grand Total ₹9,49,900
+6.2 Payment Milestones
+Milestone % Amount (Incl. GST)
+Mobilization Advance 30% ₹2,84,970
+Beta / UAT 40% ₹3,79,960
+Go-Live & Handover 30% ₹2,84,970
+7. TERMS & CONDITIONS
+Inclusions
+● Full source code IP ownership to Department of Forests
+● 3 months hyper-care support post go-live
+● User manuals & training videos
+● SSL & server hardening
+Exclusions
+● Hardware procurement
+● Cloud hosting & third-party service costs
+8. ELIGIBILITY COMPLIANCE
+● Vidyayatan technologies is registered LLP company in India
+● DPIIT-recognized Startup and registered on GEM portal
+● Have In-house expertise in Java Spring Boot & GIS
+● Proven experience in offense, workforce, ERP & GPS-based systems
+9. ABOUT THE COMPANY – VIDYAYATAN
+TECHNOLOGIES
+Vidyayatan Technologies is an India-based software company specializing in enterprise
+platforms, government-grade systems, and GPS-enabled applications. We focus on
+building secure, scalable, and field-ready digital solutions.
+Relevant Experience
+● Labour Link (South Africa): Labour security & workforce management system
+developed for private company , working under african government
+● New Zealand Client: GPS-enabled real estate tracking software , (home review )
+● LMS & ERP: Large-scale LMS & ERP platform with role-based access, reporting, and
+analytics developed for code circle , SSDC like companies and coaching .
+This experience directly aligns with T-FOMS requirements for offline reporting, GIS tracking,
+secure workflows, and authority dashboards.
+10. CONCLUSION
+Vidyayatan Technologies submits this proposal in full compliance with the T-FOMS tender
+requirements and commits to delivering a secure, scalable, and mission-critical system
+supporting the Telangana Forest Department’s vision of modern, data-driven forest protection.
+Authorized Signatories
+Shreyash Jain
+Co-Founder
+Shubham Jain
+Co-Founder
+Date: January 26, 2026

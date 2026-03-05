@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WhatsApp Material Quantity Selection</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#0b141a", /* Deep WhatsApp Dark Background */
+                        "surface-dark": "#202c33", /* Header/Footer Background */
+                        "message-in": "#202c33",
+                        "message-out": "#005c4b",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1); 
+            border-radius: 3px;
+        }
+        
+        /* Subtle Chat Background Pattern Simulation using CSS gradients */
+        .chat-bg-pattern {
+            background-color: #0b141a;
+            background-image: 
+                radial-gradient(circle at 50% 50%, #121d24 2px, transparent 2.5px),
+                radial-gradient(circle at 25% 25%, #121d24 2px, transparent 2.5px);
+            background-size: 40px 40px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-dark font-display text-white overflow-hidden h-screen flex flex-col">
+<!-- Top App Bar (WhatsApp Style) -->
+<div class="flex items-center bg-surface-dark px-2 py-3 justify-between shadow-sm z-20 shrink-0">
+<div class="flex items-center gap-1 flex-1 min-w-0">
+<!-- Back Button -->
+<button class="flex items-center justify-center p-2 text-[#007aff] md:text-[#13ec5b]">
+<span class="material-symbols-outlined text-2xl">arrow_back_ios_new</span>
+<span class="text-base font-normal ml-1 hidden md:block">Back</span>
+</button>
+<!-- Avatar -->
+<div class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-9 shrink-0 bg-white" data-alt="Company Logo showing a stylized S or recycling symbol" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBzE6ISC-p4Qb3eAYMw6h9rDj7XrJiVwpx3ykdugZRxLv9KajePaIrc42OTLQo7y3FC4GSKq4BjxFqMLrqUuI2JpNwT8N1NtAIBLESqBRj4MnHgSY3kaDGd_In7sXD98ctrtjIBfOOyTslLsDAB0lPh2iG-msv9fC7poZGHFyRfWOPNk3MOcJFLHfM3g6hBg39C5zqBtYff2LjGn2Jv9GnjgKVWPnBzUefUBJp6DScYLIIJ5TewucLp5hYz9a7H54pbHRqXrXFUqfE");'>
+</div>
+<div class="flex flex-col justify-center min-w-0">
+<div class="flex items-center gap-1">
+<h2 class="text-white text-base font-bold leading-tight truncate">Srichakra Polyplast</h2>
+<span class="material-symbols-outlined text-primary text-[16px] fill-current">verified</span>
+</div>
+<p class="text-[#8696a0] text-xs font-normal truncate">Official Business Account</p>
+</div>
+</div>
+</div>
+<!-- Right Actions -->
+<div class="flex items-center justify-end gap-3 px-2">
+<button class="flex items-center justify-center text-[#007aff] md:text-primary p-1">
+<span class="material-symbols-outlined text-2xl">videocam</span>
+</button>
+<button class="flex items-center justify-center text-[#007aff] md:text-primary p-1">
+<span class="material-symbols-outlined text-2xl">call</span>
+</button>
+</div>
+</div>
+<!-- Chat Content Area -->
+<div class="flex-1 overflow-y-auto chat-bg-pattern relative flex flex-col p-4 gap-2 z-10">
+<!-- Date Divider -->
+<div class="flex justify-center my-4 sticky top-0 z-10">
+<span class="bg-[#1f2c34] text-[#8696a0] text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm backdrop-blur-sm bg-opacity-90">
+                Today
+            </span>
+</div>
+<!-- Message 1: User (Outgoing) -->
+<div class="flex justify-end mb-2 w-full">
+<div class="flex flex-col items-end max-w-[85%] sm:max-w-[70%]">
+<div class="bg-primary rounded-lg rounded-tr-none px-3 py-2 text-[#111813] shadow-sm relative group">
+<p class="text-[15px] font-normal leading-snug">PET Clear</p>
+<div class="flex items-center justify-end gap-1 mt-1">
+<span class="text-[11px] text-[#111813]/70 font-medium">10:42 AM</span>
+<span class="material-symbols-outlined text-[14px] text-[#007aff] font-bold">done_all</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Message 2: System (Incoming) + Interactive List -->
+<div class="flex justify-start mb-2 w-full">
+<div class="flex gap-2 max-w-[90%] sm:max-w-[75%] items-end">
+<!-- Avatar small -->
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-7 shrink-0 bg-white mb-2 hidden sm:block" data-alt="Small Srichakra Logo" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBX3ca_k9c7jCdniPIe9J0pvcNLFv8SfVp1ScuJUWkKtbOeTAenTXn0ORVdu7aooTgq_1SruwqxM5GmjAicwPi4xFkZGhts7mOXHLW05IBir2tdmstr3u7cqxS6Gr6ftX7Ty3G-pChC6tJK7tTHDI8NplTe1IUfiSBpvMHSAkiFtY3VHgCWSRcMNGwKjilTNGn3Ji3_ODWpuScIa8qziwX5ED6TNv9R-Xxxl3A59qlb9P8bzXAHmlqX8xk6QKeYt59496D3Yw-Amg4");'>
+</div>
+<div class="flex flex-col gap-1 w-full">
+<!-- Message Bubble -->
+<div class="bg-surface-dark rounded-lg rounded-tl-none px-3 py-2 text-white shadow-sm w-fit">
+<p class="text-[15px] font-normal leading-snug text-white/90">
+                            Great! Please select the approximate quantity available in tons, or type the exact amount below.
+                        </p>
+<div class="flex items-center justify-end mt-1">
+<span class="text-[11px] text-[#8696a0]">10:42 AM</span>
+</div>
+</div>
+<!-- Interactive Options List -->
+<div class="flex flex-col gap-2 mt-1 w-full max-w-[320px]">
+<label class="group relative flex items-center justify-center bg-surface-dark hover:bg-[#2a3942] active:bg-[#374248] border border-transparent rounded-lg p-3 cursor-pointer transition-colors shadow-sm">
+<input class="peer sr-only" name="quantity" type="radio" value="1-2"/>
+<span class="text-primary text-[15px] font-medium group-hover:text-[#19f062]">1-2 Tons</span>
+<!-- Selection Indicator Visual -->
+<div class="absolute inset-0 border border-primary/30 rounded-lg opacity-0 peer-checked:opacity-100 peer-checked:border-primary peer-checked:bg-primary/5 transition-all pointer-events-none"></div>
+</label>
+<label class="group relative flex items-center justify-center bg-surface-dark hover:bg-[#2a3942] active:bg-[#374248] border border-transparent rounded-lg p-3 cursor-pointer transition-colors shadow-sm">
+<input class="peer sr-only" name="quantity" type="radio" value="2-5"/>
+<span class="text-primary text-[15px] font-medium group-hover:text-[#19f062]">2-5 Tons</span>
+<div class="absolute inset-0 border border-primary/30 rounded-lg opacity-0 peer-checked:opacity-100 peer-checked:border-primary peer-checked:bg-primary/5 transition-all pointer-events-none"></div>
+</label>
+<label class="group relative flex items-center justify-center bg-surface-dark hover:bg-[#2a3942] active:bg-[#374248] border border-transparent rounded-lg p-3 cursor-pointer transition-colors shadow-sm">
+<input class="peer sr-only" name="quantity" type="radio" value="5-10"/>
+<span class="text-primary text-[15px] font-medium group-hover:text-[#19f062]">5-10 Tons</span>
+<div class="absolute inset-0 border border-primary/30 rounded-lg opacity-0 peer-checked:opacity-100 peer-checked:border-primary peer-checked:bg-primary/5 transition-all pointer-events-none"></div>
+</label>
+<label class="group relative flex items-center justify-center bg-surface-dark hover:bg-[#2a3942] active:bg-[#374248] border border-transparent rounded-lg p-3 cursor-pointer transition-colors shadow-sm">
+<input class="peer sr-only" name="quantity" type="radio" value="10+"/>
+<span class="text-primary text-[15px] font-medium group-hover:text-[#19f062]">10+ Tons</span>
+<div class="absolute inset-0 border border-primary/30 rounded-lg opacity-0 peer-checked:opacity-100 peer-checked:border-primary peer-checked:bg-primary/5 transition-all pointer-events-none"></div>
+</label>
+<label class="group relative flex items-center justify-center bg-surface-dark hover:bg-[#2a3942] active:bg-[#374248] border border-transparent rounded-lg p-3 cursor-pointer transition-colors shadow-sm mt-1">
+<input class="peer sr-only" name="quantity" type="radio" value="back"/>
+<div class="flex items-center gap-2 text-[#ef4444]">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+<span class="text-[15px] font-medium">Back</span>
+</div>
+<div class="absolute inset-0 border border-[#ef4444]/30 rounded-lg opacity-0 peer-checked:opacity-100 peer-checked:border-[#ef4444] peer-checked:bg-[#ef4444]/5 transition-all pointer-events-none"></div>
+</label>
+</div>
+</div>
+</div>
+</div>
+<!-- Extra spacing for bottom scroll -->
+<div class="h-4"></div>
+</div>
+<!-- Composer / Input Area -->
+<div class="bg-surface-dark px-2 py-2 pb-6 md:pb-3 shrink-0 flex items-end gap-2 z-20 w-full border-t border-[#2a3942] md:border-none">
+<button class="p-2 text-[#8696a0] hover:text-white transition-colors rounded-full mb-1">
+<span class="material-symbols-outlined text-2xl">add</span>
+</button>
+<div class="flex-1 bg-[#2a3942] rounded-2xl flex items-center min-h-[40px] px-3 py-1">
+<input class="bg-transparent border-none text-white placeholder-[#8696a0] text-base w-full focus:ring-0 p-0 leading-normal h-full" placeholder="Message" type="text"/>
+<button class="ml-2 text-[#8696a0] hover:text-white transition-colors p-1">
+<span class="material-symbols-outlined text-[20px]">sticky_note_2</span>
+</button>
+</div>
+<div class="flex items-center gap-1 mb-1">
+<button class="p-2 text-[#8696a0] hover:text-white transition-colors rounded-full">
+<span class="material-symbols-outlined text-2xl">photo_camera</span>
+</button>
+<button class="p-2 text-[#8696a0] hover:text-white transition-colors rounded-full">
+<span class="material-symbols-outlined text-2xl">mic</span>
+</button>
+</div>
+</div>
+</body></html>

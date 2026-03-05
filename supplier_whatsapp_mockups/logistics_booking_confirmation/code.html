@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Logistics Booking Confirmation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#102216",
+                        "chat-bubble-dark": "#1f2c34",
+                        "chat-bg-dark": "#0b141a",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .chat-bg-pattern {
+            background-color: #0b141a;
+            background-image: radial-gradient(#1f2c34 1px, transparent 1px);
+            background-size: 20px 20px;
+            opacity: 1;
+        }
+        .whatsapp-tail {
+            position: absolute;
+            top: 0;
+            width: 8px;
+            height: 13px;
+        }
+        .incoming .whatsapp-tail {
+            left: -8px;
+            fill: #1f2c34;
+        }
+        .outgoing .whatsapp-tail {
+            right: -8px;
+            fill: #005c4b;
+            transform: scaleX(-1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased overflow-hidden h-screen flex flex-col select-none">
+<div class="h-12 bg-background-light dark:bg-[#1f2c34] flex items-end justify-between px-6 pb-2 text-black dark:text-white z-20 shrink-0">
+<span class="text-sm font-semibold w-12 text-center">9:41</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-[18px]">wifi</span>
+<span class="material-symbols-outlined text-[18px]">battery_full</span>
+</div>
+</div>
+<div class="bg-background-light dark:bg-[#1f2c34] px-2 py-2 flex items-center justify-between shadow-sm z-20 shrink-0 border-b border-gray-200 dark:border-gray-800">
+<div class="flex items-center flex-1 overflow-hidden">
+<button class="flex items-center text-primary -ml-1 pr-1">
+<span class="material-symbols-outlined text-3xl">chevron_left</span>
+</button>
+<div class="flex items-center gap-3 flex-1 min-w-0">
+<div class="size-9 rounded-full bg-gray-700 bg-center bg-cover shrink-0 relative" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAMopeDaX0q3ep6tpbeG4-B6sGpI-7hLYFal9Ri_TOkh-BNuj21ws2kHmkYQb4yE2x5dsP3585Yq0rDWBpRsnoagm2ZcDR5PhoZZkp4yp1VpAD20SWWTXhsaTuqrtbwV46yw8FTPto2LGJXEQptOpM47OkP-QjTnr5plgiN2THm2oDeZ6NjfPUalGVj3a0pvkLZWTD-iWHoQlNwyb6178XDl2y2IAD41hQZ_W45m9S4ork4kf7mV1_C-g2b6LwpWLDrCfw4zRXV2DI");'>
+<div class="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full border-2 border-[#1f2c34] size-3.5 flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px] text-white font-bold">check</span>
+</div>
+</div>
+<div class="flex flex-col justify-center truncate">
+<h1 class="text-base font-bold text-gray-900 dark:text-white leading-tight truncate">Srichakra Logistics</h1>
+<span class="text-xs text-gray-500 dark:text-gray-400 truncate">Official Business Account</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4 px-2 text-primary">
+<button class="flex items-center justify-center"><span class="material-symbols-outlined text-2xl">videocam</span></button>
+<button class="flex items-center justify-center"><span class="material-symbols-outlined text-2xl">call</span></button>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto relative flex flex-col px-4 pt-4 pb-4 bg-[#efe7dd] dark:bg-[#0b141a]">
+<div class="absolute inset-0 opacity-5 pointer-events-none chat-bg-pattern"></div>
+<div class="flex justify-center mb-6 z-10">
+<span class="bg-[#e9edef] dark:bg-[#1f2c34] text-gray-600 dark:text-gray-300 text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm">
+            Today
+        </span>
+</div>
+<div class="flex flex-col items-start w-full z-10 mb-4 incoming">
+<div class="bg-white dark:bg-[#1f2c34] rounded-tr-xl rounded-br-xl rounded-bl-xl rounded-tl-none shadow-sm max-w-[85%] w-fit overflow-visible relative p-3">
+<svg class="whatsapp-tail fill-white dark:fill-[#1f2c34]" viewBox="0 0 8 13">
+<path d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path>
+</svg>
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-xl">check_circle</span>
+<p class="text-sm text-gray-900 dark:text-white font-medium">Booking Confirmed</p>
+</div>
+<p class="text-sm text-gray-800 dark:text-gray-200">Thank you for your request. Would you like to view the details or confirm and close this booking?</p>
+<div class="flex justify-end mt-1">
+<span class="text-[10px] text-gray-400 dark:text-gray-500 uppercase">10:05 AM</span>
+</div>
+</div>
+<div class="flex flex-col gap-2 mt-2 w-full max-w-[85%]">
+<button class="bg-white dark:bg-[#1f2c34] text-primary border border-gray-100 dark:border-gray-700 py-2.5 rounded-lg text-sm font-semibold shadow-sm active:bg-gray-100 dark:active:bg-[#2a3942]">View Details</button>
+<button class="bg-white dark:bg-[#1f2c34] text-primary border border-gray-100 dark:border-gray-700 py-2.5 rounded-lg text-sm font-semibold shadow-sm active:bg-gray-100 dark:active:bg-[#2a3942]">Confirm &amp; Close</button>
+</div>
+</div>
+<div class="flex flex-col items-end w-full z-10 mb-4 outgoing">
+<div class="bg-[#dcf8c6] dark:bg-[#005c4b] rounded-tl-xl rounded-bl-xl rounded-br-xl rounded-tr-none shadow-sm max-w-[85%] w-fit overflow-visible relative p-3">
+<svg class="whatsapp-tail fill-[#dcf8c6] dark:fill-[#005c4b]" style="right: -8px; transform: scaleX(-1);" viewBox="0 0 8 13">
+<path d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path>
+</svg>
+<p class="text-sm text-gray-900 dark:text-white">View Details</p>
+<div class="flex justify-end mt-1 gap-1 items-center">
+<span class="text-[10px] text-gray-600 dark:text-gray-300 uppercase">10:05 AM</span>
+<span class="material-symbols-outlined text-[14px] text-blue-400">done_all</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start w-full z-10 mb-2 incoming">
+<div class="bg-white dark:bg-[#1f2c34] rounded-tr-xl rounded-br-xl rounded-bl-xl rounded-tl-none shadow-sm max-w-[85%] w-fit overflow-visible relative p-3">
+<p class="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-0.5">Booking ID</p>
+<p class="text-sm text-gray-900 dark:text-white font-mono">SCL-20260203-4521</p>
+</div>
+</div>
+<div class="flex flex-col items-start w-full z-10 mb-2 incoming">
+<div class="bg-white dark:bg-[#1f2c34] rounded-tr-xl rounded-br-xl rounded-bl-xl rounded-tl-none shadow-sm max-w-[85%] w-fit overflow-visible relative p-3">
+<div class="grid grid-cols-2 gap-6">
+<div>
+<p class="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-0.5">Material</p>
+<p class="text-sm text-gray-900 dark:text-white font-medium">PET Clear (5 tons)</p>
+</div>
+<div>
+<p class="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-0.5">Vehicle</p>
+<p class="text-sm text-gray-900 dark:text-white font-medium">DCM</p>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start w-full z-10 mb-2 incoming">
+<div class="bg-white dark:bg-[#1f2c34] rounded-tr-xl rounded-br-xl rounded-bl-xl rounded-tl-none shadow-sm max-w-[85%] w-fit overflow-visible relative p-3">
+<p class="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-0.5">Est. Cost</p>
+<p class="text-xl text-primary font-bold">₹2,500</p>
+</div>
+</div>
+<div class="flex flex-col items-start w-full z-10 mb-4 incoming">
+<div class="bg-white dark:bg-[#1f2c34] rounded-tr-xl rounded-br-xl rounded-bl-xl rounded-tl-none shadow-sm max-w-[85%] w-fit overflow-visible relative p-3">
+<div class="space-y-3">
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-gray-400 text-lg">location_on</span>
+<div>
+<p class="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">Pickup</p>
+<p class="text-sm text-gray-900 dark:text-gray-200">Plot 45, Ind. Area, Hyd</p>
+</div>
+</div>
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-gray-400 text-lg">schedule</span>
+<div>
+<p class="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">Time</p>
+<p class="text-sm text-gray-900 dark:text-gray-200">Feb 04, 2026 • 10:00 AM</p>
+</div>
+</div>
+</div>
+<div class="flex justify-end mt-1">
+<span class="text-[10px] text-gray-400 dark:text-gray-500 uppercase">10:06 AM</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-start w-full z-10 mb-8 incoming">
+<div class="bg-white dark:bg-[#1f2c34] rounded-tr-xl rounded-br-xl rounded-bl-xl rounded-tl-none shadow-sm max-w-[85%] w-fit overflow-visible relative p-3">
+<p class="text-sm text-gray-800 dark:text-gray-200">All details have been presented. You can download the booking PDF or cancel if needed.</p>
+</div>
+<div class="flex flex-col gap-2 mt-2 w-full max-w-[85%]">
+<button class="bg-white dark:bg-[#1f2c34] text-primary border border-gray-100 dark:border-gray-700 py-3 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 active:bg-gray-100 dark:active:bg-[#2a3942]">
+<span class="material-symbols-outlined text-lg">description</span>
+                Download Booking PDF
+            </button>
+<button class="bg-white dark:bg-[#1f2c34] text-red-500 border border-gray-100 dark:border-gray-700 py-3 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 active:bg-gray-100 dark:active:bg-[#2a3942]">
+<span class="material-symbols-outlined text-lg">cancel</span>
+                Cancel Booking
+            </button>
+</div>
+</div>
+</div>
+<div class="shrink-0 bg-background-light dark:bg-[#1f2c34] px-4 py-3 flex items-end gap-3 pb-8 border-t border-gray-200 dark:border-gray-800 z-20">
+<button class="text-primary mb-2.5 p-0">
+<span class="material-symbols-outlined text-[28px]">add</span>
+</button>
+<div class="flex-1 bg-white dark:bg-[#2a3942] rounded-2xl min-h-[40px] flex items-center px-3 py-2 border border-transparent">
+<input class="bg-transparent border-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-base w-full focus:ring-0 p-0" disabled="" placeholder="Type a message..." type="text"/>
+<button class="text-gray-400 dark:text-gray-400 ml-2">
+<span class="material-symbols-outlined text-[24px]">sticky_note_2</span>
+</button>
+</div>
+<button class="text-primary mb-2.5">
+<span class="material-symbols-outlined text-[28px]">camera_alt</span>
+</button>
+<button class="text-primary mb-2.5">
+<span class="material-symbols-outlined text-[28px]">mic</span>
+</button>
+</div>
+<div class="absolute bottom-1 left-0 right-0 flex justify-center z-30 pointer-events-none">
+<div class="w-32 h-1 bg-gray-300 dark:bg-white rounded-full opacity-30"></div>
+</div>
+
+</body></html>

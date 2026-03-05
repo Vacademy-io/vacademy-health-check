@@ -1,0 +1,168 @@
+
+Srichakra <> Vidyayatan - AI Model Project
+Video
+Shreyash Jain
+Feb 10 2026, 11:15 AM
+
+AI Model Goal: Deploy AI to sort plastic bales by polymer type, color, and brand for better recycling quality and yield.
+Data Needs: Require 1,000 labeled images for training, covering various conditions; Sri Chakra can provide extensive data support.
+Infrastructure Setup: Start with edge devices for local processing, transitioning to GPUs as model complexity increases; Sri Chakra handles hardware needs.
+Accuracy Timeline: Aim for 70-80% initial accuracy in 3-4 months, increasing to 80-95% over time; ongoing retraining needed for consistency.
+Long-Term Vision: Develop proprietary AI model after using commercial solutions for foundational knowledge; plan set for sustainable in-house development.
+Follow-Up Plans: Detailed accuracy and model approach plan expected in 3-4 days, with a progress review call scheduled for Thursday evening.
+Notes
+Pre-Segregation AI Model Objectives
+The key goal is to deploy an AI model that sorts plastic bales by polymer type, color, and brand to improve recycling quality and yield.
+
+Bala Krishna Mohan Adusumilli explained that the pre-segregation phase targets sorting mixed PET bottle bales into color-specific and polymer-specific bins to reduce contamination and operational overheads for recyclers (04:13)
+
+This sorting raises yield and quality by delivering cleaner, brand-specific material to recyclers.
+The AI model must identify polymer type, color, and brand for each bottle passing on the conveyor.
+Weight estimation is a secondary feature, aimed at ±5% accuracy based on surface area rather than exact measurement.
+The sorted material is then re-baled and sent to recyclers specializing in specific polymers or brands, enhancing supply chain precision.
+The AI model will be deployed at two points: the entry conveyor pre-segregation and the exit conveyor post-segregation to ensure sorting accuracy and quality control (16:21)
+
+At the second point, brand identification and weight accuracy become more critical since the mix is already partially sorted.
+A tolerance threshold of 5% error is set; exceeding this triggers retraining of the model to maintain sorting standards.
+Data Requirements and Model Training
+High-quality, labeled image data reflecting real operational conditions is essential for training the AI model to achieve practical accuracy levels.
+
+Shreyash emphasized the need for at least 1,000 labeled images with annotations for brand, color, polymer type, and weight, covering diverse backgrounds and lighting seen in real sorting environments (20:03)
+
+Data must represent practical scenarios to ensure model robustness across client sites, including complex backgrounds and varied lighting.
+Images will be split into training and testing sets to validate model accuracy.
+The largest recycler in the country, Sri Chakra, can supply ample varied data, exceeding thousands of tons over months, alleviating data scarcity concerns (21:46).
+Bala Krishna Mohan Adusumilli confirmed data availability is the easiest part of the project given Sri Chakra’s extensive materials and variety, offering full control to provide training data on demand (27:54)
+
+He proposed the possibility of delivering 20 tons of material to the development site for hands-on training if needed.
+Focus will remain on setting up the environment and pipeline for effective data flow into the model training process.
+Technical Infrastructure and Model Selection
+The initial infrastructure will rely on edge devices near the conveyor for processing, with a gradual move toward in-house AI development.
+
+Shreyash outlined two main deployment options: GPU servers or edge devices like Jetson Nano or Orin, recommending edge devices for initial low-latency processing near the data source (24:18)
+
+Edge devices reduce network dependency and speed up inference by processing data locally.
+GPU or CPU-based options may be considered later as the system scales or requires more compute power.
+Bala Krishna Mohan Adusumilli agreed edge deployment is the best starting point to contain costs and complexity, with a plan to transition to higher-end GPUs on demand once the model matures (25:43)
+
+Hardware responsibility for cameras and conveyor integration will be handled by Sri Chakra, while software and computing capacity planning will be driven by the AI team.
+For model architecture, Shreyash recommended using advanced detection models like YOLO over basic CNNs to handle multiple bottles in one image, reflecting the practical sorting environment (26:06)
+
+Bala clarified that existing shared models were for reference only, and the final technology will be selected based on clear project requirements.
+Project Timeline and Accuracy Expectations
+The project aims for a staged accuracy improvement from initial deployment to long-term refinement, balancing feasibility and business impact.
+
+Bala projected an initial deployment accuracy of 70-80% achievable within 3-4 months of training, with gradual improvements toward 80-95% over time (29:59)
+
+Moving from 95% to 99% accuracy is expected to be difficult and time-consuming, involving complex model enhancements.
+Fluctuations in accuracy are anticipated due to real-world variations, requiring ongoing retraining to maintain consistency.
+The team will focus on reaching a stable 80-95% accuracy range as a practical milestone.
+Shreyash agreed to deliver a detailed plan including expected accuracy and model approach within 3-4 days, with a follow-up call tentatively scheduled for Thursday evening to review progress (30:33)
+
+This plan will clarify achievable performance, growth potential, and resource needs.
+Both agreed to maintain flexible scheduling to accommodate other projects and priorities.
+Strategic Vision for In-House Model Development
+The long-term goal is to develop a proprietary AI model, leveraging market solutions initially to build expertise and infrastructure.
+
+Bala shared that a commercial model is being procured from Belgium, expected within two months, to be deployed in a pre-segregation center for learning and benchmarking (18:43)
+
+This will provide foundational knowledge of camera types, conveyor setups, and integration challenges.
+Parallel infrastructure will be set up to develop an in-house model based on this experience, aiming for ownership and customization.
+The approach balances using existing market technology to jumpstart capability while progressing toward full in-house software development and system control (19:57)
+
+This dual approach reduces risk and accelerates project momentum while preserving long-term independence.
+Camera mounting, vibration handling, and conveyor stability are key operational concerns being addressed through this phased rollout.
+Action items
+Bala Krishna Mohan Adusumilli
+Arrange for Shreyash’s team to visit Srichakra’s pre-segregation center to understand the physical setup of conveyors and camera placements (20:00)
+Ensure provision of large-scale labeled data (images/materials) from Srichakra’s inventory for initial AI model training and testing (20:14)
+Tentatively schedule follow-up meeting on 13th (Thursday) evening and adjust based on Shreyash’s readiness (31:30)
+Shreyash
+Develop and present a detailed AI model plan including approach, data needs, expected accuracy, and architecture within 3-4 days after the meeting (29:00)
+Propose final hardware and software stack including camera specs, edge GPUs, and AI model selection based on practical constraints (24:00)
+Prepare labeled datasets with annotations on brand, color, polymer type, and weight under realistic conditions for training/testing phases (20:30)
+Decide on final call date (between Thursday, Friday, or Monday) and communicate with Bala Krishna accordingly for the follow-up meeting (31:50)
+
+
+
+Good morning. Hello. Hi Shreyash. Good morning. 
+Hello Shreyash. 
+Good morning. Good morning. My apologies here, sorry for multiple reschedules to this call. My sincere apologies. 
+Okay, let's start on this. So I tried to do some research like you know, based on the documents that you have given, but I'll need more time. But based on that I have few questions. So I can then maybe if you want I can start and then we can then follow that thing. 
+Sure, sure. Just. 
+Okay. Yeah, just give me a minute. I'm just coming. I cannot find my pen. I'm just taking my pen from a different room and just coming. 
+Okay. Can I pass it through teams? 
+No. Yes. So first things first. So basically I want to understand the intention of what we are trying to make and what is the so purpose of this? I think that is most important. And in practical scenarios what will be the usage for this? Let's think, let's start with this question first. 
+Oh yeah, let me try to give it an example. Trying to share my screen. Let me know when you can view it. 
+Yep, visible. 
+All right, so if you can see here, these are. Looks like all of these bottles are PET bottles only. However, although the material type is of same type, if you can see there are multiple colors in it. So there are some greens, there are some tinge of blue bottles and clear bottles, clears are nothing but you know, plain white bottles. I think there are three to two to three types of bottles in this whole bale. This is called bale. So when we request for material from the supplier actually sends most of the, you know, medium to large scale suppliers do have baler capabilities. So they, what they do is the loose bottles that they collect here on the left hand side, whatever you see, they crush it and create bales and send it. 
+So in that process, due to, you know, due to manual sorting or due to unscientific ways of sorting, there are 100 chances of other material getting clubbed into this bill. 
+Right. 
+With intention, few times, without intention, few times. 
+Right. 
+So when this material comes to the next level of recycling phase, which is to recyclers, they cannot process this bail in its original form. You know, original. I mean in this form. Whatever we see in the image at this point, primarily because the, I mean at the end of the day the purpose of recycling is not just for the sake of recycling, it's just it. We are trying to create an alternative to virgin plastic. Right. So when what I mean by virgin plastic is so if we are recycling PET clear waste idea is to ensure that the what you call the originality of this clear plastic remains clear plastic only. And for that kind of an achievement, we cannot mix green or yellow bottle into this clear bale bottle for recycling purposes. Okay? 
+So at the end, during the recycling phase, it is kind of an overhead for the recyclers today to further sort before actually sending, before proceeding to next level, next cycle of recycling, next phase of recycling. So hence in what we are trying to come up with is we are creating a new stage called pre segregation. Okay? So from the aggregator, when the material comes in this form, in this bail form, so our pre segregation phase will try to sort this material and divert the color specific material type into its respective bins. So, so that these bins will be separately built again and send it to the recyclers. The advantages of doing this process is we are creating a value add in the whole recycling process and giving an edge for the recyclers to improve their yield, number one and to improve the quality also. 
+Right? So both yield and quality improvements will be there and which reduces, you know, these are direct benefits that recyclers will get. And the indirect ones are there because of less contamination or 0 to 1% contamination or less than that. I mean, don't go by the percentages, but because of reduced contamination, the line maintenance, operational overheads, maintenance costs, you know, those also will come down for the recyclers. So there are whole group, whole, you know, bunch of advantages recyclists will get by sourcing sorted material. Okay? So the a model that we are trying to build today will help, you know, will help segregate this material into color specific polymer type. Okay? That's one of the sorting requirements that we have. This AI model should also be able to sort. See now if you see the bottle, I mean these sizes are little big. 
+We don't process sizes of bottles of this size. This will be slightly shorter. Assume these are like Harpik or our blue Harpic and red Harpic bottles. Okay? Now in some cases the bales will also contain bottles of this nature. Okay? So our AI model, whatever material passes under its, you know, vision, it should able to clearly identify what is polymer type. Whether it is a hard pick bottle, whether it is a l' oreal bottle, whether it is a dove bottle, whether it is a parachute bottle or whether it is a Kindle bottle. You know, whatever it is, it should be able to clearly identify the polymer type. Okay? And we, I mean the team will be able to give you notional weights of this bottle also. So we should be also able to gain the. 
+Based on the surface area, they will be able to tell us what will be the notional weight of this particular bottle. Because in some cases the bottles will be damaged also they will be cut into half and all that. Right. But still based on the surface area, we should be still able to determine a notional weight of it. So that after one hour of processing, our AI model should be able to tell in this one hour of processing, 100 tons have been processed. Out of 100 tons, 50 tons is PET clear, 10 tons is PET green. 10 tons is HDPE. HDPE in the sense Harpic bottles blue. Harpic bottles green. And another PET is parachute bottles. Another PET is dove bottles. You know, something like that. The RA model should be able to identify and give a report. Okay, so that's the. 
+I mean that's how this pre segregation will collect data from a model. And the end output is for the pre segregation unit is to segregate the material into its respective zones and bail it and then send it to the recyclers whoever know operates in that particular space. Because there are material specific recyclers in the industry. So for example, we do PET and HDPE and there are players who do only HDPE and there are players who do HDPE black. So like that there are different players. We should be able to give them the material that their industry, their specific industry requires gaining the advantages that I just shared. Is that clear? Yeah. 
+In, in this case then like, you know, to estimate the weight also we'll have like, you know, kind of more parameters that we'll have to be adding there we kind of where this process is happening, what is the depth of it, what is the width and height. All those things also may be needed in that case. 
+Yeah, width and depth may not be necessary. Yeah, I mean within the sense the surface area or in a conveyor when a bottle is passing by the crust bottle is passing by. I think there are ways to tell. Like for example, I mean it takes tremendous amounts of iteration and training for us to get that exact weight. But here the focus is not on not getting the exact weight of this material. Focus on is getting plus or minus, you know, 5 grams here and there is fine. I mean 0.5 grams, not 5 grams because the bottle that we see Kindle bottle is hardly 0.18 grams. The water that we drink from the 1 liter one, if you. I think it's 0.18. If I'm not wrong? No, 0.45. The smaller one is 0.18. 
+Actually out of that 0.18, the cap weight is more than the plastic weight. And the cap, if you remove the cap, it comes down by 50% or so. Just the cap takes so much of weight. So it's very minor. And even if it is crushed, the weight remains same. So the, I mean if we give 0.9 or 0.09 or 0.08, that is okay at this point in time, we can further refine later. And actually at the end of the day, based on how our experience goes by, whatever the weight the AI model may provide, we give plus or minus 5% to it and then say this is the total weight of the material processed. It need not be exact. Whatever our AI model gives based on the experience that formula will derive that formula. So focus need not be on the weight. 
+That's just an what is a good to have feature. In this whole AI model. The main requirement is ability of the AI model to clearly identify the polymer type of this plastic plus the brand and the color. So these are the three crucial or critical mandatory requirements of this AI model. 
+So kind of color weight and what else? Third one. 
+Okay, first one is polymer type. Okay. Second one is color, third one is brand. Good to have is weight. 
+Okay, so cool. So I understand now and this. 
+Use. 
+Case that we have for this model. So in like you know, one process that we discussed was this pre segregation stage, right? So this is the place where we will be having this model that will be running through the conveyor belt right in that will. So before basically the segregation. So in this stage we will be getting idea of what kind of kg weight or the type or the brand or the color it is. So one phase will be this any other part of the journey where we will be having some like again something a model will be used to maybe it can be after the segregation or anywhere else. 
+Yes, absolutely. So initially, yes, to identify what kind of material comes into this space aggregation phase. And we should certainly have this model deployed at the end also before it goes to the bailing, right. There will be two, one at the entry point and two at the exit point of this affairs, we should have this tool deployed. 
+And in this also only four things are important to us. Again, the color, kg, polymer type and brand. 
+In the second phase we are, I mean we should have confidence on our AI model, right? It should be pretty much give us, I mean there should not be much of a difference in terms of identifying the other material. I think, I think the focus of this next phase, of course we still. At the end of the day it is the same model. It's not the various models, it's the same model but the. In the second iteration the goal should be to identify the brand more than anything. Because say for example, I'm doing HDP bottles. That's where a lot of brands will come into picture. Right. So there could be hard pick, you know, I don't know. There are, there could be Patanjali, right. And there could be Vim, Wimbars. So these are the different brands that could come up. 
+And even in the PET for that matter we will have Coca Cola bottles, thumbs up bottles, you know, Campa Cola, you know, there are different brands. So the focus of the brand collection should be probably more at the end part because there the combination of PET and HDB coming is less because it's already sorted material. Correct. And the only thing that matters more there is probably the brand plus the weight. These two will play a crucial role in the second iteration. But we still have to factor pull in the other data primarily to improve the first phase sorting if at all. Our accepted tolerance is 5% but we are getting more than 5% in the second phase. That means there is model is not behaving how it is supposed to behave. 
+We go and retrain the model and ensure sorting happens properly in the first place. 
+Okay, so if I can summarize, there will be two places where the model or the camera will be deployed for the model. So one will be the entry pre segregation conveyor belt and then after bailing. So second will be basically again on the conveyor belt in. In the second phase, right? Both in the. On the conveyor belt, correct? 
+Absolutely. So we will in probably in a week. Not week, sorry, a month or two. It may take two months for sure. You know, it has to come from Belgium. So we are actually procuring this model currently as we speak. So. And, and before the end of next year, by this time we should be able to have a model of our own is the goal. Okay, so we can see how this is done. You know, what is the make and model of these cameras and all. And we can procure of our own similar ones are better ones. Right. At least that will give us a foundational knowledge on how the existing solution works. And we can. The idea is to have an in house model. So that is why we are approaching you for the whole concept. 
+I mean concept is there already in Practice and we will be leveraging it. Existing solutions from the market will be leveraged. It will be deployed in one of our pre segregation centers. You know, you can pay a visit, your team can come to come and see what is the setup we have and we will based on that we will set up another parallel conveying mission and the frames and cameras and all for us to build our own model while that is happening. So that will happen for sure. 
+So in this Krishna like the main thing that we will be needing is the data and like you know, and how this data will be coming. So I have previously worked on CNN a lot so when I was in Samsung so were trying to build a like you know, a model where we would be able to like in terms of there were different use cases for like you know, movies where to understand what kind of brands, what they are wearing and the clothes they're wearing so that we can suggest on E Commerce. 
+Right. 
+So those kind of things. So like the main thing that generally comes is the data that is practical, right. So in terms of and to start with we'll need at least 100 labeled images and these labeling, sorry 1000 labeled images. So to start with, right. And then based on we can add the data more and more data in the same practical environment will help us and make the like you know, the output a very good output. Right. So labeling will mean that let's say we are having these images. So these images that are coming initially will be divided into training and testing data, right. So in the training and testing data both will be labeled. So in terms of what is the brand, what is the color? Right. 
+Like even in a single image there may be like you know, multiple like you know, different set of bottles where it can be having multiple bottles and they so we need to have annotations also in that you know where we have identified this brand color, what is the weight of that, what is the type of that, what is the like you know all four things that we have identified and make ensuring that the background and everything is how we will have in the practical ways. Right. So the most important thing that from for our end will be to have a very good training and testing data. 
+Absolutely. See that is where our and that is the easiest part for Sri Chakra because we are the largest recyclers, one of the largest recyclers in the country and the variety of data in the space that we are working in if we cannot provide the data, I don't think there is no other company in the country can provide. Okay, so we are the owners of the data. So we should be able to. 
+At. 
+Any point in time, anywhere, lots of varieties, not just thousand. We can provide easily thousand tons in few months. Thousand tons in few months. 
+To at least have some 70% of accuracy, we'll need to start with thousand images. I think important is to have the background like you know, the different possible complex background that we will get or the lightning lighting that we will be having. So all those, you know, we need to make sure that the data has all those things where we can in future maybe of other clients where we are giving this model, for example, in future, SRI Chakra is giving this model. So how varied their background and all those things. So important is to have lot of data and good data, having all the annotations and these values. 
+Yeah, yeah, absolutely. So that's why I was, I mean because you are, your expertise is on the software aspect. So hence I was kind of recommending, I mean I'm not discounting your camera knowledge and all that, the conveyor knowledge and all that. You may be knowing that, but pardon my ignorance there, but why I mentioned the solution to look at the solution so that we get some ideas on type of cameras that we can leverage for this whole process and the whole setup that can, that is needed. Because cameras is one piece, right? Because we have to place them on the conveyor and the conveyor could have a little bit of vibration in it when actually because it's at the end of the day a mechanical conveyor. So there could be some slight, you know, very subtle vibrations to this whole setup. 
+So in that if that happens, how these cameras, what kind of frames we should have, how should we fix it so that practical experience we can gain once this comes into practice is what I'm saying. Yeah. However, if we don't need that, we can do everything on our own. So, so we can do that. So in terms of hardware requirements, Chakra will take care of it. But in terms of software requirements, like what is the, what kind of hard disks are required, what kind of computing power is required? You know, what is the capacity of the whole thing that you need? 
+Yeah, like I also when I was reading the GitHub that you shared and the what abstract of that page research paper that you shared. So the second part comes is the latency and the performance of these models. So like you know where you deploy this. So one is basically you deploy on a GPU server. So basically graphic processing unit and then these GPUs will be handling the like, you know, part as soon as our image will be coming to them and they will be running algorithm along with the model parameters and they will be finding out like the output based on that. 
+Right. 
+So this will be very good if we are using the GPUs right. Second option is edge devices. These are kind of. If you have heard about Jetson Nano orin. So these basically are the edge devices. They are basically put nearby these like, you know, so let's say you are scanning in if you don't want to send to GPU, what generally you can do is can have an edge device and it is nearby the place where the camera is. Right. And like so instead of going to the network, it will be going to the edge device and then it will be having that models that we have trained and it will be keeping that part right. So parameters. But second way is this third way is basically the GPU, CPU or the mobile. Like I don't think that will be a use case. 
+So I think either the edge device or the GPU where we will have to take. 
+Yeah. So to begin with, I think edge is what I am proposing that is better. We, I mean we. We can keep it in house for now and once it is taking some shape then we can actually think of CPUs higher end GPUs on demand basis. 
+Correct. 
+Okay. 
+And then in terms of the model that you shared on the GitHub, it is using basic CNN models. But for our use case what I feel is we will need YOLO like the advanced models for detection. Because in these simple CNN we will be able to track only like you know, single bottle in image, not multiple if they come. So those kind of limitations will be in the current GitHub that you shared to me. 
+No, no, whatever I said is only for references to give you an idea what is the expectation here. But yeah, I mean discount all that. If you have the clarity on this requirement and based on that, whatever you think will be absolutely necessary for. For us to begin work on this, you propose that we will take a call. You know, this whatever I material I said is just to get an understanding what is that we are trying to achieve by this work, by this project right now. Once we have the requirement, you know, whatever clarifications are required, you know, if there are beyond my knowledge, I will involve the team who actually knows much better than what I know in terms of actual business requirement, we will involve them. 
+Once we have thorough clarity on the requirement, then we will go ahead and do the selection of required technology both in terms of hardware and software to start the work on it. 
+I think in terms of hardware we'll need camera need the edge devices. Yes, yeah. And in terms of software we need to finalize the model that we will be going ahead with. And like most difficult thing on RN will be the data like. And that is the easier thing on your end you are saying. 
+That is. I mean I think out of all the things that you listed, camera, edge devices, the models, the selection of technology and the models and the data. Data is piece of cake for us. Okay. I can even, I mean of course it's not viable but if at all we want to start on this project and you have all the setup ready in your device, in your place I can request my MD to send 20 tons of truck to your place to start the training. So that, that is the control we have on the data. So that is the easiest. 
+Yeah, yeah. But those data points should be in the practical scenarios, not on our, in our office background. 
+No, no. I'm just saying. So that's what I mean. Wherever it is. Yes. So yeah data is the least worry. We should all con. We forget about the data. We have to focus on setting up that environment and passing this data onto that environment for our model trading and testing. Okay. 
+I think I got a lot of idea. So like and I'll just give this, I'll just work on this. Give me at least three, four days to come up with this plan and then I will be giving a document or I'll be discussing like you know, with you or we can have a somewhere second call on this and then we can discuss what are the things that we found out and like ideally what accuracy we will be able to achieve. I think that is the most important question here. Right. So even if we use all the things that are ideal and can be used, what will be the final expectations that you know, we can think and like, you know, it's also to understand what basically as we grow we can. 
+We are will be able to increase the efficiency or increase the performance with time. That is also very important. Right. So because at a point Maybe we reach 95% then we need to be make sure that you know, we have that architecture so that with time we reach to 99.5 those kind of things. Right. 
+I mean pretty sure when we roll out, I mean once we think model is ready for deployment, once we roll out, I'm sure it is easy to reach 70 to 80% piece of cake. Probably 80 to 95% is where we will have a gradual improvement but getting it from 95 to 99 is it. It takes years together because that's where the lot of complexity we try start building into the model. So I think 80s is expected within three to four hours of three to four months of training I believe. But post that we will have a challenge from taking it 80 to 95 consistently. So we may get in one lot 95 for sure but in the other lot it drops down to 80 again because of other complexities. 
+We have to start working through those complexities to achieve that consistency in whatever confidence that we claim our model will offer. In terms of 95, 96 and from there to getting 99. Based on my. I, I did work on AI in the past but predominantly on the OCR side. You know documents processing and accounts back end integrations. So initial, you know getting 7080 was quite easy for us. From then on, you know reducing the number of exceptions is a challenge. But anyway we will figure this out. Yeah. So look forward to that your update on this in three to four days time frame and we should have a follow up call for sure on this. I'll. I'll just so that we don't forget I will set up a call say on Monday as a touch point for this topic. 
+I think Monday we will have a lot of touch points for other things as well. So like either let's do on Friday or let's do on Tuesday. What do you say? 
+I mean I, I thought you need more time so Friday is good year for me. That's why I said okay. 
+Yeah, like do you guys work on Saturdays? 
+I this is going to be my second Saturday seconds and fourth I don't work. But if you have some things to discuss on 14th I'm more than happy to schedule a call. 
+I think we can do on Monday. Only thing that you know we would be having other things also on Monday with the other project. 
+So. 
+Okay, let's go on Monday then. Like no issues we can do on Monday. 
+No, 14th is fine. I mean if you are free, if you are willing to speak on that day, I'm okay to connect. No problem. 
+So either so give me like you know time till Thursday. If I'm prepared by Thursday I'll be messaging you that you know on Friday we can do else we can do on Saturday. 
+All right, so let's. I will schedule tentatively for 13th evening on Thursday based on your update we will reschedule the call. Okay. 
+Okay. 
+I mean, I'm getting old. I'm 49. I don't want to forget. That's why I put. I want to put a placeholder in the calendar. All right, I think you have meeting coming up at 12, so let's wrap it up. Thank you. Thank you. Okay. 
+Thank you. Thank you so much. 
+Okay. 
+Have a good day. 

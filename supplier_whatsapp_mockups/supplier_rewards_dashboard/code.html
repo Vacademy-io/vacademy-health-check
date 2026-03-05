@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Supplier Rewards - Conversational</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#102216",
+                        "wa-dark-bg": "#0b141a",
+                        "wa-dark-header": "#1f2c34",
+                        "wa-dark-bubble": "#1f2c34",
+                        "wa-dark-input": "#2a3942",
+                        "wa-ios-blue": "#007aff",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">::-webkit-scrollbar {
+            width: 6px
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px
+        }.wa-bg-pattern {
+            background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuDUaTjDmgFDtoYuSVJ9oTQmAv38bvWiUH8Iq4kw3hW5x88h_w8L_f21e4U3gc6fqoWYkFOup94LKOiaIMoIdKLlVI4z_bUrA0u5neQMWUVytjRTzaEEXgJvu6_KX2I35TmwsePKtfpczu0MifsrqqdIzm-CtDDSUmZWIcPRO1EZ1iQV9d5t4vlgnFTn7SUIQKEkdd8dwVS0LLT4ltz_ewy7piknyGq9ydH8cqS76yT9FLHyB6GX7zZFNJ30AGY0_tJek_zur0I5ur4);
+            opacity: 0.06;
+            pointer-events: none
+        }.bubble-tail::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -8px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 10px 10px 0;
+            border-color: transparent #1f2c34 transparent transparent;
+        }
+        .light .bubble-tail::before {
+            border-color: transparent #ffffff transparent transparent;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-wa-dark-bg text-slate-900 dark:text-white font-display overflow-hidden h-screen flex flex-col">
+<header class="flex items-center bg-[#f0f2f5] dark:bg-wa-dark-header px-2 py-2 justify-between border-b border-gray-200 dark:border-gray-800 z-10 shrink-0">
+<div class="flex items-center gap-1">
+<button class="text-primary p-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[24px]">arrow_back_ios</span>
+<span class="text-lg font-medium hidden sm:block">2</span>
+</button>
+<div class="flex items-center gap-3 ml-1">
+<div class="relative">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10 bg-gray-700" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBKgBw-l1oeny_V359bWiyb5-m1oeTc_DZo_BRXDJUpay710a8X2tj265T2YbOrvii4eYevdTLveCkc9P7J3rtW-hKrutLmwAOtsh-bTOqcYvnxlHsYgZmcd_3uAtcJMSsCIxjLkcpw3kJc2erBboFvBm7WQ8AY7-HLzOJBdioKTRrIORM0Rz3P9qifSCNPcEc0dW9xRNLn8-2_A6od70IM4AIDuHuL1tdWHrwWt3QeUnMZ-TuYgaqDPzccZ-1GlHLcTnH4mfTXozs");'></div>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1">
+<h2 class="text-slate-900 dark:text-white text-base font-bold leading-tight tracking-[-0.015em]">Srichakra Polyplast Bot</h2>
+<span class="material-symbols-outlined text-primary text-[16px] fill-1">verified</span>
+</div>
+<p class="text-gray-500 dark:text-gray-400 text-xs truncate">Official Business Account</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4 pr-2">
+<button class="text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[26px]">videocam</span>
+</button>
+<button class="text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[24px]">call</span>
+</button>
+</div>
+</header>
+<main class="relative flex-1 overflow-y-auto bg-[#efeae2] dark:bg-[#0b141a] w-full flex flex-col p-4 pb-12">
+<div class="wa-bg-pattern absolute inset-0 z-0 bg-repeat"></div>
+<div class="relative z-10 flex flex-col gap-1.5 max-w-lg mx-auto w-full">
+<div class="flex justify-center mb-4">
+<span class="bg-white/80 dark:bg-[#1f2c34] text-gray-800 dark:text-[#8696a0] text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm">Today</span>
+</div>
+<div class="flex flex-col gap-1 items-start max-w-[85%]">
+<div class="bg-white dark:bg-wa-dark-bubble rounded-lg p-2.5 shadow-sm relative text-sm bubble-tail">
+<p class="text-slate-900 dark:text-white">Hey there! 👋 Here is your latest rewards summary for Srichakra Polyplast.</p>
+<div class="flex justify-end mt-1">
+<span class="text-[10px] text-gray-400">10:42 AM</span>
+</div>
+</div>
+<div class="bg-white dark:bg-wa-dark-bubble rounded-lg p-2.5 shadow-sm relative text-sm">
+<p class="text-slate-900 dark:text-white">You're currently recognized as a <span class="font-bold text-gray-400">Silver Supplier 🥈</span>. Great work!</p>
+<div class="flex justify-end mt-1">
+<span class="text-[10px] text-gray-400">10:42 AM</span>
+</div>
+</div>
+<div class="bg-white dark:bg-wa-dark-bubble rounded-lg p-2.5 shadow-sm relative text-sm">
+<p class="text-slate-900 dark:text-white">Current balance: <span class="font-bold text-primary">175 Total Points</span></p>
+<p class="text-slate-900 dark:text-white mt-1">You have <span class="font-bold text-primary">150 points</span> available for immediate redemption! 🎁</p>
+<div class="flex justify-end mt-1">
+<span class="text-[10px] text-gray-400">10:42 AM</span>
+</div>
+</div>
+<div class="bg-white dark:bg-wa-dark-bubble rounded-lg p-2.5 shadow-sm relative text-sm">
+<p class="text-slate-900 dark:text-white font-bold mb-1">Earned this month:</p>
+<p class="text-slate-900 dark:text-white">🚚 Shipments: <span class="text-primary">+100</span></p>
+<p class="text-slate-900 dark:text-white">👥 Sub-suppliers: <span class="text-primary">+50</span></p>
+<p class="text-slate-900 dark:text-white">🎓 Training: <span class="text-primary">+25</span></p>
+<div class="flex justify-end mt-1">
+<span class="text-[10px] text-gray-400">10:43 AM</span>
+</div>
+</div>
+<div class="bg-white dark:bg-wa-dark-bubble rounded-lg p-2.5 shadow-sm relative text-sm">
+<p class="text-slate-900 dark:text-white italic">"You are just <span class="font-bold">25 points</span> away from unlocking <span class="text-amber-400 font-bold">Gold Tier</span> benefits! 🚀"</p>
+<div class="flex justify-end mt-1">
+<span class="text-[10px] text-gray-400">10:43 AM</span>
+</div>
+</div>
+<div class="w-full flex flex-col gap-2 mt-4">
+<button class="w-full bg-white dark:bg-wa-dark-bubble text-primary py-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 shadow-sm border-b border-gray-200 dark:border-black/20 hover:bg-gray-50 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]">card_giftcard</span>
+                    Redeem Rewards
+                </button>
+<button class="w-full bg-white dark:bg-wa-dark-bubble text-primary py-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 shadow-sm border-b border-gray-200 dark:border-black/20 hover:bg-gray-50 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]">trending_up</span>
+                    View Level Benefits
+                </button>
+<button class="w-full bg-white dark:bg-wa-dark-bubble text-primary py-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 shadow-sm border-b border-gray-200 dark:border-black/20 hover:bg-gray-50 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[20px]">menu</span>
+                    Main Menu
+                </button>
+</div>
+</div>
+<div class="flex justify-end mt-4">
+<div class="bg-[#dcf8c6] dark:bg-[#005c4b] rounded-lg p-2.5 shadow-sm relative text-sm max-w-[80%]">
+<p class="text-slate-900 dark:text-white">Thanks! What are the Gold benefits?</p>
+<div class="flex justify-end items-center gap-1 mt-1">
+<span class="text-[10px] text-gray-500 dark:text-gray-300">10:45 AM</span>
+<span class="material-symbols-outlined text-[14px] text-wa-ios-blue fill-1">done_all</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="bg-[#f0f2f5] dark:bg-wa-dark-header px-2 py-2 flex items-end gap-2 shrink-0 pb-6 sm:pb-2 border-t border-gray-200 dark:border-gray-800">
+<button class="p-2 text-primary shrink-0">
+<span class="material-symbols-outlined text-[28px]">add</span>
+</button>
+<div class="flex-1 bg-white dark:bg-wa-dark-input rounded-full min-h-[40px] flex items-center px-4 py-2 gap-2 mb-1">
+<input class="bg-transparent border-none outline-none text-gray-900 dark:text-white w-full text-base placeholder-gray-500 p-0 focus:ring-0" disabled="" placeholder="Select a button above..." type="text"/>
+<button class="text-gray-400 dark:text-gray-400">
+<span class="material-symbols-outlined text-[24px]">sticky_note_2</span>
+</button>
+</div>
+<button class="p-2 text-primary shrink-0 mb-1">
+<span class="material-symbols-outlined text-[24px]">photo_camera</span>
+</button>
+<button class="p-2 text-primary shrink-0 mb-1">
+<span class="material-symbols-outlined text-[24px]">mic</span>
+</button>
+</footer>
+
+</body></html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Srichakra Polyplast - WhatsApp Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#102216",
+                        "wa-dark": "#102216", // Main background
+                        "wa-header": "#1f2c34", // Header/Nav
+                        "wa-bubble-in": "#1f2c34", // Incoming bubble
+                        "wa-bubble-out": "#005c4b", // Outgoing bubble (not used but consistent)
+                        "wa-blue": "#53bdeb",
+                        "wa-yellow": "#ffeecd",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    backgroundImage: {
+                        'chat-pattern': "url('data:image/svg+xml,%3Csvg width=\\'60\\' height=\\'60\\' viewBox=\\'0 0 60 60\\' xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Cg fill=\\'none\\' fill-rule=\\'evenodd\\'%3E%3Cg fill=\\'%239C92AC\\' fill-opacity=\\'0.05\\'%3E%3Cpath d=\\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')",
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #37404a;
+            border-radius: 3px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-dark font-display text-white overflow-hidden h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between px-2 py-3 bg-wa-header z-20 shadow-md shrink-0">
+<div class="flex items-center gap-1 flex-1 min-w-0">
+<button class="text-primary p-1 -ml-1 flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">arrow_back_ios_new</span>
+<span class="text-lg font-medium ml-1">92</span>
+</button>
+<div class="flex items-center gap-3 ml-1 cursor-pointer flex-1 min-w-0">
+<div class="relative">
+<img class="w-9 h-9 rounded-full object-cover bg-white" data-alt="Srichakra Polyplast logo icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmfFeRya1_EHPVpQh5rDtm-PikkYdno0e0h-FeNBvuYLqYXXveb_ATTlBKBxP9Aa5ItkE1atVoTe0K6w72b1LWug2clJkMdEzhS2ElaxwjBFVtvzcABGuFCihhVzA0aSqsYX_VPsKlimjY0zZ3yen5mF-78U0ATjNdqRIL20jB0NxpUlLVGL9LJqyeCZnHiMSg6rCX_Cv4kvVts7oA2-V79Ua0O-KDmSYHMYKNgei6XeOEtZ1qLLLskRvVhco8zncEO4jFF-g0qhg"/>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1">
+<h1 class="font-bold text-white text-base truncate">Srichakra Polyplast</h1>
+<span class="material-symbols-outlined text-primary text-[16px] fill-1" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+<p class="text-xs text-gray-400 truncate">Official Business Account</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-4 px-2">
+<button class="text-primary"><span class="material-symbols-outlined text-2xl">videocam</span></button>
+<button class="text-primary"><span class="material-symbols-outlined text-2xl">call</span></button>
+</div>
+</header>
+<!-- Chat Area -->
+<main class="flex-1 relative bg-background-dark bg-chat-pattern overflow-y-auto">
+<!-- Encryption Notice -->
+<div class="flex justify-center mt-4 mb-4 px-8">
+<div class="bg-[#1f2c34] rounded-lg px-3 py-2 max-w-xs text-center shadow-sm">
+<p class="text-[#ffd279] text-[11px] leading-relaxed flex flex-col items-center">
+<span class="flex items-center gap-1 mb-1">
+<span class="material-symbols-outlined text-[10px] fill-1" style="font-variation-settings: 'FILL' 1;">lock</span>
+                        Messages are end-to-end encrypted.
+                    </span>
+<span class="text-gray-400">No one outside of this chat, not even WhatsApp, can read or listen to them.</span>
+</p>
+</div>
+</div>
+<!-- Date Divider -->
+<div class="flex justify-center mb-6">
+<span class="bg-[#1f2c34] text-gray-300 text-[11px] font-medium px-3 py-1 rounded-lg shadow-sm">Today</span>
+</div>
+<!-- Incoming Message Bubble -->
+<div class="px-4 pb-20"> <!-- Added padding bottom for scrolling space -->
+<div class="flex flex-col items-start max-w-[85%] sm:max-w-[400px]">
+<!-- The Message Bubble -->
+<div class="bg-wa-bubble-in rounded-lg rounded-tl-none p-1 shadow-sm relative group">
+<!-- Tail SVG -->
+<svg class="absolute top-0 -left-[8px] fill-wa-bubble-in" height="13" preserveaspectratio="xMidYMid slice" viewbox="0 0 8 13" width="8"><path d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z" opacity="0.13"></path><path d="M5.188 0H0v11.193l6.467-8.625C7.526 1.156 6.958 0 5.188 0z"></path></svg>
+<div class="px-3 pt-2 pb-1">
+<p class="text-[15px] leading-snug text-gray-100">
+<span class="font-bold">Namaskaram!</span> Welcome to Srichakra Polyplast. <br/><br/>
+                            We simplify plastic waste management. To start your registration for payments and logistics, please choose your language:
+                        </p>
+<!-- List within message text as requested -->
+<ol class="list-decimal list-inside text-[15px] text-gray-300 mt-2 space-y-1 pl-1">
+<li>English</li>
+<li>Telugu</li>
+<li>Tamil</li>
+<li>Hindi</li>
+<li>Kannada</li>
+</ol>
+<!-- Timestamp -->
+<div class="flex justify-end mt-1">
+<span class="text-[11px] text-gray-400">10:30 AM</span>
+</div>
+</div>
+<!-- Interactive Button attached to bubble -->
+<div class="border-t border-white/10 mt-1">
+<button class="w-full py-3 flex items-center justify-center gap-2 text-primary hover:bg-white/5 transition-colors rounded-b-lg">
+<span class="material-symbols-outlined text-[20px]">menu</span>
+<span class="text-sm font-medium">Select Language</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Input Bar (Visually behind the sheet, but standard placement) -->
+<div class="bg-wa-header px-2 py-2 flex items-end gap-2 shrink-0 z-20 pb-6 sm:pb-2">
+<button class="p-2 text-primary pb-3"><span class="material-symbols-outlined text-[28px]">add</span></button>
+<div class="flex-1 bg-[#2a3942] rounded-2xl flex items-center min-h-[40px] px-3 py-1 mb-1">
+<input class="w-full bg-transparent border-none text-white placeholder-gray-400 focus:ring-0 text-[16px]" disabled="" placeholder="Message" type="text"/>
+<button class="text-gray-400 ml-2"><span class="material-symbols-outlined text-[22px]">sticky_note_2</span></button>
+</div>
+<button class="p-2 text-primary pb-3"><span class="material-symbols-outlined text-[24px]">photo_camera</span></button>
+<button class="p-2 text-primary pb-3"><span class="material-symbols-outlined text-[24px]">mic</span></button>
+</div>
+<!-- Bottom Sheet Overlay (Language Selection) -->
+<div class="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-[1px]">
+<!-- Sheet Content -->
+<div class="bg-[#1f2c34] w-full rounded-t-2xl shadow-2xl flex flex-col max-h-[80vh] animation-slide-up">
+<!-- Handle -->
+<div class="w-full flex justify-center pt-3 pb-1 cursor-grab">
+<div class="w-12 h-1.5 bg-[#374248] rounded-full"></div>
+</div>
+<!-- Header -->
+<div class="px-5 py-4 border-b border-white/5 flex justify-between items-center">
+<h3 class="text-white text-lg font-semibold tracking-tight">Select Language</h3>
+<button class="text-gray-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-xl">close</span>
+</button>
+</div>
+<!-- Radio List -->
+<div class="p-4 overflow-y-auto space-y-2">
+<!-- English -->
+<label class="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<input checked="" class="w-5 h-5 text-primary border-2 border-gray-500 bg-transparent focus:ring-primary focus:ring-offset-0 cursor-pointer" name="language" type="radio"/>
+<span class="text-base text-white font-medium">English</span>
+</div>
+</label>
+<!-- Telugu -->
+<label class="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<input class="w-5 h-5 text-primary border-2 border-gray-500 bg-transparent focus:ring-primary focus:ring-offset-0 cursor-pointer" name="language" type="radio"/>
+<span class="text-base text-white font-medium">Telugu</span>
+</div>
+<span class="text-sm text-gray-500 font-display">తెలుగు</span>
+</label>
+<!-- Tamil -->
+<label class="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<input class="w-5 h-5 text-primary border-2 border-gray-500 bg-transparent focus:ring-primary focus:ring-offset-0 cursor-pointer" name="language" type="radio"/>
+<span class="text-base text-white font-medium">Tamil</span>
+</div>
+<span class="text-sm text-gray-500 font-display">தமிழ்</span>
+</label>
+<!-- Hindi -->
+<label class="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<input class="w-5 h-5 text-primary border-2 border-gray-500 bg-transparent focus:ring-primary focus:ring-offset-0 cursor-pointer" name="language" type="radio"/>
+<span class="text-base text-white font-medium">Hindi</span>
+</div>
+<span class="text-sm text-gray-500 font-display">हिंदी</span>
+</label>
+<!-- Kannada -->
+<label class="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<input class="w-5 h-5 text-primary border-2 border-gray-500 bg-transparent focus:ring-primary focus:ring-offset-0 cursor-pointer" name="language" type="radio"/>
+<span class="text-base text-white font-medium">Kannada</span>
+</div>
+<span class="text-sm text-gray-500 font-display">ಕನ್ನಡ</span>
+</label>
+</div>
+<!-- Send Button Area -->
+<div class="p-4 border-t border-white/5 bg-[#1f2c34] pb-8">
+<button class="w-full bg-primary hover:bg-green-400 text-[#111813] font-bold text-[15px] py-3.5 rounded-full shadow-lg transition-transform active:scale-[0.98]">
+                    Continue
+                </button>
+</div>
+</div>
+</div>
+</body></html>
