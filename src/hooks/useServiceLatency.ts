@@ -11,6 +11,8 @@ export interface ServicePingResult {
   jvm?: {
     heap_percent: number;
     gc_pause_ms_last: number;
+    gc_count_total: number;
+    gc_algorithm: string;   // "G1GC" | "ZGC" | "Shenandoah" | "ParallelGC" | "SerialGC"
     threads_blocked: number;
     threads_waiting: number;
     heap_used_mb: number;

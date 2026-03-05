@@ -59,48 +59,124 @@ const LatencyCard = ({ name, latencyMs, status, jvm, history }: {
     latencyMs: number | null;
     status: string;
     history?: number[];
-    jvm?: { heap_percent: number; gc_pause_ms_last: number; threads_blocked: number; threads_waiting: number; heap_used_mb: number; heap_max_mb: number; };
+    jvm?: { heap_percent: number; gc_pause_ms_last: number; gc_count_total: number; gc_algorithm: string; threads_blocked: number; threads_waiting: number; heap_used_mb: number; heap_max_mb: number; };
 }) => {
-    // ── Root cause diagnosis ────────────────────────────────────────────────
-    // Figure out the most likely reason for the current latency level.
-    const diagnosis: { label: string; detail: string; color: string } | null =
-        (() => {
-            if (!jvm || !latencyMs) return null;
+    // ── Root cause diagnosis with algorithm-specific fix ──────────────────
+    type Diagnosis = { label: string; detail: string; flags?: string; color: string };
+    const diagnosis: Diagnosis | null = (() => {
+        if (!jvm || !latencyMs) return null;
 
-            // GC pause > half the observed latency → GC is the culprit
-            if (jvm.gc_pause_ms_last > 100 && jvm.gc_pause_ms_last > latencyMs * 0.4) {
+        const algo = jvm.gc_algorithm ?? "Unknown";
+        const gcMs = jvm.gc_pause_ms_last;
+        const heapPct = jvm.heap_percent;
+        const heapMb = jvm.heap_used_mb;
+        const maxMb = jvm.heap_max_mb;
+
+        // ── GC is clearly causing the latency ─────────────────────────────
+        if (gcMs > 100 && gcMs > latencyMs * 0.4) {
+            if (algo === "G1GC") {
                 return {
-                    label: "⚡ GC pause is the bottleneck",
-                    detail: `Avg GC pause ${jvm.gc_pause_ms_last}ms is eating into response time. Tune heap or switch to ZGC.`,
-                    color: "text-red-600 bg-red-50 border-red-200",
+                    label: `⚡ G1GC pause ${gcMs}ms → add pause target`,
+                    detail: `G1GC (default JVM) allows pauses up to 250ms. Your avg is ${gcMs}ms. Lower the target and let G1 use more CPU to hit it. Also consider switching to ZGC (Java 15+) for near-zero pauses.`,
+                    flags:
+`# Add to JAVA_OPTS in Dockerfile / K8s env:
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=100
+-XX:G1HeapRegionSize=16m
+-XX:InitiatingHeapOccupancyPercent=35
+-Xms${Math.round(maxMb * 0.5)}m -Xmx${maxMb}m
+
+# Or switch to ZGC (Java 15+) for <1ms pauses:
+-XX:+UseZGC -Xms${Math.round(maxMb * 0.5)}m -Xmx${Math.round(maxMb * 1.5)}m`,
+                    color: "text-red-700 bg-red-50 border-red-200",
                 };
             }
-            // High heap → GC is about to spike
-            if (jvm.heap_percent > 85) {
+            if (algo === "ParallelGC" || algo === "SerialGC") {
                 return {
-                    label: "⚠ Heap near limit → GC pressure",
-                    detail: `Heap ${jvm.heap_used_mb}MB / ${jvm.heap_max_mb}MB (${jvm.heap_percent}%). GC will run frequently. Increase -Xmx.`,
+                    label: `⚡ ${algo} pause ${gcMs}ms → migrate to G1GC or ZGC`,
+                    detail: `${algo} is a stop-the-world collector — not suitable for latency-sensitive services. Migrate immediately.`,
+                    flags:
+`# Replace your GC flags with one of these:
+
+# Option 1: G1GC (safe, Java 11+)
+-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -Xms512m -Xmx${maxMb}m
+
+# Option 2: ZGC (best, Java 15+, <1ms pauses)
+-XX:+UseZGC -Xms512m -Xmx${Math.round(maxMb * 1.5)}m
+
+# Option 3: Shenandoah (OpenJDK 12+)
+-XX:+UseShenandoahGC -Xms512m -Xmx${maxMb}m`,
+                    color: "text-red-700 bg-red-50 border-red-200",
+                };
+            }
+            if (algo === "ZGC" || algo === "Shenandoah") {
+                // ZGC/Shenandoah with high pause = heap too small
+                return {
+                    label: `⚡ ${algo} pause ${gcMs}ms → heap too small`,
+                    detail: `${algo} normally has <1ms pauses. A pause of ${gcMs}ms means heap is exhausted and GC can't keep up with allocation. Increase -Xmx.`,
+                    flags:
+`# ZGC/Shenandoah needs headroom — increase heap:
+-XX:+Use${algo === "ZGC" ? "ZGC" : "ShenandoahGC"}
+-Xms${Math.round(maxMb * 0.5)}m -Xmx${Math.round(maxMb * 2)}m
+
+# Also set uncommit delay to return memory to OS when idle:
+-XX:ZUncommitDelay=60   # ZGC only`,
                     color: "text-orange-600 bg-orange-50 border-orange-200",
                 };
             }
-            // Thread contention
-            if (jvm.threads_blocked > 0) {
-                return {
-                    label: `🔒 ${jvm.threads_blocked} thread${jvm.threads_blocked > 1 ? 's' : ''} blocked`,
-                    detail: "Threads are blocked waiting on a lock or I/O. May cause request queuing under load.",
-                    color: "text-yellow-700 bg-yellow-50 border-yellow-200",
-                };
-            }
-            // Latency looks high but JVM is healthy → network or DB
-            if (latencyMs > 300) {
-                return {
-                    label: "🌐 Check DB / network",
-                    detail: "JVM is healthy but latency is high. Likely cause: slow DB query or network round-trip. See DB Matrix below.",
-                    color: "text-blue-600 bg-blue-50 border-blue-200",
-                };
-            }
-            return null;
-        })();
+            // Unknown GC
+            return {
+                label: `⚡ GC pause ${gcMs}ms on ${algo}`,
+                detail: `Avg pause is eating ${Math.round(gcMs / latencyMs * 100)}% of response time. Consider switching to ZGC.`,
+                flags: `-XX:+UseZGC -Xms512m -Xmx${Math.round(maxMb * 1.5)}m`,
+                color: "text-red-700 bg-red-50 border-red-200",
+            };
+        }
+
+        // ── Heap pressure (GC about to get worse) ─────────────────────────
+        if (heapPct > 85) {
+            return {
+                label: `⚠ Heap ${heapPct}% — GC will spike soon`,
+                detail: `Heap is ${heapMb}MB / ${maxMb}MB. When heap hits ~90%, GC runs continuously. Increase -Xmx before this becomes an incident.`,
+                flags:
+`# Increase heap — rule of thumb: 2× current usage
+-Xms${Math.round(heapMb * 0.8)}m -Xmx${Math.round(maxMb * 1.5)}m
+
+# If still on G1GC:
+-XX:+UseG1GC -XX:MaxGCPauseMillis=100
+
+# Better: migrate to ZGC which handles pressure more gracefully:
+-XX:+UseZGC -Xmx${Math.round(maxMb * 2)}m`,
+                color: "text-orange-600 bg-orange-50 border-orange-200",
+            };
+        }
+
+        // ── Thread contention ──────────────────────────────────────────────
+        if (jvm.threads_blocked > 0) {
+            return {
+                label: `🔒 ${jvm.threads_blocked} thread(s) blocked`,
+                detail: `Threads in BLOCKED state are waiting on a lock or I/O. This can queue requests under load. Check thread dumps.`,
+                flags:
+`# Enable thread dump via actuator:
+GET /actuator/threaddump
+
+# Or via jstack (attach to pod):
+kubectl exec -it <pod> -- jstack 1 | grep BLOCKED`,
+                color: "text-yellow-700 bg-yellow-50 border-yellow-200",
+            };
+        }
+
+        // ── JVM healthy but latency is high ──────────────────────────────
+        if (latencyMs > 300) {
+            return {
+                label: "🌐 JVM healthy — check DB or network",
+                detail: `GC: ${gcMs}ms avg, Heap: ${heapPct}% — JVM is fine. High latency is likely from a slow DB query or network hop. Check the DB Matrix section below.`,
+                color: "text-blue-600 bg-blue-50 border-blue-200",
+            };
+        }
+
+        return null;
+    })();
 
     // ── Card colour (adjusted — don't call it Excellent if GC is dominant) ──
     let color = "bg-gray-100 text-gray-500";
@@ -144,8 +220,22 @@ const LatencyCard = ({ name, latencyMs, status, jvm, history }: {
             {diagnosis && (
                 <div className={`mt-1 rounded border text-[9px] px-1.5 py-1 leading-tight ${diagnosis.color}`}>
                     <div className="font-bold">{diagnosis.label}</div>
-                    {showDiagnosis && (
-                        <div className="mt-0.5 opacity-90">{diagnosis.detail}</div>
+                    <div className="mt-0.5 opacity-85 leading-normal">{diagnosis.detail}</div>
+                    {showDiagnosis && diagnosis.flags && (
+                        <div className="mt-1.5">
+                            <div className="flex items-center justify-between mb-0.5">
+                                <span className="font-semibold opacity-70">Fix — copy to JAVA_OPTS:</span>
+                                <button
+                                    className="text-[8px] px-1 py-0.5 rounded bg-black/10 hover:bg-black/20 font-mono"
+                                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(diagnosis.flags!); }}
+                                >
+                                    copy
+                                </button>
+                            </div>
+                            <pre className="text-[8px] font-mono whitespace-pre-wrap bg-black/10 rounded p-1 leading-relaxed select-all">
+                                {diagnosis.flags}
+                            </pre>
+                        </div>
                     )}
                 </div>
             )}
