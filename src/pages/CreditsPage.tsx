@@ -13,17 +13,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowUpDown } from "lucide-react";
+import { SearchInput } from "@/components/shared/SearchInput";
 import type { InstituteCreditItem } from "@/types/api";
 
 export default function CreditsPage() {
   const navigate = useNavigate();
   // AI service uses 1-indexed pages
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("current_balance");
   const [sortDir, setSortDir] = useState("ASC");
   const pageSize = 20;
 
-  const { data, isLoading } = useAllCredits(page, pageSize, sortBy, sortDir);
+  const { data, isLoading } = useAllCredits(page, pageSize, sortBy, sortDir, search);
 
   const columns: Column<InstituteCreditItem & Record<string, unknown>>[] = [
     {
@@ -79,6 +81,14 @@ export default function CreditsPage() {
         onRowClick={(row) => navigate(`/institutes/${row.institute_id}`)}
         toolbar={
           <div className="flex items-center gap-2">
+            <SearchInput
+              value={search}
+              onChange={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              placeholder="Search by institute ID..."
+            />
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-40">
                 <SelectValue />
