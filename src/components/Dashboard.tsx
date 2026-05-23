@@ -13,6 +13,7 @@ import { useServiceLatency } from "@/hooks/useServiceLatency";
 import { useInfrastructureHealth } from "@/hooks/useInfrastructureHealth";
 import { useSlowQueries } from "@/hooks/useSlowQueries";
 import type { PodInfo, K8sComponentStatus } from "@/types/diagnostics";
+import BbbPoolManager from "@/components/BbbPoolManager";
 
 // --- Components ---
 
@@ -372,6 +373,9 @@ export default function Dashboard() {
                     )}
                 </div>
             </section>
+
+            {/* BBB Server Pool & Schedulers */}
+            <BbbPoolManager />
 
             {/* ZONE 2: DATABASE & BACKEND MATRIX */}
             <section>
