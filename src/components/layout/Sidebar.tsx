@@ -6,16 +6,34 @@ import {
   Activity,
   Brain,
   HeartPulse,
+  Sparkles,
+  KeyRound,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/institutes", label: "Institutes", icon: Building2 },
-  { to: "/credits", label: "Credits", icon: CreditCard },
-  { to: "/activity", label: "Activity", icon: Activity },
-  { to: "/usage", label: "AI Usage", icon: Brain },
-  { to: "/health", label: "System Health", icon: HeartPulse },
+const navSections: Array<{
+  label?: string;
+  items: Array<{ to: string; label: string; icon: typeof LayoutDashboard; end?: boolean }>;
+}> = [
+  {
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+      { to: "/institutes", label: "Institutes", icon: Building2 },
+      { to: "/credits", label: "Credits", icon: CreditCard },
+      { to: "/activity", label: "Activity", icon: Activity },
+      { to: "/usage", label: "AI Usage", icon: Brain },
+      { to: "/health", label: "System Health", icon: HeartPulse },
+    ],
+  },
+  {
+    label: "Vimotion",
+    items: [
+      { to: "/vimotion/waitlist", label: "Waitlist", icon: Sparkles },
+      { to: "/vimotion/invite-codes", label: "Invite Codes", icon: KeyRound },
+      { to: "/vimotion/stats", label: "Stats", icon: TrendingUp },
+    ],
+  },
 ];
 
 export function Sidebar({ className }: { className?: string }) {
@@ -24,24 +42,33 @@ export function Sidebar({ className }: { className?: string }) {
       <div className="flex h-14 items-center border-b px-4">
         <span className="text-lg font-semibold">Vacademy Admin</span>
       </div>
-      <nav className="flex-1 space-y-1 p-2">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )
-            }
-          >
-            <item.icon className="h-4 w-4" />
-            {item.label}
-          </NavLink>
+      <nav className="flex-1 space-y-4 p-2">
+        {navSections.map((section, sIdx) => (
+          <div key={sIdx} className="space-y-1">
+            {section.label && (
+              <p className="px-3 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {section.label}
+              </p>
+            )}
+            {section.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )
+                }
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
     </aside>
