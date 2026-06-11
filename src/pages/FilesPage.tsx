@@ -32,6 +32,7 @@ import {
   FILE_TYPE_FILTERS,
 } from "@/lib/file-utils";
 import {
+  CalendarRange,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -42,6 +43,30 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+
+const DATE_PRESETS = [
+  { value: "ANY", label: "Any time" },
+  { value: "TODAY", label: "Today" },
+  { value: "7D", label: "Last 7 days" },
+  { value: "30D", label: "Last 30 days" },
+  { value: "90D", label: "Last 90 days" },
+  { value: "CUSTOM", label: "Custom range" },
+] as const;
+
+type DatePreset = (typeof DATE_PRESETS)[number]["value"];
+
+function toDateInputValue(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function presetRange(preset: DatePreset): { from: string; to: string } {
+  const today = new Date();
+  const to = toDateInputValue(today);
+  const days = preset === "TODAY" ? 0 : preset === "7D" ? 7 : preset === "30D" ? 30 : 90;
+  const from = new Date(today);
+  from.setDate(from.getDate() - days);
+  return { from: toDateInputValue(from), to };
+}
 
 function CopyButton({ value, label }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false);
@@ -112,10 +137,10 @@ function FilePreview({ file }: { file: FileItemDTO }) {
 
 function DetailRow({ label, value, copyable }: { label: string; value: string | null; copyable?: boolean }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-1.5">
-      <span className="shrink-0 text-sm text-muted-foreground">{label}</span>
-      <span className="flex min-w-0 items-center gap-1 text-right text-sm">
-        <span className="truncate font-mono" title={value ?? undefined}>
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 py-1.5">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="flex min-w-0 items-start justify-end gap-1 text-sm">
+        <span className="break-all text-right font-mono text-xs leading-5" title={value ?? undefined}>
           {value || "-"}
         </span>
         {copyable && value && <CopyButton value={value} />}
@@ -130,6 +155,7 @@ export default function FilesPage() {
   const [fileType, setFileType] = useState("");
   const [source, setSource] = useState("");
   const [sourceId, setSourceId] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>("ANY");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [sortBy, setSortBy] = useState<string | undefined>();
@@ -146,8 +172,8 @@ export default function FilesPage() {
     fileType,
     source,
     sourceId,
-    startDate: fromDate ? new Date(fromDate).toISOString() : undefined,
-    endDate: toDate ? new Date(toDate).toISOString() : undefined,
+    startDate: fromDate ? new Date(`${fromDate}T00:00:00`).toISOString() : undefined,
+    endDate: toDate ? new Date(`${toDate}T23:59:59.999`).toISOString() : undefined,
     sortBy,
     sortDirection,
   };
@@ -169,8 +195,22 @@ export default function FilesPage() {
     setFileType("");
     setSource("");
     setSourceId("");
+    setDatePreset("ANY");
     setFromDate("");
     setToDate("");
+    setPage(0);
+  }
+
+  function applyDatePreset(preset: DatePreset) {
+    setDatePreset(preset);
+    if (preset === "ANY") {
+      setFromDate("");
+      setToDate("");
+    } else if (preset !== "CUSTOM") {
+      const { from, to } = presetRange(preset);
+      setFromDate(from);
+      setToDate(to);
+    }
     setPage(0);
   }
 
@@ -308,23 +348,48 @@ export default function FilesPage() {
         placeholder="Source ID"
         className="w-36"
       />
-      <div className="flex items-center gap-1">
-        <Input
-          type="datetime-local"
-          value={fromDate}
-          onChange={(e) => resetPageAnd(setFromDate)(e.target.value)}
-          className="w-48"
-          title="Created from"
-        />
-        <span className="text-xs text-muted-foreground">to</span>
-        <Input
-          type="datetime-local"
-          value={toDate}
-          onChange={(e) => resetPageAnd(setToDate)(e.target.value)}
-          className="w-48"
-          title="Created until"
-        />
-      </div>
+      <Select value={datePreset} onValueChange={(v) => applyDatePreset(v as DatePreset)}>
+        <SelectTrigger className="w-40">
+          <span className="flex items-center gap-2">
+            <CalendarRange className="h-4 w-4 text-muted-foreground" />
+            <SelectValue />
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          {DATE_PRESETS.map((p) => (
+            <SelectItem key={p.value} value={p.value}>
+              {p.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {datePreset !== "ANY" && (
+        <div className="flex items-center gap-1.5 rounded-md border px-2 py-1">
+          <Input
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(e) => {
+              setDatePreset("CUSTOM");
+              resetPageAnd(setFromDate)(e.target.value);
+            }}
+            className="h-7 w-36 border-0 p-1 shadow-none focus-visible:ring-0"
+            title="Created from"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <Input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(e) => {
+              setDatePreset("CUSTOM");
+              resetPageAnd(setToDate)(e.target.value);
+            }}
+            className="h-7 w-36 border-0 p-1 shadow-none focus-visible:ring-0"
+            title="Created until"
+          />
+        </div>
+      )}
       {hasFilters && (
         <Button variant="ghost" size="sm" onClick={clearFilters}>
           <X className="mr-1 h-4 w-4" /> Clear
@@ -437,15 +502,15 @@ export default function FilesPage() {
 
       {/* File detail dialog */}
       <Dialog open={!!detailFile} onOpenChange={(open) => !open && setDetailFile(null)}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-h-[88vh] max-w-xl overflow-y-auto">
           {detailFile && (
             <>
               <DialogHeader>
-                <DialogTitle className="truncate pr-6">{detailFile.file_name || "File details"}</DialogTitle>
+                <DialogTitle className="break-all pr-6">{detailFile.file_name || "File details"}</DialogTitle>
                 <DialogDescription>{detailFile.file_type || "Unknown type"}</DialogDescription>
               </DialogHeader>
               <FilePreview file={detailFile} />
-              <div className="divide-y">
+              <div className="min-w-0 divide-y">
                 <DetailRow label="File ID" value={detailFile.id} copyable />
                 <DetailRow label="S3 Key" value={detailFile.key} copyable />
                 <DetailRow label="Size" value={formatBytes(detailFile.file_size)} />
