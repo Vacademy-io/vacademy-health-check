@@ -10,6 +10,8 @@ const CreditsPage = lazy(() => import("@/pages/CreditsPage"));
 const ActivityPage = lazy(() => import("@/pages/ActivityPage"));
 const UsagePage = lazy(() => import("@/pages/UsagePage"));
 const HealthPage = lazy(() => import("@/pages/HealthPage"));
+const FilesPage = lazy(() => import("@/pages/FilesPage"));
+const FileUploadPage = lazy(() => import("@/pages/FileUploadPage"));
 const VimotionWaitlistPage = lazy(() => import("@/pages/VimotionWaitlistPage"));
 const VimotionInviteCodesPage = lazy(() => import("@/pages/VimotionInviteCodesPage"));
 const VimotionStatsPage = lazy(() => import("@/pages/VimotionStatsPage"));
@@ -36,6 +38,8 @@ function App() {
           <Route path="activity" element={<ActivityPage />} />
           <Route path="usage" element={<UsagePage />} />
           <Route path="health" element={<HealthPage />} />
+          <Route path="files" element={<FilesPage />} />
+          <Route path="files/upload" element={<FileUploadPage />} />
           <Route path="vimotion/waitlist" element={<VimotionWaitlistPage />} />
           <Route path="vimotion/invite-codes" element={<VimotionInviteCodesPage />} />
           <Route path="vimotion/stats" element={<VimotionStatsPage />} />
