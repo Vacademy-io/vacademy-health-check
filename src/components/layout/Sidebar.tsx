@@ -9,6 +9,8 @@ import {
   Sparkles,
   KeyRound,
   TrendingUp,
+  FolderSearch,
+  UploadCloud,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +26,13 @@ const navSections: Array<{
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/usage", label: "AI Usage", icon: Brain },
       { to: "/health", label: "System Health", icon: HeartPulse },
+    ],
+  },
+  {
+    label: "Media",
+    items: [
+      { to: "/files", label: "Files", icon: FolderSearch, end: true },
+      { to: "/files/upload", label: "Upload File", icon: UploadCloud },
     ],
   },
   {
