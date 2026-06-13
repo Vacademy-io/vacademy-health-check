@@ -15,6 +15,36 @@ export interface AIPaginatedResponse<T> {
   total_pages: number;
 }
 
+// Media files (media-service super-admin)
+export interface FileItemDTO {
+  id: string;
+  file_name: string | null;
+  file_type: string | null;
+  file_size: number | null;
+  source: string | null;
+  source_id: string | null;
+  width: number | null;
+  height: number | null;
+  key: string | null;
+  url: string | null;
+  created_on: string | null;
+  updated_on: string | null;
+}
+
+export interface UploadedFileDTO {
+  id: string;
+  url: string | null;
+  file_name: string | null;
+  file_type: string | null;
+  source: string | null;
+  source_id: string | null;
+  expiry: string | null;
+  width: number;
+  height: number;
+  created_on: string | null;
+  updated_on: string | null;
+}
+
 // Platform Dashboard
 export interface PlatformDashboardDTO {
   total_institutes: number;
