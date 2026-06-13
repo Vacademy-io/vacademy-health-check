@@ -10,6 +10,8 @@ import {
   KeyRound,
   TrendingUp,
   Megaphone,
+  FolderSearch,
+  UploadCloud,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +28,13 @@ const navSections: Array<{
       { to: "/usage", label: "AI Usage", icon: Brain },
       { to: "/health", label: "System Health", icon: HeartPulse },
       { to: "/admin/status", label: "Status", icon: Megaphone },
+    ],
+  },
+  {
+    label: "Media",
+    items: [
+      { to: "/files", label: "Files", icon: FolderSearch, end: true },
+      { to: "/files/upload", label: "Upload File", icon: UploadCloud },
     ],
   },
   {

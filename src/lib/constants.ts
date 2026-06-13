@@ -2,6 +2,7 @@ export const API_PREFIXES = {
   ADMIN_CORE: "/admin-core-service/super-admin/v1",
   AUTH: "/auth-service/super-admin/v1",
   AI: "/ai-service/super-admin/v1",
+  MEDIA: "/media-service/super-admin/v1",
   STATUS_ADMIN: "/community-service/admin/v1/status",
   STATUS_PUBLIC: "/community-service/public/v1/status",
 } as const;
