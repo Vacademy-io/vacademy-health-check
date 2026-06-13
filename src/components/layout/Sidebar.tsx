@@ -9,6 +9,7 @@ import {
   Sparkles,
   KeyRound,
   TrendingUp,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ const navSections: Array<{
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/usage", label: "AI Usage", icon: Brain },
       { to: "/health", label: "System Health", icon: HeartPulse },
+      { to: "/admin/status", label: "Status", icon: Megaphone },
     ],
   },
   {
