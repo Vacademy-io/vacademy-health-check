@@ -176,6 +176,83 @@ export interface PlatformUsageSummary {
   top_institutes: TopInstituteUsage[];
 }
 
+// Status / Incidents — wire shape matches community-service controllers.
+// Enums are UPPERCASE on the wire (Jackson serializes Java enums by name).
+// Dates may arrive as ISO strings or epoch ms depending on Jackson config —
+// `new Date(value)` handles both.
+export type IncidentSeverity = "MINOR" | "MAJOR" | "CRITICAL" | "MAINTENANCE";
+export type IncidentStatus =
+  | "INVESTIGATING"
+  | "IDENTIFIED"
+  | "MONITORING"
+  | "RESOLVED";
+
+export const INCIDENT_SEVERITIES: IncidentSeverity[] = [
+  "MINOR",
+  "MAJOR",
+  "CRITICAL",
+  "MAINTENANCE",
+];
+export const INCIDENT_STATUSES: IncidentStatus[] = [
+  "INVESTIGATING",
+  "IDENTIFIED",
+  "MONITORING",
+  "RESOLVED",
+];
+
+export type DateLike = string | number;
+
+export interface IncidentUpdateDTO {
+  id: string;
+  /** Status captured at the time of the update; may be null. */
+  status: IncidentStatus | null;
+  message: string;
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: DateLike;
+}
+
+export interface IncidentDTO {
+  id: string;
+  title: string;
+  status: IncidentStatus;
+  severity: IncidentSeverity;
+  affectedComponents: string[];
+  startedAt: DateLike;
+  resolvedAt: DateLike | null;
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: DateLike;
+  updatedAt: DateLike;
+  /** Backend orders these newest-first (created_at DESC). */
+  updates: IncidentUpdateDTO[];
+}
+
+export interface CreateIncidentRequest {
+  title: string;
+  status?: IncidentStatus;
+  severity?: IncidentSeverity;
+  affectedComponents?: string[];
+  startedAt?: string;
+  /** Seeds the first timeline update when present. */
+  message?: string;
+}
+
+export interface UpdateIncidentRequest {
+  title?: string;
+  status?: IncidentStatus;
+  severity?: IncidentSeverity;
+  affectedComponents?: string[];
+  startedAt?: string;
+  /** Overrides the auto-stamp when status is RESOLVED. */
+  resolvedAt?: string | null;
+}
+
+export interface AddIncidentUpdateRequest {
+  status?: IncidentStatus;
+  message: string;
+}
+
 // JWT Token
 export interface DecodedToken {
   fullname: string;
