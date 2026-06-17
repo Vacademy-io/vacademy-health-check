@@ -11,6 +11,8 @@ import {
   TrendingUp,
   FolderSearch,
   UploadCloud,
+  LifeBuoy,
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +28,13 @@ const navSections: Array<{
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/usage", label: "AI Usage", icon: Brain },
       { to: "/health", label: "System Health", icon: HeartPulse },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      { to: "/support", label: "Inbox", icon: LifeBuoy, end: true },
+      { to: "/support/settings", label: "Settings", icon: Settings2 },
     ],
   },
   {
