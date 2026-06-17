@@ -9,6 +9,7 @@ import {
   Sparkles,
   KeyRound,
   TrendingUp,
+  Megaphone,
   FolderSearch,
   UploadCloud,
   LifeBuoy,
@@ -28,6 +29,7 @@ const navSections: Array<{
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/usage", label: "AI Usage", icon: Brain },
       { to: "/health", label: "System Health", icon: HeartPulse },
+      { to: "/admin/status", label: "Status", icon: Megaphone },
     ],
   },
   {
