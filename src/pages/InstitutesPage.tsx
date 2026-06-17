@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/select";
 import { LEAD_TAG_OPTIONS } from "@/types/api";
 import type { InstituteListItemDTO, LeadTag } from "@/types/api";
-import { Tag, X } from "lucide-react";
+import { LifeBuoy, Tag, X } from "lucide-react";
+import { InstituteSupportDialog } from "@/components/support/InstituteSupportDialog";
 
 const TAG_COLORS: Record<string, string> = {
   PROD: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -64,10 +65,34 @@ export default function InstitutesPage() {
   const [sortBy, setSortBy] = useState<string | undefined>();
   const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("DESC");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [supportTarget, setSupportTarget] = useState<{ id: string; name: string } | null>(null);
+  const [supportOpen, setSupportOpen] = useState(false);
   const pageSize = 20;
 
   const { data, isLoading } = useInstitutes(page, pageSize, search, tagFilter, sortBy, sortDirection);
   const bulkTagMutation = useBulkUpdateLeadTag();
+
+  // Static columns + a per-row "Support" action that opens the plan/engineer editor.
+  const tableColumns: Column<InstituteListItemDTO & Record<string, unknown>>[] = [
+    ...columns,
+    {
+      key: "support",
+      header: "Support",
+      render: (row) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSupportTarget({ id: row.id as string, name: row.name as string });
+            setSupportOpen(true);
+          }}
+        >
+          <LifeBuoy className="mr-1 h-3.5 w-3.5" /> Support
+        </Button>
+      ),
+    },
+  ];
 
   function handleSort(key: string) {
     if (sortBy === key) {
@@ -125,7 +150,7 @@ export default function InstitutesPage() {
 
       <DataTable
         data={(data?.content as (InstituteListItemDTO & Record<string, unknown>)[]) ?? []}
-        columns={columns}
+        columns={tableColumns}
         page={page}
         totalPages={data?.total_pages ?? 0}
         totalItems={data?.total_elements}
@@ -171,6 +196,15 @@ export default function InstitutesPage() {
           </div>
         }
       />
+
+      {supportTarget ? (
+        <InstituteSupportDialog
+          open={supportOpen}
+          onOpenChange={setSupportOpen}
+          instituteId={supportTarget.id}
+          instituteName={supportTarget.name}
+        />
+      ) : null}
     </div>
   );
 }

@@ -74,6 +74,8 @@ export interface SupportTicketDto {
   overdue: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Auto-captured diagnostics (browser/device + server IP); detail endpoint only. */
+  clientContext?: Record<string, unknown> | null;
   messages?: SupportMessageDto[];
 }
 
@@ -290,6 +292,8 @@ export function useUpdateInstituteConfig() {
     onSuccess: (_d, vars) => {
       queryClient.invalidateQueries({ queryKey: ["support", "institute-config", vars.instituteId] });
       queryClient.invalidateQueries({ queryKey: ["support", "tickets"] });
+      // Engineer assignments changed → refresh the roster's "N institute(s)" counts.
+      queryClient.invalidateQueries({ queryKey: ["support", "engineers"] });
     },
   });
 }
