@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Settings2, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { SearchInput } from "@/components/shared/SearchInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,8 @@ import {
   useUpdateEngineer,
   useUpdateGlobalSettings,
 } from "@/services/support-api";
+import { useInstitutes } from "@/services/institutes-api";
+import { InstituteSupportDialog } from "@/components/support/InstituteSupportDialog";
 
 export default function SupportSettingsPage() {
   return (
@@ -30,11 +33,77 @@ export default function SupportSettingsPage() {
           </Button>
         }
       />
+      <div className="mb-6">
+        <InstituteSupportCard />
+      </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <EngineersCard />
         <GlobalAlertsCard />
       </div>
     </div>
+  );
+}
+
+function InstituteSupportCard() {
+  const [search, setSearch] = useState("");
+  const institutes = useInstitutes(0, 8, search);
+  const [target, setTarget] = useState<{ id: string; name: string } | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const configure = (id: string, name: string) => {
+    setTarget({ id, name });
+    setOpen(true);
+  };
+
+  const rows = institutes.data?.content ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Institute support setup</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Set an institute's support plan and assign dedicated engineers — even before they raise a
+          ticket. Every institute defaults to Premium until changed here.
+        </p>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search institutes by name…" />
+        <div className="divide-y rounded-md border">
+          {institutes.isLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : rows.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+              No institutes found.
+            </p>
+          ) : (
+            rows.map((inst) => (
+              <div key={inst.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{inst.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[inst.subdomain, inst.city, inst.state].filter(Boolean).join(" · ") || inst.id}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => configure(inst.id, inst.name)}>
+                  <Settings2 className="mr-1 h-4 w-4" /> Configure support
+                </Button>
+              </div>
+            ))
+          )}
+        </div>
+      </CardContent>
+
+      {target ? (
+        <InstituteSupportDialog
+          open={open}
+          onOpenChange={setOpen}
+          instituteId={target.id}
+          instituteName={target.name}
+        />
+      ) : null}
+    </Card>
   );
 }
 
@@ -128,20 +197,6 @@ function EngineersCard() {
 
 function GlobalAlertsCard() {
   const settings = useGlobalSettings();
-  const update = useUpdateGlobalSettings();
-  const [emails, setEmails] = useState("");
-
-  useEffect(() => {
-    if (settings.data) setEmails((settings.data.alertEmails ?? []).join("\n"));
-  }, [settings.data]);
-
-  const save = () =>
-    update.mutate(
-      emails
-        .split(/[\n,]/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-    );
 
   return (
     <Card>
@@ -153,20 +208,49 @@ function GlobalAlertsCard() {
           Every new issue (across all institutes) is emailed to these addresses, and a Sentry alert
           fires to the support Slack channel. Per-institute overrides add to this list.
         </p>
-        <textarea
-          value={emails}
-          onChange={(e) => setEmails(e.target.value)}
-          rows={5}
-          placeholder="support@vacademy.io&#10;oncall@vacademy.io"
-          className="w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-        <div className="flex justify-end">
-          <Button onClick={save} disabled={update.isPending}>
-            {update.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
-            Save recipients
-          </Button>
-        </div>
+        {settings.isLoading || !settings.data ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          // Keyed by the loaded value so a refetch re-seeds the editor without a setState effect.
+          <GlobalAlertsForm
+            key={(settings.data.alertEmails ?? []).join(",")}
+            initial={(settings.data.alertEmails ?? []).join("\n")}
+          />
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function GlobalAlertsForm({ initial }: { initial: string }) {
+  const update = useUpdateGlobalSettings();
+  const [emails, setEmails] = useState(initial);
+
+  const save = () =>
+    update.mutate(
+      emails
+        .split(/[\n,]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    );
+
+  return (
+    <>
+      <textarea
+        value={emails}
+        onChange={(e) => setEmails(e.target.value)}
+        rows={5}
+        placeholder="support@vacademy.io&#10;oncall@vacademy.io"
+        className="w-full resize-none rounded-md border bg-background p-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      />
+      <div className="flex justify-end">
+        <Button onClick={save} disabled={update.isPending}>
+          {update.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+          Save recipients
+        </Button>
+      </div>
+    </>
   );
 }
