@@ -30,6 +30,7 @@ import {
   useSupportTickets,
   useTicketCounts,
   useUpdateTicketStatus,
+  type AttachmentDto,
   type SupportTicketDto,
   type TicketPriority,
   type TicketStatus,
@@ -376,6 +377,8 @@ function TicketThread({
             <span className="text-muted-foreground">No SLA for this plan</span>
           )}
         </div>
+
+        {ticket.clientContext ? <DiagnosticsPanel context={ticket.clientContext} /> : null}
       </div>
 
       {/* Messages */}
@@ -476,21 +479,62 @@ function MessageBubble({
         </div>
         <p className="whitespace-pre-wrap break-words">{message.body}</p>
         {message.attachments?.length ? (
-          <div className="mt-1 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-col gap-2">
             {message.attachments.map((a, i) => (
-              <a
-                key={i}
-                href={a.url || "#"}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] underline"
-              >
-                <Inbox className="h-3 w-3" /> {a.fileName || a.fileId || "attachment"}
-              </a>
+              <AttachmentPreview key={a.fileId || i} attachment={a} />
             ))}
           </div>
         ) : null}
       </div>
     </div>
+  );
+}
+
+function AttachmentPreview({ attachment }: { attachment: AttachmentDto }) {
+  const name = attachment.fileName || "";
+  const url = attachment.url || "";
+  if (!url) return null;
+  if (/\.(png|jpe?g|gif|webp|bmp|svg|avif|heic)$/i.test(name)) {
+    return (
+      <a href={url} target="_blank" rel="noreferrer">
+        <img src={url} alt={name} className="max-h-48 rounded-md border" />
+      </a>
+    );
+  }
+  if (/\.(mp4|mov|webm|avi|mkv|m4v|ogv)$/i.test(name)) {
+    return <video src={url} controls className="max-h-48 rounded-md border" />;
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-1 text-xs underline"
+    >
+      <Inbox className="h-3 w-3" /> {name || "attachment"}
+    </a>
+  );
+}
+
+function DiagnosticsPanel({ context }: { context: Record<string, unknown> }) {
+  const entries = Object.entries(context).filter(
+    ([, v]) => v !== null && v !== undefined && v !== ""
+  );
+  if (entries.length === 0) return null;
+  const label = (k: string) => k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+  return (
+    <details className="mt-2 rounded-md border bg-background text-xs">
+      <summary className="cursor-pointer px-3 py-2 font-medium text-muted-foreground">
+        Diagnostics ({entries.length})
+      </summary>
+      <div className="grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-2">
+        {entries.map(([k, v]) => (
+          <div key={k} className="flex flex-col">
+            <span className="text-muted-foreground">{label(k)}</span>
+            <span className="break-all font-mono">{String(v)}</span>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
