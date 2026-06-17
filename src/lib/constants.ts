@@ -3,6 +3,8 @@ export const API_PREFIXES = {
   AUTH: "/auth-service/super-admin/v1",
   AI: "/ai-service/super-admin/v1",
   MEDIA: "/media-service/super-admin/v1",
+  STATUS_ADMIN: "/community-service/admin/v1/status",
+  STATUS_PUBLIC: "/community-service/public/v1/status",
   SUPPORT: "/community-service/super-admin/v1/support",
 } as const;
 
