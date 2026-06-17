@@ -3,6 +3,7 @@ export const API_PREFIXES = {
   AUTH: "/auth-service/super-admin/v1",
   AI: "/ai-service/super-admin/v1",
   MEDIA: "/media-service/super-admin/v1",
+  SUPPORT: "/community-service/super-admin/v1/support",
 } as const;
 
 export const AUTH_ENDPOINTS = {
