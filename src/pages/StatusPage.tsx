@@ -19,6 +19,29 @@ import type {
   IncidentStatus,
 } from "@/types/api";
 
+/**
+ * Services shown in the overview grid. Each entry matches against an
+ * incident's `affectedComponents` array case-insensitively, comparing against
+ * the id, label, and any aliases. Edit this list to add/rename services.
+ */
+type ServiceDef = { id: string; label: string; aliases?: string[] };
+const SERVICES: ServiceDef[] = [
+  { id: "auth-service", label: "Authentication", aliases: ["auth", "login"] },
+  { id: "admin-core-service", label: "Admin & Institutes", aliases: ["admin-core", "admin"] },
+  { id: "media-service", label: "Media & Files", aliases: ["media", "files", "uploads"] },
+  { id: "assessment-service", label: "Assessments", aliases: ["assessment", "quizzes"] },
+  { id: "notification-service", label: "Notifications", aliases: ["notification"] },
+  { id: "ai-service", label: "AI Features", aliases: ["ai"] },
+  { id: "community-service", label: "Live Sessions & Community", aliases: ["community", "live", "bbb"] },
+];
+
+const SEVERITY_RANK: Record<IncidentSeverity, number> = {
+  MAINTENANCE: 0,
+  MINOR: 1,
+  MAJOR: 2,
+  CRITICAL: 3,
+};
+
 const SEVERITY_META: Record<
   IncidentSeverity,
   { label: string; className: string }
@@ -43,6 +66,78 @@ function toDate(v: DateLike | null | undefined): Date | null {
   if (v === null || v === undefined) return null;
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d;
+}
+
+type ServiceState = {
+  service: ServiceDef;
+  worstIncident: IncidentDTO | null;
+};
+
+function computeServiceStates(active: IncidentDTO[]): ServiceState[] {
+  const norm = (s: string) => s.toLowerCase().trim();
+  return SERVICES.map((service) => {
+    const aliases = new Set(
+      [service.id, service.label, ...(service.aliases ?? [])].map(norm)
+    );
+    const matching = active.filter((i) =>
+      (i.affectedComponents ?? []).some((c) => aliases.has(norm(c)))
+    );
+    const worst = matching.reduce<IncidentDTO | null>((acc, i) => {
+      if (!acc) return i;
+      return SEVERITY_RANK[i.severity] > SEVERITY_RANK[acc.severity] ? i : acc;
+    }, null);
+    return { service, worstIncident: worst };
+  });
+}
+
+function ServiceStatusRow({ state }: { state: ServiceState }) {
+  const { service, worstIncident } = state;
+  let label = "Operational";
+  let textClass = "text-green-700";
+  let dotClass = "bg-green-500";
+  let Icon: typeof CheckCircle2 = CheckCircle2;
+
+  if (worstIncident) {
+    switch (worstIncident.severity) {
+      case "MAINTENANCE":
+        label = "Under Maintenance";
+        textClass = "text-blue-700";
+        dotClass = "bg-blue-500";
+        Icon = Wrench;
+        break;
+      case "CRITICAL":
+        label = "Major Outage";
+        textClass = "text-red-700";
+        dotClass = "bg-red-500";
+        Icon = AlertCircle;
+        break;
+      case "MAJOR":
+        label = "Partial Outage";
+        textClass = "text-orange-700";
+        dotClass = "bg-orange-500";
+        Icon = AlertTriangle;
+        break;
+      case "MINOR":
+        label = "Degraded";
+        textClass = "text-yellow-700";
+        dotClass = "bg-yellow-500";
+        Icon = Activity;
+        break;
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between border-b border-muted py-3 last:border-b-0">
+      <div className="flex items-center gap-2.5">
+        <span className={`h-2 w-2 rounded-full ${dotClass}`} aria-hidden />
+        <span className="text-sm font-medium">{service.label}</span>
+      </div>
+      <span className={`flex items-center gap-1.5 text-sm font-medium ${textClass}`}>
+        <Icon className="h-4 w-4" />
+        {label}
+      </span>
+    </div>
+  );
 }
 
 function deriveOverallStatus(active: IncidentDTO[]) {
@@ -155,6 +250,7 @@ export default function StatusPage() {
 
   const overall = deriveOverallStatus(active);
   const OverallIcon = overall.icon;
+  const serviceStates = computeServiceStates(active);
 
   return (
     <div className="min-h-screen bg-slate-50/60">
@@ -203,6 +299,26 @@ export default function StatusPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Services overview — each row is operational by default; turns
+            colored only if an active incident lists the service in its
+            affectedComponents. */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Services
+          </h2>
+          {isLoading ? (
+            <Skeleton className="h-56 w-full" />
+          ) : (
+            <Card>
+              <CardContent className="px-5 py-2">
+                {serviceStates.map((s) => (
+                  <ServiceStatusRow key={s.service.id} state={s} />
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </section>
 
         {!isLoading && active.length > 0 && (
           <section className="space-y-3">
