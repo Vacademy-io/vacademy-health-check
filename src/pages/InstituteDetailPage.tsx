@@ -4,6 +4,8 @@ import { useInstituteDetail, useGrantCredits, useDeductCredits, useUpdateLeadTag
 import { useInstituteCourses } from "@/services/courses-api";
 import { useInstituteUsers, useDeactivateUser } from "@/services/users-api";
 import { useInstituteSessions } from "@/services/sessions-api";
+import { useInstituteWidgets } from "@/services/widgets-api";
+import { WidgetList } from "@/components/widgets/WidgetList";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -115,6 +117,7 @@ export default function InstituteDetailPage() {
           <TabsTrigger value="courses">Courses</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
+          <TabsTrigger value="widgets">Widgets</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -129,7 +132,28 @@ export default function InstituteDetailPage() {
         <TabsContent value="sessions" className="mt-4">
           <SessionsTab instituteId={id!} />
         </TabsContent>
+        <TabsContent value="widgets" className="mt-4">
+          <WidgetsTab instituteId={id!} />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function WidgetsTab({ instituteId }: { instituteId: string }) {
+  const { data, isLoading } = useInstituteWidgets(instituteId);
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Widgets shown on this institute's admin dashboard. Onboarding trackers are admin-only; info
+        cards can target additional roles. Only Published widgets are visible to the institute.
+      </p>
+      <WidgetList
+        widgets={data ?? []}
+        isLoading={isLoading}
+        target={{ type: "INSTITUTE", value: instituteId }}
+        allowOnboarding
+      />
     </div>
   );
 }

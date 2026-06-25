@@ -95,20 +95,24 @@ function InstituteSupportForm({
   const planDetail = plans.data?.find((p) => p.key === plan);
 
   const onSave = async () => {
-    await save.mutateAsync({
-      instituteId,
-      payload: {
-        plan,
-        alertEmails: emails
-          .split(/[\n,]/)
-          .map((s) => s.trim())
-          .filter(Boolean),
-        engineerIds: selected,
-        primaryEngineerId: selected.includes(primary) ? primary : undefined,
-        instituteName: instituteName ?? undefined,
-      },
-    });
-    onClose();
+    try {
+      await save.mutateAsync({
+        instituteId,
+        payload: {
+          plan,
+          alertEmails: emails
+            .split(/[\n,]/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+          engineerIds: selected,
+          primaryEngineerId: selected.includes(primary) ? primary : undefined,
+          instituteName: instituteName ?? undefined,
+        },
+      });
+      onClose();
+    } catch {
+      // Failure is surfaced via save.isError in the footer; dialog stays open for a retry.
+    }
   };
 
   return (
@@ -201,6 +205,9 @@ function InstituteSupportForm({
       </div>
 
       <DialogFooter>
+        {save.isError ? (
+          <p className="mr-auto self-center text-xs text-destructive">Could not save. Try again.</p>
+        ) : null}
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
