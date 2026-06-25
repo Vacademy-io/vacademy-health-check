@@ -14,6 +14,8 @@ import {
   UploadCloud,
   LifeBuoy,
   Settings2,
+  Rocket,
+  Radio,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +32,7 @@ const navSections: Array<{
       { to: "/usage", label: "AI Usage", icon: Brain },
       { to: "/health", label: "System Health", icon: HeartPulse },
       { to: "/admin/status", label: "Status", icon: Megaphone },
+      { to: "/broadcasts", label: "Broadcasts", icon: Radio },
     ],
   },
   {
@@ -38,6 +41,10 @@ const navSections: Array<{
       { to: "/support", label: "Inbox", icon: LifeBuoy, end: true },
       { to: "/support/settings", label: "Settings", icon: Settings2 },
     ],
+  },
+  {
+    label: "Onboarding",
+    items: [{ to: "/onboarding", label: "Onboarding & Demos", icon: Rocket }],
   },
   {
     label: "Media",

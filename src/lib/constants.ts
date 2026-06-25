@@ -6,7 +6,14 @@ export const API_PREFIXES = {
   STATUS_ADMIN: "/community-service/admin/v1/status",
   STATUS_PUBLIC: "/community-service/public/v1/status",
   SUPPORT: "/community-service/super-admin/v1/support",
+  ONBOARDING_PUBLIC: "/community-service/public/v1/onboarding",
+  ONBOARDING_ADMIN: "/community-service/super-admin/v1/onboarding",
+  WIDGETS: "/community-service/super-admin/v1/dashboard-widgets",
 } as const;
+
+/** Lead tags an institute can carry (mirrors admin-core). Used for widget broadcast targeting. */
+export const LEAD_TAGS = ["PROD", "LEAD", "TEST", "FREE_TRIAL"] as const;
+export type LeadTag = (typeof LEAD_TAGS)[number];
 
 export const AUTH_ENDPOINTS = {
   LOGIN: "/auth-service/v1/login-root",
