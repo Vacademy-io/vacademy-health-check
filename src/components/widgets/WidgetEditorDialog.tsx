@@ -122,7 +122,7 @@ function WidgetEditorForm({ open, onClose, target, allowOnboarding, widget }: Pr
   async function handleImage(file: File | undefined) {
     if (!file) return;
     const result = await upload.mutateAsync({ file, visibility: "PUBLIC" });
-    setImageUrl(result.url);
+    setImageUrl(result.url ?? "");
   }
 
   async function save() {
