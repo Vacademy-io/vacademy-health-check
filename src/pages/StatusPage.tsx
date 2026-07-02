@@ -90,11 +90,13 @@ function computeServiceStates(active: IncidentDTO[]): ServiceState[] {
   });
 }
 
-function ServiceStatusRow({ state }: { state: ServiceState }) {
+function ServiceStatusCard({ state }: { state: ServiceState }) {
   const { service, worstIncident } = state;
   let label = "Operational";
   let textClass = "text-green-700";
   let dotClass = "bg-green-500";
+  let borderClass = "border-green-200";
+  let bgClass = "bg-green-50/40";
   let Icon: typeof CheckCircle2 = CheckCircle2;
 
   if (worstIncident) {
@@ -103,40 +105,50 @@ function ServiceStatusRow({ state }: { state: ServiceState }) {
         label = "Under Maintenance";
         textClass = "text-blue-700";
         dotClass = "bg-blue-500";
+        borderClass = "border-blue-200";
+        bgClass = "bg-blue-50/60";
         Icon = Wrench;
         break;
       case "CRITICAL":
         label = "Major Outage";
         textClass = "text-red-700";
         dotClass = "bg-red-500";
+        borderClass = "border-red-200";
+        bgClass = "bg-red-50/60";
         Icon = AlertCircle;
         break;
       case "MAJOR":
         label = "Partial Outage";
         textClass = "text-orange-700";
         dotClass = "bg-orange-500";
+        borderClass = "border-orange-200";
+        bgClass = "bg-orange-50/60";
         Icon = AlertTriangle;
         break;
       case "MINOR":
         label = "Degraded";
         textClass = "text-yellow-700";
         dotClass = "bg-yellow-500";
+        borderClass = "border-yellow-200";
+        bgClass = "bg-yellow-50/60";
         Icon = Activity;
         break;
     }
   }
 
   return (
-    <div className="flex items-center justify-between border-b border-muted py-3 last:border-b-0">
-      <div className="flex items-center gap-2.5">
-        <span className={`h-2 w-2 rounded-full ${dotClass}`} aria-hidden />
-        <span className="text-sm font-medium">{service.label}</span>
-      </div>
-      <span className={`flex items-center gap-1.5 text-sm font-medium ${textClass}`}>
-        <Icon className="h-4 w-4" />
-        {label}
-      </span>
-    </div>
+    <Card className={`${borderClass} ${bgClass} transition-colors`}>
+      <CardContent className="flex flex-col gap-2 p-4">
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} aria-hidden />
+          <span className="text-sm font-medium truncate">{service.label}</span>
+        </div>
+        <div className={`flex items-center gap-1.5 text-sm font-medium ${textClass}`}>
+          <Icon className="h-4 w-4 shrink-0" />
+          <span className="truncate">{label}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -308,15 +320,17 @@ export default function StatusPage() {
             Services
           </h2>
           {isLoading ? (
-            <Skeleton className="h-56 w-full" />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {SERVICES.map((s) => (
+                <Skeleton key={s.id} className="h-20 w-full" />
+              ))}
+            </div>
           ) : (
-            <Card>
-              <CardContent className="px-5 py-2">
-                {serviceStates.map((s) => (
-                  <ServiceStatusRow key={s.service.id} state={s} />
-                ))}
-              </CardContent>
-            </Card>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {serviceStates.map((s) => (
+                <ServiceStatusCard key={s.service.id} state={s} />
+              ))}
+            </div>
           )}
         </section>
 
