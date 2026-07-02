@@ -492,8 +492,9 @@ function MessageBubble({
 
 function AttachmentPreview({ attachment }: { attachment: AttachmentDto }) {
   const name = attachment.fileName || "";
-  const url = attachment.url || "";
-  if (!url) return null;
+  // Only trust http(s) URLs — never render javascript:/data: into href/src.
+  const url = /^https?:\/\//i.test(attachment.url || "") ? (attachment.url as string) : "";
+  if (!url) return name ? <span className="text-xs text-muted-foreground">{name}</span> : null;
   if (/\.(png|jpe?g|gif|webp|bmp|svg|avif|heic)$/i.test(name)) {
     return (
       <a href={url} target="_blank" rel="noreferrer">
