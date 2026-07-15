@@ -16,6 +16,7 @@ import {
   Settings2,
   Rocket,
   Radio,
+  KanbanSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ const navSections: Array<{
     label: "Support",
     items: [
       { to: "/support", label: "Inbox", icon: LifeBuoy, end: true },
+      { to: "/support/board", label: "Board", icon: KanbanSquare },
       { to: "/support/settings", label: "Settings", icon: Settings2 },
     ],
   },

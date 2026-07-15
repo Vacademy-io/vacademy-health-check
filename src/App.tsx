@@ -15,6 +15,7 @@ const StatusAdminPage = lazy(() => import("@/pages/StatusAdminPage"));
 const FilesPage = lazy(() => import("@/pages/FilesPage"));
 const FileUploadPage = lazy(() => import("@/pages/FileUploadPage"));
 const SupportPage = lazy(() => import("@/pages/SupportPage"));
+const SupportBoardPage = lazy(() => import("@/pages/SupportBoardPage"));
 const SupportSettingsPage = lazy(() => import("@/pages/SupportSettingsPage"));
 const VimotionWaitlistPage = lazy(() => import("@/pages/VimotionWaitlistPage"));
 const VimotionInviteCodesPage = lazy(() => import("@/pages/VimotionInviteCodesPage"));
@@ -54,6 +55,7 @@ function App() {
           <Route path="files" element={<FilesPage />} />
           <Route path="files/upload" element={<FileUploadPage />} />
           <Route path="support" element={<SupportPage />} />
+          <Route path="support/board" element={<SupportBoardPage />} />
           <Route path="support/settings" element={<SupportSettingsPage />} />
           <Route path="broadcasts" element={<BroadcastsPage />} />
           <Route path="vimotion/waitlist" element={<VimotionWaitlistPage />} />
