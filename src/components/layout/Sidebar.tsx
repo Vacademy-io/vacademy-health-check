@@ -17,6 +17,7 @@ import {
   Rocket,
   Radio,
   KanbanSquare,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,10 @@ const navSections: Array<{
   {
     label: "Onboarding",
     items: [{ to: "/onboarding", label: "Onboarding & Demos", icon: Rocket }],
+  },
+  {
+    label: "Help",
+    items: [{ to: "/guides", label: "Guides", icon: BookOpen }],
   },
   {
     label: "Media",

@@ -24,6 +24,7 @@ const OnboardingFormPage = lazy(() => import("@/pages/OnboardingFormPage"));
 const DemoLauncherPage = lazy(() => import("@/pages/DemoLauncherPage"));
 const OnboardingAdminPage = lazy(() => import("@/pages/OnboardingAdminPage"));
 const BroadcastsPage = lazy(() => import("@/pages/BroadcastsPage"));
+const GuidesAdminPage = lazy(() => import("@/pages/GuidesAdminPage"));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
 function PageLoader() {
@@ -58,6 +59,7 @@ function App() {
           <Route path="support/board" element={<SupportBoardPage />} />
           <Route path="support/settings" element={<SupportSettingsPage />} />
           <Route path="broadcasts" element={<BroadcastsPage />} />
+          <Route path="guides" element={<GuidesAdminPage />} />
           <Route path="vimotion/waitlist" element={<VimotionWaitlistPage />} />
           <Route path="vimotion/invite-codes" element={<VimotionInviteCodesPage />} />
           <Route path="vimotion/stats" element={<VimotionStatsPage />} />

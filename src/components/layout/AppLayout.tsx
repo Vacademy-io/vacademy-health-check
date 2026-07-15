@@ -3,6 +3,7 @@ import { Outlet, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { GuideDock } from "@/components/guides/GuideDock";
 
 export function AuthGuard() {
   const { isAuthenticated } = useAuth();
@@ -36,6 +37,8 @@ function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <GuideDock />
     </div>
   );
 }

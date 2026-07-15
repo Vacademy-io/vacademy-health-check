@@ -9,6 +9,7 @@ export const API_PREFIXES = {
   ONBOARDING_PUBLIC: "/community-service/public/v1/onboarding",
   ONBOARDING_ADMIN: "/community-service/super-admin/v1/onboarding",
   WIDGETS: "/community-service/super-admin/v1/dashboard-widgets",
+  GUIDES: "/community-service/super-admin/v1/guides",
 } as const;
 
 /** Lead tags an institute can carry (mirrors admin-core). Used for widget broadcast targeting. */
