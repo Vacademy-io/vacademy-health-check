@@ -20,6 +20,7 @@ export type TicketStatus =
 export type TicketPriority = "MAJOR" | "MINOR";
 export type TicketCategory = "BUG" | "QUESTION" | "BILLING" | "FEATURE_REQUEST" | "OTHER";
 export type SenderType = "CUSTOMER" | "SUPPORT" | "SYSTEM";
+export type TicketSource = "PORTAL" | "EMAIL" | "WHATSAPP" | "PHONE" | "MANUAL" | "OTHER";
 
 export interface SupportPlanDto {
   key: string;
@@ -66,6 +67,9 @@ export interface SupportTicketDto {
   planAtCreation: string | null;
   assignedEngineerId: string | null;
   assignedEngineerName: string | null;
+  source: TicketSource | null;
+  /** Support-set expected-resolution time (ISO); visible to the institute. */
+  eta: string | null;
   firstResponseDueAt: string | null;
   firstRespondedAt: string | null;
   resolvedAt: string | null;
@@ -210,6 +214,39 @@ export function useUpdateTicketStatus() {
           priority: vars.priority,
         })
       ).data,
+    onSuccess: (_d, vars) => invalidateTicket(queryClient, vars.id),
+  });
+}
+
+export interface CreateSupportTicketPayload {
+  instituteId: string;
+  instituteName?: string | null;
+  subject: string;
+  category?: TicketCategory;
+  priority?: TicketPriority;
+  message: string;
+  source?: TicketSource;
+  /** ISO string or null. */
+  eta?: string | null;
+  assignedEngineerId?: string | null;
+}
+
+/** Log a ticket on an institute's behalf (issue reported over email / WhatsApp, etc.). */
+export function useCreateSupportTicket() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreateSupportTicketPayload) =>
+      (await api.post<SupportTicketDto>(`${BASE}/tickets`, payload)).data,
+    onSuccess: (d) => invalidateTicket(queryClient, d?.id),
+  });
+}
+
+/** Set (ISO) or clear (null) the expected-resolution ETA. */
+export function useSetTicketEta() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; eta: string | null }) =>
+      (await api.post<SupportTicketDto>(`${BASE}/tickets/${vars.id}/eta`, { eta: vars.eta })).data,
     onSuccess: (_d, vars) => invalidateTicket(queryClient, vars.id),
   });
 }

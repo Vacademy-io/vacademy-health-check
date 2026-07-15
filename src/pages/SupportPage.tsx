@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
+  CalendarClock,
   CheckCircle2,
   Clock,
   Inbox,
+  KanbanSquare,
   Loader2,
+  Plus,
   Send,
   Settings2,
   UserCog,
@@ -26,6 +29,7 @@ import {
   useAssignEngineer,
   useEngineers,
   useReplyTicket,
+  useSetTicketEta,
   useSupportTicket,
   useSupportTickets,
   useTicketCounts,
@@ -33,9 +37,29 @@ import {
   type AttachmentDto,
   type SupportTicketDto,
   type TicketPriority,
+  type TicketSource,
   type TicketStatus,
 } from "@/services/support-api";
 import { InstituteSupportDialog } from "@/components/support/InstituteSupportDialog";
+import { CreateTicketDialog } from "@/components/support/CreateTicketDialog";
+
+const SOURCE_LABEL: Record<TicketSource, string> = {
+  PORTAL: "Portal",
+  EMAIL: "Email",
+  WHATSAPP: "WhatsApp",
+  PHONE: "Phone",
+  MANUAL: "Manual",
+  OTHER: "Other",
+};
+
+/** Format an ISO string into the value a datetime-local input expects (local time, no seconds). */
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 const STATUS_META: Record<TicketStatus, { label: string; variant: BadgeVariant }> = {
   OPEN: { label: "Open", variant: "warning" },
@@ -83,7 +107,10 @@ export default function SupportPage() {
   const [status, setStatus] = useState("ALL");
   const [engineerId, setEngineerId] = useState("ALL");
   const [overdueOnly, setOverdueOnly] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  // Board cards deep-link here via ?ticket=<id>; seed the selection from it once on mount.
+  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("ticket"));
+  const [createOpen, setCreateOpen] = useState(false);
 
   const counts = useTicketCounts();
   const engineers = useEngineers();
@@ -109,6 +136,14 @@ export default function SupportPage() {
               </Badge>
             ) : null}
             <Badge variant="warning">{counts.data?.open ?? 0} open</Badge>
+            <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-1 h-4 w-4" /> New ticket
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/support/board">
+                <KanbanSquare className="mr-1 h-4 w-4" /> Board
+              </Link>
+            </Button>
             <Button asChild variant="outline" size="sm">
               <Link to="/support/settings">
                 <Settings2 className="mr-1 h-4 w-4" /> Settings
@@ -116,6 +151,12 @@ export default function SupportPage() {
             </Button>
           </div>
         }
+      />
+
+      <CreateTicketDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={(id) => setSelectedId(id)}
       />
 
       {/* Filters */}
@@ -241,6 +282,16 @@ function TicketRow({
             <AlertTriangle className="h-2.5 w-2.5" /> overdue
           </Badge>
         ) : null}
+        {ticket.source && ticket.source !== "PORTAL" ? (
+          <Badge variant="outline" className="text-[10px]">
+            {SOURCE_LABEL[ticket.source]}
+          </Badge>
+        ) : null}
+        {ticket.eta ? (
+          <Badge variant="secondary" className="gap-0.5 text-[10px]">
+            <CalendarClock className="h-2.5 w-2.5" /> {fmt(ticket.eta)}
+          </Badge>
+        ) : null}
         {ticket.assignedEngineerName ? (
           <span className="text-[10px] text-muted-foreground">· {ticket.assignedEngineerName}</span>
         ) : (
@@ -262,6 +313,7 @@ function TicketThread({
   const reply = useReplyTicket();
   const assign = useAssignEngineer();
   const updateStatus = useUpdateTicketStatus();
+  const setEta = useSetTicketEta();
   const [draft, setDraft] = useState("");
   const [internal, setInternal] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
@@ -376,7 +428,18 @@ function TicketThread({
           ) : (
             <span className="text-muted-foreground">No SLA for this plan</span>
           )}
+          {ticket.source && ticket.source !== "PORTAL" ? (
+            <span className="text-muted-foreground">· via {SOURCE_LABEL[ticket.source]}</span>
+          ) : null}
         </div>
+
+        {/* ETA — support-set expected resolution, visible to the institute */}
+        <EtaEditor
+          key={ticket.id}
+          eta={ticket.eta}
+          saving={setEta.isPending}
+          onSave={(iso) => setEta.mutate({ id: ticket.id, eta: iso })}
+        />
 
         {ticket.clientContext ? <DiagnosticsPanel context={ticket.clientContext} /> : null}
       </div>
@@ -440,6 +503,86 @@ function TicketThread({
         instituteId={ticket.instituteId}
         instituteName={ticket.instituteName}
       />
+    </div>
+  );
+}
+
+function EtaEditor({
+  eta,
+  saving,
+  onSave,
+}: {
+  eta: string | null;
+  saving: boolean;
+  onSave: (iso: string | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(toLocalInput(eta));
+
+  if (!editing) {
+    return (
+      <div className="mt-2 flex items-center gap-2 text-xs">
+        <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+        {eta ? (
+          <span className="text-muted-foreground">
+            Expected resolution <span className="font-medium text-foreground">{fmt(eta)}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">No ETA set</span>
+        )}
+        <button
+          type="button"
+          className="text-primary underline-offset-2 hover:underline"
+          onClick={() => {
+            setValue(toLocalInput(eta));
+            setEditing(true);
+          }}
+        >
+          {eta ? "Change" : "Set ETA"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+      <input
+        type="datetime-local"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+      />
+      <Button
+        size="sm"
+        className="h-7"
+        disabled={saving}
+        onClick={() => {
+          onSave(value ? new Date(value).toISOString() : null);
+          setEditing(false);
+        }}
+      >
+        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+      </Button>
+      {eta ? (
+        <button
+          type="button"
+          className="text-destructive underline-offset-2 hover:underline"
+          onClick={() => {
+            onSave(null);
+            setEditing(false);
+          }}
+        >
+          Clear
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="text-muted-foreground underline-offset-2 hover:underline"
+        onClick={() => setEditing(false)}
+      >
+        Cancel
+      </button>
     </div>
   );
 }
