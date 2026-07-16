@@ -18,6 +18,7 @@ import {
   Radio,
   KanbanSquare,
   BookOpen,
+  Milestone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +52,10 @@ const navSections: Array<{
   },
   {
     label: "Help",
-    items: [{ to: "/guides", label: "Guides", icon: BookOpen }],
+    items: [
+      { to: "/guides", label: "Guides", icon: BookOpen },
+      { to: "/roadmap", label: "Roadmap", icon: Milestone },
+    ],
   },
   {
     label: "Media",
