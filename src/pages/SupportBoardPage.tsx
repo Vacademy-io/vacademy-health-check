@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CalendarClock, Inbox, Loader2, Lock, Plus } from "lucide-react";
+import { AlertTriangle, CalendarClock, Inbox, Loader2, Lock, Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -23,6 +24,10 @@ import {
 } from "@/services/support-api";
 import { TicketFormDialog } from "@/components/support/TicketFormDialog";
 import { InstituteFilter, type SelectedInstitute } from "@/components/support/InstituteFilter";
+import { useDebounced } from "@/hooks/use-debounced";
+
+/** Sentinel for the engineer filter's "Unassigned" option (not a real engineer id). */
+const UNASSIGNED = "__UNASSIGNED__";
 
 const COLUMNS: { status: TicketStatus; label: string; accent: string }[] = [
   { status: "OPEN", label: "Open", accent: "border-t-amber-400" },
@@ -62,16 +67,26 @@ function fmt(date: string | null | undefined): string {
 export default function SupportBoardPage() {
   const [engineerId, setEngineerId] = useState("ALL");
   const [institutes, setInstitutes] = useState<SelectedInstitute[]>([]);
+  const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<TicketStatus | null>(null);
 
   const engineers = useEngineers();
   const updateStatus = useUpdateTicketStatus();
-  const engineerParam = engineerId === "ALL" ? undefined : engineerId;
+  const debouncedSearch = useDebounced(search, 300);
+  const engineerParam =
+    engineerId === "ALL" || engineerId === UNASSIGNED ? undefined : engineerId;
   const instituteIds = institutes.map((i) => i.id);
 
   // One query per column so each is complete up to PER_COLUMN. Fixed count → hook order is stable.
-  const common = { engineerId: engineerParam, instituteIds, size: PER_COLUMN };
+  const common = {
+    engineerId: engineerParam,
+    unassigned: engineerId === UNASSIGNED,
+    search: debouncedSearch,
+    instituteIds,
+    size: PER_COLUMN,
+  };
   const open = useSupportTickets({ ...common, status: "OPEN" });
   const inProgress = useSupportTickets({ ...common, status: "IN_PROGRESS" });
   const waiting = useSupportTickets({ ...common, status: "WAITING_ON_CUSTOMER" });
@@ -103,6 +118,15 @@ export default function SupportBoardPage() {
         description="Drag tickets across columns to update status. Built for standups."
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by title…"
+                className="h-9 w-52 pl-8"
+              />
+            </div>
             <InstituteFilter value={institutes} onChange={setInstitutes} />
             <Select value={engineerId} onValueChange={setEngineerId}>
               <SelectTrigger className="h-9 w-48">
@@ -110,6 +134,7 @@ export default function SupportBoardPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All engineers</SelectItem>
+                <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
                 {(engineers.data ?? []).map((e) => (
                   <SelectItem key={e.id} value={e.id}>
                     {e.name}
@@ -130,6 +155,13 @@ export default function SupportBoardPage() {
       />
 
       <TicketFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      {/* Cards open here rather than deep-linking to the inbox — edit/assign without leaving the board. */}
+      <TicketFormDialog
+        open={!!editingId}
+        onOpenChange={(v) => !v && setEditingId(null)}
+        ticketId={editingId}
+      />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-x-auto md:grid-cols-2 xl:grid-cols-5">
         {COLUMNS.map((col) => {
@@ -169,7 +201,9 @@ export default function SupportBoardPage() {
                 ) : tickets.length === 0 ? (
                   <p className="px-1 py-4 text-center text-[11px] text-muted-foreground">Empty</p>
                 ) : (
-                  tickets.map((t) => <BoardCard key={t.id} ticket={t} />)
+                  tickets.map((t) => (
+                    <BoardCard key={t.id} ticket={t} onOpen={() => setEditingId(t.id)} />
+                  ))
                 )}
               </div>
             </div>
@@ -180,19 +214,34 @@ export default function SupportBoardPage() {
   );
 }
 
-function BoardCard({ ticket }: { ticket: SupportTicketDto }) {
+function BoardCard({ ticket, onOpen }: { ticket: SupportTicketDto; onOpen: () => void }) {
+  // A drag ends with a click event in some browsers; suppress it so dropping never opens the popup.
+  const [dragging, setDragging] = useState(false);
+
   return (
-    <Link
-      to={`/support?ticket=${ticket.id}`}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => {
+        if (!dragging) onOpen();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       draggable
       onDragStart={(e) => {
+        setDragging(true);
         e.dataTransfer.setData(
           "text/plain",
           JSON.stringify({ id: ticket.id, from: ticket.status })
         );
         e.dataTransfer.effectAllowed = "move";
       }}
-      className="block cursor-grab rounded-md border bg-card p-2.5 shadow-sm transition-shadow hover:shadow active:cursor-grabbing"
+      onDragEnd={() => setDragging(false)}
+      className="block cursor-grab rounded-md border bg-card p-2.5 text-left shadow-sm transition-shadow hover:shadow focus:outline-none focus:ring-2 focus:ring-ring active:cursor-grabbing"
     >
       <div className="mb-1 flex items-start justify-between gap-2">
         <span className="line-clamp-2 text-sm font-medium">{ticket.subject}</span>
@@ -232,6 +281,6 @@ function BoardCard({ ticket }: { ticket: SupportTicketDto }) {
           <span className="text-amber-600">Unassigned</span>
         )}
       </div>
-    </Link>
+    </div>
   );
 }
