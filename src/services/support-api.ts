@@ -119,6 +119,10 @@ export interface TicketSearchParams {
   /** Multi-institute filter; empty/absent means all institutes. */
   instituteIds?: string[];
   engineerId?: string;
+  /** Only tickets with no engineer assigned (takes precedence over engineerId). */
+  unassigned?: boolean;
+  /** Case-insensitive substring match on the ticket subject. */
+  search?: string;
   overdue?: boolean;
   page?: number;
   size?: number;
@@ -155,6 +159,8 @@ export function useSupportTickets(params: TicketSearchParams) {
             instituteId: params.instituteId || undefined,
             instituteIds: params.instituteIds?.length ? params.instituteIds : undefined,
             engineerId: params.engineerId || undefined,
+            unassigned: params.unassigned || undefined,
+            search: params.search?.trim() || undefined,
             overdue: params.overdue || undefined,
             page: params.page ?? 0,
             size: params.size ?? 25,
