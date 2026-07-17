@@ -11,12 +11,14 @@ import {
   Lock,
   Pencil,
   Plus,
+  Search,
   Send,
   Settings2,
   UserCog,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -45,6 +47,10 @@ import {
 import { InstituteSupportDialog } from "@/components/support/InstituteSupportDialog";
 import { TicketFormDialog } from "@/components/support/TicketFormDialog";
 import { InstituteFilter, type SelectedInstitute } from "@/components/support/InstituteFilter";
+import { useDebounced } from "@/hooks/use-debounced";
+
+/** Sentinel for the engineer filter's "Unassigned" option (not a real engineer id). */
+const UNASSIGNED = "__UNASSIGNED__";
 
 const SOURCE_LABEL: Record<TicketSource, string> = {
   PORTAL: "Portal",
@@ -110,17 +116,21 @@ export default function SupportPage() {
   const [status, setStatus] = useState("ALL");
   const [engineerId, setEngineerId] = useState("ALL");
   const [institutes, setInstitutes] = useState<SelectedInstitute[]>([]);
+  const [search, setSearch] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [searchParams] = useSearchParams();
-  // Board cards deep-link here via ?ticket=<id>; seed the selection from it once on mount.
+  // The board's "Open conversation" link deep-links here via ?ticket=<id>; seed it once on mount.
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("ticket"));
   const [createOpen, setCreateOpen] = useState(false);
 
   const counts = useTicketCounts();
   const engineers = useEngineers();
+  const debouncedSearch = useDebounced(search, 300);
   const ticketsQuery = useSupportTickets({
     status: status === "ALL" ? undefined : status,
-    engineerId: engineerId === "ALL" ? undefined : engineerId,
+    engineerId: engineerId === "ALL" || engineerId === UNASSIGNED ? undefined : engineerId,
+    unassigned: engineerId === UNASSIGNED,
+    search: debouncedSearch,
     instituteIds: institutes.map((i) => i.id),
     overdue: overdueOnly,
     size: 50,
@@ -166,6 +176,15 @@ export default function SupportPage() {
 
       {/* Filters */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title…"
+            className="h-9 w-52 pl-8"
+          />
+        </div>
         <InstituteFilter value={institutes} onChange={setInstitutes} />
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className="h-9 w-44">
@@ -186,6 +205,7 @@ export default function SupportPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All engineers</SelectItem>
+            <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
             {(engineers.data ?? []).map((e) => (
               <SelectItem key={e.id} value={e.id}>
                 {e.name}
