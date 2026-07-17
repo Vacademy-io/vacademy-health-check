@@ -8,6 +8,8 @@ import {
   Inbox,
   KanbanSquare,
   Loader2,
+  Lock,
+  Pencil,
   Plus,
   Send,
   Settings2,
@@ -41,7 +43,8 @@ import {
   type TicketStatus,
 } from "@/services/support-api";
 import { InstituteSupportDialog } from "@/components/support/InstituteSupportDialog";
-import { CreateTicketDialog } from "@/components/support/CreateTicketDialog";
+import { TicketFormDialog } from "@/components/support/TicketFormDialog";
+import { InstituteFilter, type SelectedInstitute } from "@/components/support/InstituteFilter";
 
 const SOURCE_LABEL: Record<TicketSource, string> = {
   PORTAL: "Portal",
@@ -106,6 +109,7 @@ function timeAgo(date: string | null | undefined): string {
 export default function SupportPage() {
   const [status, setStatus] = useState("ALL");
   const [engineerId, setEngineerId] = useState("ALL");
+  const [institutes, setInstitutes] = useState<SelectedInstitute[]>([]);
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [searchParams] = useSearchParams();
   // Board cards deep-link here via ?ticket=<id>; seed the selection from it once on mount.
@@ -117,6 +121,7 @@ export default function SupportPage() {
   const ticketsQuery = useSupportTickets({
     status: status === "ALL" ? undefined : status,
     engineerId: engineerId === "ALL" ? undefined : engineerId,
+    instituteIds: institutes.map((i) => i.id),
     overdue: overdueOnly,
     size: 50,
   });
@@ -153,7 +158,7 @@ export default function SupportPage() {
         }
       />
 
-      <CreateTicketDialog
+      <TicketFormDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreated={(id) => setSelectedId(id)}
@@ -161,6 +166,7 @@ export default function SupportPage() {
 
       {/* Filters */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        <InstituteFilter value={institutes} onChange={setInstitutes} />
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className="h-9 w-44">
             <SelectValue placeholder="Status" />
@@ -266,6 +272,14 @@ function TicketRow({
         {ticket.instituteName || ticket.instituteId}
       </span>
       <div className="mt-1 flex flex-wrap items-center gap-1">
+        {ticket.internalOnly ? (
+          <Badge
+            variant="outline"
+            className="gap-0.5 border-amber-300 bg-amber-50 text-[10px] text-amber-700"
+          >
+            <Lock className="h-2.5 w-2.5" /> Internal
+          </Badge>
+        ) : null}
         <Badge variant={STATUS_META[ticket.status].variant} className="text-[10px]">
           {STATUS_META[ticket.status].label}
         </Badge>
@@ -317,6 +331,7 @@ function TicketThread({
   const [draft, setDraft] = useState("");
   const [internal, setInternal] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   if (isLoading || !ticket) {
     return (
@@ -345,10 +360,22 @@ function TicketThread({
               {ticket.raisedByName || ticket.raisedByEmail || "unknown"} · {ticket.category}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setConfigOpen(true)}>
-            <UserCog className="mr-1 h-4 w-4" /> Manage institute
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-1 h-4 w-4" /> Edit
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setConfigOpen(true)}>
+              <UserCog className="mr-1 h-4 w-4" /> Manage institute
+            </Button>
+          </div>
         </div>
+
+        {ticket.internalOnly ? (
+          <div className="mt-2 flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+            <Lock className="h-3.5 w-3.5 shrink-0" />
+            Internal only — this ticket is hidden from the institute.
+          </div>
+        ) : null}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Badge variant={PRIORITY_META[ticket.priority].variant}>
@@ -503,6 +530,8 @@ function TicketThread({
         instituteId={ticket.instituteId}
         instituteName={ticket.instituteName}
       />
+
+      <TicketFormDialog open={editOpen} onOpenChange={setEditOpen} ticketId={ticket.id} />
     </div>
   );
 }

@@ -70,6 +70,8 @@ export interface SupportTicketDto {
   source: TicketSource | null;
   /** Support-set expected-resolution time (ISO); visible to the institute. */
   eta: string | null;
+  /** Support-team-only ticket — the institute never sees it. */
+  internalOnly: boolean;
   firstResponseDueAt: string | null;
   firstRespondedAt: string | null;
   resolvedAt: string | null;
@@ -114,6 +116,8 @@ export interface PageResponse<T> {
 export interface TicketSearchParams {
   status?: string;
   instituteId?: string;
+  /** Multi-institute filter; empty/absent means all institutes. */
+  instituteIds?: string[];
   engineerId?: string;
   overdue?: boolean;
   page?: number;
@@ -149,11 +153,14 @@ export function useSupportTickets(params: TicketSearchParams) {
           params: {
             status: params.status || undefined,
             instituteId: params.instituteId || undefined,
+            instituteIds: params.instituteIds?.length ? params.instituteIds : undefined,
             engineerId: params.engineerId || undefined,
             overdue: params.overdue || undefined,
             page: params.page ?? 0,
             size: params.size ?? 25,
           },
+          // Spring binds List<String> from repeated params: ?instituteIds=a&instituteIds=b
+          paramsSerializer: { indexes: null },
         })
       ).data,
     placeholderData: keepPreviousData,
@@ -229,6 +236,9 @@ export interface CreateSupportTicketPayload {
   /** ISO string or null. */
   eta?: string | null;
   assignedEngineerId?: string | null;
+  /** true = support-team-only; hidden from the institute entirely. */
+  internalOnly?: boolean;
+  attachments?: AttachmentDto[];
 }
 
 /** Log a ticket on an institute's behalf (issue reported over email / WhatsApp, etc.). */
@@ -238,6 +248,35 @@ export function useCreateSupportTicket() {
     mutationFn: async (payload: CreateSupportTicketPayload) =>
       (await api.post<SupportTicketDto>(`${BASE}/tickets`, payload)).data,
     onSuccess: (d) => invalidateTicket(queryClient, d?.id),
+  });
+}
+
+export interface UpdateTicketPayload {
+  subject?: string;
+  category?: TicketCategory;
+  priority?: TicketPriority;
+  status?: TicketStatus;
+  source?: TicketSource;
+  /** "" clears the assignee; undefined leaves it alone. */
+  assignedEngineerId?: string | null;
+  internalOnly?: boolean;
+  /** Only applied when etaSet is true — lets an explicit null clear the ETA. */
+  eta?: string | null;
+  etaSet?: boolean;
+  /** Replaces the body of the ticket's opening message. */
+  message?: string;
+  /** Replaces the opening message's attachments; only applied when attachmentsSet is true. */
+  attachments?: AttachmentDto[];
+  attachmentsSet?: boolean;
+}
+
+/** Edit an existing ticket (fields, internal flag, opening message + attachments). */
+export function useUpdateTicket() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { id: string; payload: UpdateTicketPayload }) =>
+      (await api.put<SupportTicketDto>(`${BASE}/tickets/${vars.id}`, vars.payload)).data,
+    onSuccess: (_d, vars) => invalidateTicket(queryClient, vars.id),
   });
 }
 
