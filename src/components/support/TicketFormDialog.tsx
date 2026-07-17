@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Loader2, Search } from "lucide-react";
+import { Check, Loader2, Lock, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,10 +22,15 @@ import { useInstitutes } from "@/services/institutes-api";
 import {
   useCreateSupportTicket,
   useEngineers,
+  useSupportTicket,
+  useUpdateTicket,
+  type AttachmentDto,
+  type SupportTicketDto,
   type TicketCategory,
   type TicketPriority,
   type TicketSource,
 } from "@/services/support-api";
+import { AttachmentUploader } from "./AttachmentUploader";
 
 const CATEGORY_OPTIONS: { value: TicketCategory; label: string }[] = [
   { value: "QUESTION", label: "Question" },
@@ -42,28 +47,58 @@ const SOURCE_OPTIONS: { value: TicketSource; label: string }[] = [
   { value: "OTHER", label: "Other" },
 ];
 
-export function CreateTicketDialog({
+/** Format an ISO string into the value a datetime-local input expects (local time, no seconds). */
+function toLocalInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Log a new ticket for an institute, or edit an existing one. Pass `ticketId` to edit — the
+ * dialog loads the full detail itself, so any page can open it with just an id.
+ */
+export function TicketFormDialog({
   open,
   onOpenChange,
+  ticketId,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Present = edit that ticket; absent = create a new one. */
+  ticketId?: string | null;
   onCreated?: (ticketId: string) => void;
 }) {
+  const isEdit = !!ticketId;
+  const detail = useSupportTicket(open && ticketId ? ticketId : null);
+  const ticket = detail.data;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Log a ticket for an institute</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit ticket" : "Log a ticket for an institute"}</DialogTitle>
           <DialogDescription>
-            For issues a client reported over email, WhatsApp or a call. It appears in the
-            institute's own support panel, attributed to Vacademy Support.
+            {isEdit
+              ? "Update the details, attachments or visibility of this ticket."
+              : "For issues a client reported over email, WhatsApp or a call. It appears in the institute's own support panel, attributed to Vacademy Support."}
           </DialogDescription>
         </DialogHeader>
-        {/* Remount on each open so the form always starts blank. */}
-        {open ? (
-          <CreateTicketForm
+
+        {isEdit && detail.isLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : null}
+
+        {/* Remount per target so the form always starts from the right initial state. */}
+        {open && (!isEdit || ticket) ? (
+          <TicketForm
+            key={ticket?.id ?? "new"}
+            ticket={ticket}
             onClose={() => onOpenChange(false)}
             onCreated={(id) => {
               onCreated?.(id);
@@ -76,64 +111,104 @@ export function CreateTicketDialog({
   );
 }
 
-function CreateTicketForm({
+function TicketForm({
+  ticket,
   onClose,
   onCreated,
 }: {
+  ticket?: SupportTicketDto;
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
+  const isEdit = !!ticket;
   const engineers = useEngineers();
   const create = useCreateSupportTicket();
+  const update = useUpdateTicket();
+
+  const openingMessage = ticket?.messages?.[0];
 
   const [search, setSearch] = useState("");
-  const [institute, setInstitute] = useState<{ id: string; name: string } | null>(null);
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
-  const [category, setCategory] = useState<TicketCategory>("QUESTION");
-  const [priority, setPriority] = useState<TicketPriority>("MINOR");
-  const [source, setSource] = useState<TicketSource>("MANUAL");
-  const [engineerId, setEngineerId] = useState("NONE");
-  const [eta, setEta] = useState(""); // datetime-local string
+  const [institute, setInstitute] = useState<{ id: string; name: string } | null>(
+    ticket ? { id: ticket.instituteId, name: ticket.instituteName ?? ticket.instituteId } : null
+  );
+  const [subject, setSubject] = useState(ticket?.subject ?? "");
+  const [message, setMessage] = useState(openingMessage?.body ?? "");
+  const [attachments, setAttachments] = useState<AttachmentDto[]>(openingMessage?.attachments ?? []);
+  const [category, setCategory] = useState<TicketCategory>(ticket?.category ?? "QUESTION");
+  const [priority, setPriority] = useState<TicketPriority>(ticket?.priority ?? "MINOR");
+  const [source, setSource] = useState<TicketSource>((ticket?.source as TicketSource) ?? "MANUAL");
+  const [engineerId, setEngineerId] = useState(ticket?.assignedEngineerId ?? "NONE");
+  const [eta, setEta] = useState(toLocalInput(ticket?.eta));
+  const [internalOnly, setInternalOnly] = useState(ticket?.internalOnly ?? false);
 
-  // Only search once an institute isn't picked and the query is non-trivial.
+  // Only search while creating and before an institute is picked.
   const results = useInstitutes(0, 8, institute ? "" : search);
 
+  const saving = create.isPending || update.isPending;
+  const failed = create.isError || update.isError;
   const canSubmit = !!institute && subject.trim().length > 0 && message.trim().length > 0;
 
   const submit = async () => {
     if (!institute || !canSubmit) return;
+    const etaIso = eta ? new Date(eta).toISOString() : null;
     try {
+      if (ticket) {
+        await update.mutateAsync({
+          id: ticket.id,
+          payload: {
+            subject: subject.trim(),
+            message: message.trim(),
+            attachments,
+            attachmentsSet: true,
+            category,
+            priority,
+            source,
+            eta: etaIso,
+            etaSet: true,
+            internalOnly,
+            assignedEngineerId: engineerId === "NONE" ? "" : engineerId,
+          },
+        });
+        onClose();
+        return;
+      }
       const created = await create.mutateAsync({
         instituteId: institute.id,
         instituteName: institute.name,
         subject: subject.trim(),
         message: message.trim(),
+        attachments,
         category,
         priority,
         source,
-        eta: eta ? new Date(eta).toISOString() : null,
+        eta: etaIso,
+        internalOnly,
         assignedEngineerId: engineerId === "NONE" ? null : engineerId,
       });
       if (created?.id) onCreated(created.id);
       else onClose();
     } catch {
-      // surfaced via create.isError below; dialog stays open for a retry.
+      // surfaced via `failed` below; the dialog stays open for a retry.
     }
   };
 
   return (
     <>
       <div className="space-y-4">
-        {/* Institute picker */}
+        {/* Institute */}
         <div className="space-y-1.5">
           <Label>Institute</Label>
           {institute ? (
             <div className="flex items-center justify-between rounded-md border bg-accent/40 px-3 py-2 text-sm">
               <span className="truncate font-medium">{institute.name}</span>
-              <Button variant="ghost" size="sm" onClick={() => setInstitute(null)}>
-                Change
-              </Button>
+              {isEdit ? (
+                // Moving a ticket between institutes would strand it in the wrong client's panel.
+                <span className="shrink-0 text-xs text-muted-foreground">Can't be changed</span>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => setInstitute(null)}>
+                  Change
+                </Button>
+              )}
             </div>
           ) : (
             <>
@@ -197,8 +272,13 @@ function CreateTicketForm({
           />
         </div>
 
+        {/* Attachments */}
+        <div className="space-y-1.5">
+          <Label>Attachments</Label>
+          <AttachmentUploader value={attachments} onChange={setAttachments} />
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
-          {/* Category */}
           <div className="space-y-1.5">
             <Label>Category</Label>
             <Select value={category} onValueChange={(v) => setCategory(v as TicketCategory)}>
@@ -215,7 +295,6 @@ function CreateTicketForm({
             </Select>
           </div>
 
-          {/* Priority */}
           <div className="space-y-1.5">
             <Label>Priority</Label>
             <Select value={priority} onValueChange={(v) => setPriority(v as TicketPriority)}>
@@ -229,7 +308,6 @@ function CreateTicketForm({
             </Select>
           </div>
 
-          {/* Source */}
           <div className="space-y-1.5">
             <Label>Source</Label>
             <Select value={source} onValueChange={(v) => setSource(v as TicketSource)}>
@@ -246,7 +324,6 @@ function CreateTicketForm({
             </Select>
           </div>
 
-          {/* Assignee */}
           <div className="space-y-1.5">
             <Label>Assign to (optional)</Label>
             <Select value={engineerId} onValueChange={setEngineerId}>
@@ -273,20 +350,39 @@ function CreateTicketForm({
             Shown to the institute as “Expected by …”. Leave blank if not committing to a date.
           </p>
         </div>
+
+        {/* Internal-only */}
+        <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3">
+          <input
+            type="checkbox"
+            checked={internalOnly}
+            onChange={(e) => setInternalOnly(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="space-y-0.5">
+            <span className="flex items-center gap-1.5 text-sm font-medium">
+              <Lock className="h-3.5 w-3.5" /> Internal only
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Hidden from the institute completely — it won't appear in their support panel or their
+              open-issue count. Use for work you track on their account but don't want to share.
+            </span>
+          </span>
+        </label>
       </div>
 
       <DialogFooter>
-        {create.isError ? (
+        {failed ? (
           <p className="mr-auto self-center text-xs text-destructive">
-            Could not create the ticket. Try again.
+            Could not save the ticket. Try again.
           </p>
         ) : null}
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={submit} disabled={!canSubmit || create.isPending}>
-          {create.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
-          Create ticket
+        <Button onClick={submit} disabled={!canSubmit || saving}>
+          {saving ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+          {isEdit ? "Save changes" : "Create ticket"}
         </Button>
       </DialogFooter>
     </>

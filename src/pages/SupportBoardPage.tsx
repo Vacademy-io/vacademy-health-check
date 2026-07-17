@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CalendarClock, Inbox, Loader2, Plus } from "lucide-react";
+import { AlertTriangle, CalendarClock, Inbox, Loader2, Lock, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,8 @@ import {
   type TicketSource,
   type TicketStatus,
 } from "@/services/support-api";
-import { CreateTicketDialog } from "@/components/support/CreateTicketDialog";
+import { TicketFormDialog } from "@/components/support/TicketFormDialog";
+import { InstituteFilter, type SelectedInstitute } from "@/components/support/InstituteFilter";
 
 const COLUMNS: { status: TicketStatus; label: string; accent: string }[] = [
   { status: "OPEN", label: "Open", accent: "border-t-amber-400" },
@@ -60,19 +61,22 @@ function fmt(date: string | null | undefined): string {
 
 export default function SupportBoardPage() {
   const [engineerId, setEngineerId] = useState("ALL");
+  const [institutes, setInstitutes] = useState<SelectedInstitute[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [dragOverStatus, setDragOverStatus] = useState<TicketStatus | null>(null);
 
   const engineers = useEngineers();
   const updateStatus = useUpdateTicketStatus();
   const engineerParam = engineerId === "ALL" ? undefined : engineerId;
+  const instituteIds = institutes.map((i) => i.id);
 
   // One query per column so each is complete up to PER_COLUMN. Fixed count → hook order is stable.
-  const open = useSupportTickets({ status: "OPEN", engineerId: engineerParam, size: PER_COLUMN });
-  const inProgress = useSupportTickets({ status: "IN_PROGRESS", engineerId: engineerParam, size: PER_COLUMN });
-  const waiting = useSupportTickets({ status: "WAITING_ON_CUSTOMER", engineerId: engineerParam, size: PER_COLUMN });
-  const resolved = useSupportTickets({ status: "RESOLVED", engineerId: engineerParam, size: PER_COLUMN });
-  const closed = useSupportTickets({ status: "CLOSED", engineerId: engineerParam, size: PER_COLUMN });
+  const common = { engineerId: engineerParam, instituteIds, size: PER_COLUMN };
+  const open = useSupportTickets({ ...common, status: "OPEN" });
+  const inProgress = useSupportTickets({ ...common, status: "IN_PROGRESS" });
+  const waiting = useSupportTickets({ ...common, status: "WAITING_ON_CUSTOMER" });
+  const resolved = useSupportTickets({ ...common, status: "RESOLVED" });
+  const closed = useSupportTickets({ ...common, status: "CLOSED" });
 
   const byStatus: Record<TicketStatus, ReturnType<typeof useSupportTickets>> = {
     OPEN: open,
@@ -98,7 +102,8 @@ export default function SupportBoardPage() {
         title="Support board"
         description="Drag tickets across columns to update status. Built for standups."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <InstituteFilter value={institutes} onChange={setInstitutes} />
             <Select value={engineerId} onValueChange={setEngineerId}>
               <SelectTrigger className="h-9 w-48">
                 <SelectValue placeholder="Engineer" />
@@ -124,7 +129,7 @@ export default function SupportBoardPage() {
         }
       />
 
-      <CreateTicketDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <TicketFormDialog open={createOpen} onOpenChange={setCreateOpen} />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-x-auto md:grid-cols-2 xl:grid-cols-5">
         {COLUMNS.map((col) => {
@@ -199,6 +204,11 @@ function BoardCard({ ticket }: { ticket: SupportTicketDto }) {
         {ticket.instituteName || ticket.instituteId}
       </p>
       <div className="mt-1.5 flex flex-wrap items-center gap-1">
+        {ticket.internalOnly ? (
+          <Badge variant="outline" className="gap-0.5 border-amber-300 bg-amber-50 text-[10px] text-amber-700">
+            <Lock className="h-2.5 w-2.5" /> Internal
+          </Badge>
+        ) : null}
         {ticket.overdue ? (
           <Badge variant="destructive" className="gap-0.5 text-[10px]">
             <AlertTriangle className="h-2.5 w-2.5" /> overdue
