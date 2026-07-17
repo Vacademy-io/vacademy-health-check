@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Check, Loader2, Lock, Search } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Check, Loader2, Lock, MessagesSquare, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -29,8 +30,17 @@ import {
   type TicketCategory,
   type TicketPriority,
   type TicketSource,
+  type TicketStatus,
 } from "@/services/support-api";
 import { AttachmentUploader } from "./AttachmentUploader";
+
+const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
+  { value: "OPEN", label: "Open" },
+  { value: "IN_PROGRESS", label: "In progress" },
+  { value: "WAITING_ON_CUSTOMER", label: "Waiting on customer" },
+  { value: "RESOLVED", label: "Resolved" },
+  { value: "CLOSED", label: "Closed" },
+];
 
 const CATEGORY_OPTIONS: { value: TicketCategory; label: string }[] = [
   { value: "QUESTION", label: "Question" },
@@ -138,6 +148,7 @@ function TicketForm({
   const [priority, setPriority] = useState<TicketPriority>(ticket?.priority ?? "MINOR");
   const [source, setSource] = useState<TicketSource>((ticket?.source as TicketSource) ?? "MANUAL");
   const [engineerId, setEngineerId] = useState(ticket?.assignedEngineerId ?? "NONE");
+  const [status, setStatus] = useState<TicketStatus>(ticket?.status ?? "OPEN");
   const [eta, setEta] = useState(toLocalInput(ticket?.eta));
   const [internalOnly, setInternalOnly] = useState(ticket?.internalOnly ?? false);
 
@@ -162,6 +173,7 @@ function TicketForm({
             attachmentsSet: true,
             category,
             priority,
+            status,
             source,
             eta: etaIso,
             etaSet: true,
@@ -340,6 +352,25 @@ function TicketForm({
               </SelectContent>
             </Select>
           </div>
+
+          {/* A new ticket always starts Open, so only offer status when editing. */}
+          {isEdit ? (
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as TicketStatus)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
         </div>
 
         {/* ETA */}
@@ -376,6 +407,13 @@ function TicketForm({
           <p className="mr-auto self-center text-xs text-destructive">
             Could not save the ticket. Try again.
           </p>
+        ) : isEdit && ticket ? (
+          // Everything is editable here; this is just the escape hatch to the message thread.
+          <Button asChild variant="ghost" size="sm" className="mr-auto text-muted-foreground">
+            <Link to={`/support?ticket=${ticket.id}`}>
+              <MessagesSquare className="mr-1 h-4 w-4" /> Open conversation
+            </Link>
+          </Button>
         ) : null}
         <Button variant="outline" onClick={onClose}>
           Cancel
