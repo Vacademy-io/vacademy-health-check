@@ -6,6 +6,7 @@ import {
   Activity,
   Brain,
   HeartPulse,
+  Gauge,
   Sparkles,
   KeyRound,
   TrendingUp,
@@ -29,6 +30,7 @@ const navSections: Array<{
   {
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+      { to: "/pulse", label: "Live Pulse", icon: Gauge },
       { to: "/institutes", label: "Institutes", icon: Building2 },
       { to: "/credits", label: "Credits", icon: CreditCard },
       { to: "/activity", label: "Activity", icon: Activity },

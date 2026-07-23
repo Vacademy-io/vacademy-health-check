@@ -17,6 +17,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/analytics-api': {
+        target: 'https://backend-stage.vacademy.io',
+        changeOrigin: true,
+        secure: false,
+      },
       '/admin-core-service': {
         target: 'https://backend-stage.vacademy.io',
         changeOrigin: true,
