@@ -8,6 +8,7 @@ const InstitutesPage = lazy(() => import("@/pages/InstitutesPage"));
 const InstituteDetailPage = lazy(() => import("@/pages/InstituteDetailPage"));
 const CreditsPage = lazy(() => import("@/pages/CreditsPage"));
 const ActivityPage = lazy(() => import("@/pages/ActivityPage"));
+const PulsePage = lazy(() => import("@/pages/PulsePage"));
 const UsagePage = lazy(() => import("@/pages/UsagePage"));
 const HealthPage = lazy(() => import("@/pages/HealthPage"));
 const StatusPage = lazy(() => import("@/pages/StatusPage"));
@@ -50,6 +51,7 @@ function App() {
           <Route path="institutes" element={<InstitutesPage />} />
           <Route path="institutes/:id" element={<InstituteDetailPage />} />
           <Route path="credits" element={<CreditsPage />} />
+          <Route path="pulse" element={<PulsePage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="usage" element={<UsagePage />} />
           <Route path="health" element={<HealthPage />} />

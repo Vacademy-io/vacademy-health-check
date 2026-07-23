@@ -9,7 +9,8 @@ export async function onRequest(context) {
     "/assessment-service",
     "/notification-service",
     "/ai-service",
-    "/community-service"
+    "/community-service",
+    "/analytics-api"
   ];
 
   // Check if the current path starts with any of the service prefixes
