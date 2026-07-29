@@ -23,6 +23,7 @@ const VimotionInviteCodesPage = lazy(() => import("@/pages/VimotionInviteCodesPa
 const VimotionStatsPage = lazy(() => import("@/pages/VimotionStatsPage"));
 const OnboardingFormPage = lazy(() => import("@/pages/OnboardingFormPage"));
 const DemoLauncherPage = lazy(() => import("@/pages/DemoLauncherPage"));
+const PlanBuilderPage = lazy(() => import("@/pages/PlanBuilderPage"));
 const OnboardingAdminPage = lazy(() => import("@/pages/OnboardingAdminPage"));
 const BroadcastsPage = lazy(() => import("@/pages/BroadcastsPage"));
 const GuidesAdminPage = lazy(() => import("@/pages/GuidesAdminPage"));
@@ -44,6 +45,9 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/status" element={<StatusPage />} />
         <Route path="/onboarding/:slug" element={<OnboardingFormPage />} />
+        {/* Plan builder: reached from the onboarding form, or opened cold as a public link. */}
+        <Route path="/pricing" element={<PlanBuilderPage />} />
+        <Route path="/pricing/:slug" element={<PlanBuilderPage />} />
         <Route path="/demo" element={<DemoLauncherPage />} />
         <Route path="/demo/:slug" element={<DemoLauncherPage />} />
         <Route element={<AuthGuard />}>

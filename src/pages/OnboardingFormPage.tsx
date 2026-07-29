@@ -1,19 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuestionField } from "@/components/onboarding/QuestionField";
-import { DemoHandoffView } from "@/components/onboarding/DemoHandoffView";
+import { BrandPanel } from "@/components/onboarding/BrandPanel";
 import {
   fetchPublicLink,
   submitOnboarding,
   type PublicLinkConfig,
   type Question,
-  type SubmitResponse,
 } from "@/services/onboarding-api";
 
 type Answers = Record<string, unknown>;
+
+/** Upper edge of each learner-count bucket, so the plan builder can preselect a bracket. */
+const LEARNER_BUCKETS: Record<string, number> = {
+  LT_100: 100,
+  "100_500": 500,
+  "500_2000": 2000,
+  "2000_10000": 10000,
+  GT_10000: 10000,
+};
+
+/** Size off whichever is larger — today's headcount or where they expect to be in 6 months. */
+function pickLearnerCount(answers: Answers): number | undefined {
+  const now = LEARNER_BUCKETS[String(answers.learners_now ?? "")] ?? 0;
+  const soon = LEARNER_BUCKETS[String(answers.learners_6m ?? "")] ?? 0;
+  const best = Math.max(now, soon);
+  return best > 0 ? best : undefined;
+}
 
 export default function OnboardingFormPage() {
   const { slug = "general" } = useParams();
@@ -31,7 +47,7 @@ export default function OnboardingFormPage() {
 
   if (isLoading) {
     return (
-      <Shell>
+      <Shell centered aside={false}>
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
           <Loader2 className="h-7 w-7 animate-spin text-primary" />
           <p className="text-sm">Setting things up…</p>
@@ -44,7 +60,7 @@ export default function OnboardingFormPage() {
   // rather than telling a prospect their link doesn't exist.
   if (isError || !config) {
     return (
-      <Shell>
+      <Shell centered aside={false}>
         <Message
           title="We couldn't load this page"
           body="Something went wrong on our side. Give it another try — if it keeps happening, email us at hello@vacademy.io."
@@ -65,7 +81,7 @@ export default function OnboardingFormPage() {
 
   if (!config.active) {
     return (
-      <Shell>
+      <Shell centered aside={false}>
         <Message
           title="This link is no longer available"
           body={
@@ -90,7 +106,7 @@ function OnboardingWizard({ config, slug }: { config: PublicLinkConfig; slug: st
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<SubmitResponse | null>(null);
+  const navigate = useNavigate();
 
   // Ordered, de-duplicated sections from the visible questions.
   const sections = useMemo(() => {
@@ -129,18 +145,10 @@ function OnboardingWizard({ config, slug }: { config: PublicLinkConfig; slug: st
     setFormError(null);
   };
 
-  if (result) {
-    return (
-      <Shell wide>
-        <DemoHandoffView handoff={result.handoff} />
-      </Shell>
-    );
-  }
-
   // Direct-demo links carry no questions — should be launched via /demo, but guard anyway.
   if (sections.length === 0) {
     return (
-      <Shell>
+      <Shell centered aside={false}>
         <Message title="Nothing to fill in" body="This link has no questions configured." />
       </Shell>
     );
@@ -196,7 +204,18 @@ function OnboardingWizard({ config, slug }: { config: PublicLinkConfig; slug: st
         answers,
         referrer: document.referrer || undefined,
       });
-      setResult(res);
+      // The plan builder is the next step, not the demo handoff. Everything it needs to skip
+      // re-asking travels in the URL; submissionId is what ties the quote back to this lead.
+      const q = new URLSearchParams();
+      if (res.submissionId) q.set("submission", res.submissionId);
+      const learners = pickLearnerCount(answers);
+      if (learners) q.set("students", String(learners));
+      if (answers.full_name) q.set("name", String(answers.full_name));
+      if (answers.work_email) q.set("email", String(answers.work_email));
+      if (answers.phone) q.set("phone", String(answers.phone));
+      if (answers.organization_name) q.set("org", String(answers.organization_name));
+      navigate(`/pricing?${q.toString()}`);
+      return;
     } catch (e) {
       setFormError(
         e instanceof Error ? e.message : "Something went wrong. Please try again in a moment."
@@ -208,17 +227,14 @@ function OnboardingWizard({ config, slug }: { config: PublicLinkConfig; slug: st
 
   return (
     <Shell>
-      <div className="mx-auto w-full max-w-2xl">
+      <div className="w-full min-w-0">
         {/* header */}
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
-            <Sparkles className="h-5 w-5" />
-          </div>
+        <div className="mb-7 text-center lg:text-left">
           <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
             {config.introHeading || "See Vacademy in action"}
           </h1>
           {config.introSubheading && (
-            <p className="mx-auto mt-2.5 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground">
+            <p className="mx-auto mt-2.5 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground lg:mx-0">
               {config.introSubheading}
             </p>
           )}
@@ -316,23 +332,61 @@ function OnboardingWizard({ config, slug }: { config: PublicLinkConfig; slug: st
           </div>
         </div>
 
-        <p className="mt-5 text-center text-xs text-muted-foreground">
+        <p className="mt-5 text-center text-xs text-muted-foreground lg:text-left">
           Takes under a minute · No credit card · We'll never share your details
         </p>
       </div>
+
+      {/* The pitch. Hidden on small screens so the form stays the whole first impression. */}
+      <BrandPanel className="hidden lg:flex lg:sticky lg:top-10" />
     </Shell>
   );
 }
 
-function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
+/**
+ * Split-screen shell: the form on the left, the Vacademy pitch on the right (AWS-style).
+ * The right half collapses away under `lg`, and is dropped entirely once the form is done —
+ * at that point the demo handoff is the only thing worth looking at.
+ */
+function Shell({
+  children,
+  centered,
+  aside = true,
+}: {
+  children: React.ReactNode;
+  centered?: boolean;
+  aside?: boolean;
+}) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-muted/50 via-background to-background px-4 py-12">
-      {/* soft ambient wash behind the card */}
+    <div className="brand-vacademy relative min-h-screen overflow-hidden bg-gradient-to-b from-muted/40 via-background to-background">
+      {/* soft ambient wash, tinted with the brand orange */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(60%_100%_at_50%_0%,hsl(var(--primary)/0.10),transparent)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(70%_100%_at_50%_0%,hsl(var(--primary)/0.10),transparent)]"
       />
-      <div className={["relative w-full", wide ? "max-w-3xl" : "max-w-2xl"].join(" ")}>{children}</div>
+
+      <header className="relative mx-auto flex max-w-6xl items-center justify-center px-4 pt-8 lg:justify-start lg:px-8">
+        <a
+          href="https://www.vacademy.io"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xl font-extrabold tracking-tight"
+        >
+          <span className="bg-gradient-to-r from-[#ED7424] to-[#FF9B55] bg-clip-text text-transparent">
+            vacademy
+          </span>
+        </a>
+      </header>
+
+      <main
+        className={[
+          "relative mx-auto grid max-w-6xl gap-12 px-4 py-10 sm:py-14 lg:px-8",
+          centered ? "place-items-center" : "",
+          aside && !centered ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-start lg:gap-16" : "",
+        ].join(" ")}
+      >
+        {children}
+      </main>
     </div>
   );
 }
