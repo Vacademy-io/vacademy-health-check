@@ -2,42 +2,64 @@ import { API_PREFIXES } from "@/lib/constants";
 
 // ---- types (mirror the community_service pricing DTOs) ----------------------
 
-export interface Bracket {
+export type PricingModel =
+  | "PER_LEARNER_TIER"
+  | "FLAT_ANNUAL"
+  | "ONE_TIME"
+  | "SEAT_BASED"
+  | "COUNT_BASED"
+  | "USAGE";
+
+export interface PlanFeature {
+  label: string;
+  included: boolean;
+}
+
+export interface Plan {
   code: string;
   name: string;
-  maxStudents: number;
-  perStudentPerYear: number;
-  lmsAnnual: number;
-  parentAppPerStudent: number;
-  androidIncluded: boolean;
-  iosIncluded: boolean;
-  websiteIncluded: boolean;
-  commsIncluded: boolean;
-  includedSubOrgs: number;
-  premiumSupportIncluded: boolean;
-  includes: string[];
+  description?: string;
+  unitCount?: number;
+  /** Per unit for PER_LEARNER_TIER, absolute otherwise. */
+  price: number;
+  /** One year at list, already multiplied out for learner tiers. */
+  annualPrice: number;
+  popular: boolean;
+  features: PlanFeature[];
+}
+
+export interface Product {
+  code: string;
+  name: string;
+  tagline?: string;
+  icon?: string;
+  pricingModel: PricingModel;
+  basePrice?: number;
+  unitPrice?: number;
+  includedUnits?: number;
+  unitLabel?: string;
+  minQuantity: number;
+  /** Only sellable alongside this product. */
+  requiresProductCode?: string;
+  /** Its tier follows whichever plan was chosen for that product. */
+  mirrorsProductCode?: string;
+  fromPrice?: number;
+  plans: Plan[];
 }
 
 export interface RateCatalog {
   version: string;
-  brackets: Bracket[];
-  androidOneTime: number;
-  iosOneTime: number;
-  whatsappAndPayments: number;
-  websiteAnnual: number;
-  crmBase: number;
-  crmIncludedSeats: number;
-  crmExtraSeat: number;
-  extraSubOrg: number;
-  meetPerSessionHour: number;
-  premiumSupportUpgrade: number;
-  dedicatedSupportMonthly: number;
-  gstRate: number;
-  usdPerInr: number;
+  products: Product[];
+  settings: Record<string, string>;
 }
 
 export type BillingCycle = "MONTHLY" | "HALF_YEARLY" | "ANNUAL";
-export type SupportTier = "BASIC" | "PREMIUM" | "DEDICATED";
+
+export interface Selection {
+  productCode: string;
+  planCode?: string;
+  quantity?: number;
+}
 
 export interface QuoteRequest {
   submissionId?: string;
@@ -48,22 +70,7 @@ export interface QuoteRequest {
   organizationName?: string;
   currency: "INR" | "USD";
   billingCycle: BillingCycle;
-  studentCount?: number;
-  bracketCode?: string;
-  lms: boolean;
-  crm: boolean;
-  payments: boolean;
-  whatsapp: boolean;
-  android: boolean;
-  ios: boolean;
-  parentApp: boolean;
-  website: boolean;
-  subOrgs: boolean;
-  vacademyMeet: boolean;
-  crmSeats?: number;
-  subOrgCount?: number;
-  meetSessionsPerMonth?: number;
-  supportTier: SupportTier;
+  selections: Selection[];
 }
 
 export interface LineItem {
@@ -81,12 +88,10 @@ export interface Quote {
   currency: "INR" | "USD";
   currencySymbol: string;
   billingCycle: BillingCycle;
-  bracketCode: string;
-  bracketName: string;
-  studentCount: number;
   recurringLines: LineItem[];
   oneTimeLines: LineItem[];
   recurringAnnual: number;
+  recurringAnnualAdjusted: number;
   cycleAdjustment: number;
   cycleAdjustmentLabel: string;
   oneTimeTotal: number;
@@ -94,9 +99,13 @@ export interface Quote {
   taxRate: number;
   taxAmount: number;
   taxLabel: string;
+  /** Everything owed across the first year, inc-tax — not what a single payment looks like. */
   total: number;
+  /** One billing period's recurring cost, inc-tax. Excludes one-time fees. */
   perPaymentAmount: number;
   perPaymentLabel: string;
+  paymentsPerYear: number;
+  oneTimeTotalWithTax: number;
   included: string[];
 }
 
@@ -142,4 +151,14 @@ export function money(amount: number, symbol: string): string {
       maximumFractionDigits: 2,
     })
   );
+}
+
+/** True when a product needs a quantity from the user rather than a plan choice. */
+export function needsQuantity(p: Product): boolean {
+  return p.pricingModel === "SEAT_BASED" || p.pricingModel === "COUNT_BASED" || p.pricingModel === "USAGE";
+}
+
+/** True when a product offers a real choice of plans (rather than a single implicit one). */
+export function hasPlanChoice(p: Product): boolean {
+  return !p.mirrorsProductCode && p.plans.length > 1;
 }
