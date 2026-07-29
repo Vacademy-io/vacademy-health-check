@@ -31,6 +31,28 @@
     --chart-5: 27 87% 67%;
   }
 
+  /*
+   * Prospect-facing onboarding pages wear the vacademy.io brand (#ED7424 → #FF9B55) instead of
+   * the internal dashboard blue. Scoped to the page wrapper so the rest of the health console,
+   * which staff use all day, keeps its own palette.
+   */
+  .brand-vacademy {
+    --primary: 24 85% 54%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 24 85% 54%;
+    --accent: 24 100% 96%;
+    --accent-foreground: 24 85% 32%;
+  }
+
+  .dark .brand-vacademy,
+  .brand-vacademy.dark {
+    --primary: 25 95% 58%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 25 95% 58%;
+    --accent: 24 40% 18%;
+    --accent-foreground: 25 100% 80%;
+  }
+
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
