@@ -13,11 +13,18 @@ export type QuestionType =
   | "SELECT"
   | "MULTISELECT"
   | "BOOLEAN"
-  | "COLOR";
+  | "COLOR"
+  | "FEATURE_GROUPS";
 
 export interface QuestionOption {
   value: string;
   label: string;
+  /** Lucide icon name — group cards only. */
+  icon?: string;
+  /** One-line summary under the label — group cards only. */
+  description?: string;
+  /** Features nested inside a group card. */
+  children?: QuestionOption[];
 }
 
 export interface Question {

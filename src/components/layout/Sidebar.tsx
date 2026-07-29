@@ -82,7 +82,7 @@ export function Sidebar({ className }: { className?: string }) {
       <div className="flex h-14 items-center border-b px-4">
         <span className="text-lg font-semibold">Vacademy Admin</span>
       </div>
-      <nav className="flex-1 space-y-4 p-2">
+      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto p-2">
         {navSections.map((section, sIdx) => (
           <div key={sIdx} className="space-y-1">
             {section.label && (
