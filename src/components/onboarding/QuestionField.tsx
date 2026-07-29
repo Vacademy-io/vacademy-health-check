@@ -1,6 +1,5 @@
-import { Input } from "@/components/ui/input";
+import { Check, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -10,169 +9,239 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Question } from "@/services/onboarding-api";
+import { FeatureGroups } from "./FeatureGroups";
+import { PhoneField } from "./PhoneField";
 
 type Value = unknown;
+
+/** Shared input chrome so every text-ish field reads as one system. */
+const inputClass = (invalid?: boolean) =>
+  cn(
+    "w-full rounded-lg border bg-white/80 px-3 py-2 text-sm shadow-sm transition-all",
+    "placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/30",
+    "dark:bg-slate-900/60",
+    invalid ? "border-red-400 focus:border-red-400" : "border-input focus:border-primary"
+  );
 
 export function QuestionField({
   question,
   value,
+  error,
   onChange,
 }: {
   question: Question;
   value: Value;
+  error?: string;
   onChange: (v: Value) => void;
 }) {
   const id = `q-${question.key}`;
+  const invalid = Boolean(error);
+
   const label = (
-    <Label htmlFor={id} className="text-sm font-medium">
+    <Label htmlFor={id} className="text-sm font-medium text-foreground">
       {question.label}
-      {question.required && <span className="ml-0.5 text-red-500">*</span>}
+      {question.required && <span className="ml-0.5 text-primary">*</span>}
     </Label>
   );
-  const help = question.helpText && (
-    <p className="text-xs text-muted-foreground">{question.helpText}</p>
+
+  const help = question.helpText && !error && (
+    <p className="text-xs leading-relaxed text-muted-foreground">{question.helpText}</p>
+  );
+
+  const errorNote = error && (
+    <p className="flex items-center gap-1 text-xs font-medium text-red-600">
+      <X className="h-3 w-3" strokeWidth={3} />
+      {error}
+    </p>
+  );
+
+  const wrap = (children: React.ReactNode) => (
+    <div className="space-y-2">
+      {label}
+      {children}
+      {errorNote}
+      {help}
+    </div>
   );
 
   switch (question.type) {
+    case "FEATURE_GROUPS":
+      return wrap(
+        <FeatureGroups
+          groups={question.options ?? []}
+          value={Array.isArray(value) ? (value as string[]) : []}
+          onChange={onChange}
+        />
+      );
+
+    case "PHONE":
+      return wrap(
+        <PhoneField
+          id={id}
+          value={(value as string) ?? ""}
+          placeholder={question.placeholder}
+          invalid={invalid}
+          onChange={onChange}
+        />
+      );
+
     case "TEXTAREA":
-      return (
-        <div className="space-y-1.5">
-          {label}
-          <Textarea
-            id={id}
-            placeholder={question.placeholder}
-            value={(value as string) ?? ""}
-            onChange={(e) => onChange(e.target.value)}
-            rows={3}
-          />
-          {help}
-        </div>
+      return wrap(
+        <textarea
+          id={id}
+          rows={3}
+          placeholder={question.placeholder}
+          value={(value as string) ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(inputClass(invalid), "resize-y leading-relaxed")}
+        />
       );
 
     case "BOOLEAN":
-      return (
-        <div className="space-y-1.5">
-          {label}
-          <div className="flex gap-2">
-            {[
-              { v: true, l: "Yes" },
-              { v: false, l: "No" },
-            ].map((opt) => (
+      return wrap(
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { v: true, l: "Yes" },
+            { v: false, l: "No" },
+          ].map((opt) => {
+            const on = value === opt.v;
+            return (
               <button
                 key={opt.l}
                 type="button"
                 onClick={() => onChange(opt.v)}
+                aria-pressed={on}
                 className={cn(
-                  "flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
-                  value === opt.v
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "bg-card hover:bg-accent"
+                  "flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-all",
+                  on
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-input bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 )}
               >
+                {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                 {opt.l}
               </button>
-            ))}
-          </div>
-          {help}
+            );
+          })}
         </div>
       );
 
-    case "SELECT":
-      return (
-        <div className="space-y-1.5">
-          {label}
-          <Select
-            value={(value as string) ?? ""}
-            onValueChange={(v) => onChange(v)}
-          >
-            <SelectTrigger id={id}>
-              <SelectValue placeholder={question.placeholder ?? "Select…"} />
-            </SelectTrigger>
-            <SelectContent>
-              {question.options?.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
+    case "SELECT": {
+      // Short option sets read better (and tap better) as pills than as a dropdown.
+      const options = question.options ?? [];
+      if (options.length > 0 && options.length <= 6) {
+        return wrap(
+          <div className="flex flex-wrap gap-2">
+            {options.map((o) => {
+              const on = value === o.value;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => onChange(o.value)}
+                  aria-pressed={on}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm transition-all",
+                    on
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                      : "border-input bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  )}
+                >
                   {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {help}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+      return wrap(
+        <Select value={(value as string) ?? ""} onValueChange={(v) => onChange(v)}>
+          <SelectTrigger id={id} className={cn(invalid && "border-red-400")}>
+            <SelectValue placeholder={question.placeholder ?? "Select…"} />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       );
+    }
 
     case "MULTISELECT": {
       const arr = Array.isArray(value) ? (value as string[]) : [];
       const toggle = (v: string) =>
         onChange(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
-      return (
-        <div className="space-y-1.5">
-          {label}
-          <div className="flex flex-wrap gap-2">
-            {question.options?.map((o) => (
+      return wrap(
+        <div className="flex flex-wrap gap-2">
+          {question.options?.map((o) => {
+            const on = arr.includes(o.value);
+            return (
               <button
                 key={o.value}
                 type="button"
                 onClick={() => toggle(o.value)}
+                aria-pressed={on}
                 className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm transition-colors",
-                  arr.includes(o.value)
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "bg-card hover:bg-accent"
+                  "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-all",
+                  on
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-input bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
                 )}
               >
+                {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                 {o.label}
               </button>
-            ))}
-          </div>
-          {help}
+            );
+          })}
         </div>
       );
     }
 
     case "COLOR":
-      return (
-        <div className="space-y-1.5">
-          {label}
-          <div className="flex items-center gap-3">
+      return wrap(
+        <div className="flex items-center gap-3">
+          <div className="relative h-10 w-14 shrink-0 overflow-hidden rounded-lg border shadow-sm">
             <input
               id={id}
               type="color"
               value={(value as string) || "#4f46e5"}
               onChange={(e) => onChange(e.target.value)}
-              className="h-10 w-14 cursor-pointer rounded border bg-card"
-            />
-            <Input
-              value={(value as string) ?? ""}
-              placeholder="#4f46e5"
-              onChange={(e) => onChange(e.target.value)}
-              className="max-w-[160px]"
+              className="absolute -inset-2 h-[calc(100%+1rem)] w-[calc(100%+1rem)] cursor-pointer border-0 p-0"
             />
           </div>
-          {help}
+          <input
+            value={(value as string) ?? ""}
+            placeholder="#4f46e5"
+            onChange={(e) => onChange(e.target.value)}
+            className={cn(inputClass(invalid), "max-w-[160px] font-mono tabular-nums")}
+          />
         </div>
       );
 
     default: {
       const inputType =
+        question.type === "EMAIL" ? "email" : question.type === "URL" ? "url" : "text";
+      const autoComplete =
         question.type === "EMAIL"
           ? "email"
-          : question.type === "PHONE"
-            ? "tel"
-            : question.type === "URL"
-              ? "url"
-              : "text";
-      return (
-        <div className="space-y-1.5">
-          {label}
-          <Input
-            id={id}
-            type={inputType}
-            placeholder={question.placeholder}
-            value={(value as string) ?? ""}
-            onChange={(e) => onChange(e.target.value)}
-          />
-          {help}
-        </div>
+          : question.key === "full_name"
+            ? "name"
+            : question.key === "organization_name"
+              ? "organization"
+              : undefined;
+      return wrap(
+        <input
+          id={id}
+          type={inputType}
+          autoComplete={autoComplete}
+          placeholder={question.placeholder}
+          value={(value as string) ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass(invalid)}
+        />
       );
     }
   }
