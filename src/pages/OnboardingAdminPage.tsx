@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { QuotesTab } from "@/components/pricing/QuotesTab";
+import { RateCardTab } from "@/components/pricing/RateCardTab";
 import {
   Dialog,
   DialogContent,
@@ -66,16 +68,24 @@ export default function OnboardingAdminPage() {
   return (
     <div>
       <PageHeader
-        title="Onboarding & Demos"
-        description="Share onboarding links, review who filled them, and manage the four demo workspaces."
+        title="Onboarding & Pricing"
+        description="Share onboarding links, review who filled them, see the plans they built, and edit the rate card."
       />
       <Tabs defaultValue="submissions">
         <TabsList>
           <TabsTrigger value="submissions">Submissions</TabsTrigger>
+          <TabsTrigger value="quotes">Quotes</TabsTrigger>
+          <TabsTrigger value="ratecard">Rate card</TabsTrigger>
           <TabsTrigger value="links">Links</TabsTrigger>
           <TabsTrigger value="demos">Demo accounts</TabsTrigger>
           <TabsTrigger value="recipients">Notifications</TabsTrigger>
         </TabsList>
+        <TabsContent value="quotes" className="mt-4">
+          <QuotesTab />
+        </TabsContent>
+        <TabsContent value="ratecard" className="mt-4">
+          <RateCardTab />
+        </TabsContent>
         <TabsContent value="submissions" className="mt-4">
           <SubmissionsTab />
         </TabsContent>

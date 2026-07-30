@@ -8,6 +8,7 @@ export const API_PREFIXES = {
   SUPPORT: "/community-service/super-admin/v1/support",
   ONBOARDING_PUBLIC: "/community-service/public/v1/onboarding",
   PRICING_PUBLIC: "/community-service/public/v1/pricing",
+  PRICING_ADMIN: "/community-service/super-admin/v1/pricing",
   ONBOARDING_ADMIN: "/community-service/super-admin/v1/onboarding",
   WIDGETS: "/community-service/super-admin/v1/dashboard-widgets",
   GUIDES: "/community-service/super-admin/v1/guides",
