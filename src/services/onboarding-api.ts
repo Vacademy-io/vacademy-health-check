@@ -207,14 +207,6 @@ export async function submitOnboarding(body: {
   return res.json();
 }
 
-export async function fetchDirectDemo(instituteType: string): Promise<DemoHandoff> {
-  const res = await fetch(`${PUB}/demo/${encodeURIComponent(instituteType)}`, {
-    headers: { Accept: "application/json" },
-  });
-  if (!res.ok) throw new Error(`Demo not available (${res.status})`);
-  return res.json();
-}
-
 // ---- super-admin (authenticated) -------------------------------------------
 
 const ADM = API_PREFIXES.ONBOARDING_ADMIN;

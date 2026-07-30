@@ -24,6 +24,54 @@ const CYCLES: { key: BillingCycle; label: string; note: string }[] = [
   { key: "ANNUAL", label: "Annual upfront", note: "Save 15%" },
 ];
 
+/**
+ * Applies a selection, then pulls in whatever that plan bundles for free — picking Premier
+ * ticks the Android and iOS apps rather than leaving the prospect to discover they're included.
+ * Nothing is ever auto-removed: dropping to a smaller plan keeps the product, now priced.
+ */
+function withInclusions(
+  base: Record<string, Selection>,
+  code: string,
+  next: Selection,
+  products: Product[]
+): Record<string, Selection> {
+  const merged = { ...base, [code]: next };
+  const plan = products.find((p) => p.code === code)?.plans.find((p) => p.code === next.planCode);
+  for (const inc of plan?.inclusions ?? []) {
+    const target = products.find((p) => p.code === inc.productCode);
+    if (!target) continue;
+    const existing = merged[inc.productCode];
+    merged[inc.productCode] = {
+      productCode: inc.productCode,
+      // A plan-specific inclusion (premium support) selects that exact plan.
+      planCode: inc.planCode ?? existing?.planCode ?? target.plans[0]?.code,
+      quantity:
+        existing?.quantity ??
+        (needsQuantity(target) ? (inc.quantity ?? target.minQuantity) : undefined),
+    };
+  }
+  return merged;
+}
+
+/** Which selected plan, if any, is giving this product away — and how many units it covers. */
+function inclusionFor(
+  productCode: string,
+  selections: Record<string, Selection>,
+  products: Product[]
+): { planName: string; quantity?: number } | undefined {
+  for (const sel of Object.values(selections)) {
+    const plan = products
+      .find((p) => p.code === sel.productCode)
+      ?.plans.find((p) => p.code === sel.planCode);
+    const inc = plan?.inclusions?.find((i) => i.productCode === productCode);
+    if (!inc) continue;
+    // A plan-specific inclusion only counts when that exact plan is the one chosen.
+    if (inc.planCode && selections[productCode]?.planCode !== inc.planCode) continue;
+    return { planName: plan!.name, quantity: inc.quantity };
+  }
+  return undefined;
+}
+
 /** Smallest learner tier that covers the headcount we captured on the onboarding form. */
 function planForLearners(product: Product | undefined, learners: number): string | undefined {
   if (!product) return undefined;
@@ -37,7 +85,12 @@ export default function PlanBuilderPage() {
   const submissionId = params.get("submission") ?? undefined;
   const learnersHint = Number(params.get("students")) || 0;
 
-  const { data: catalog, isLoading, isError } = useQuery({
+  const {
+    data: catalog,
+    isLoading,
+    isError,
+    error: loadError,
+  } = useQuery({
     queryKey: ["pricing", "catalog"],
     queryFn: fetchRateCatalog,
     retry: 1,
@@ -66,14 +119,20 @@ export default function PlanBuilderPage() {
   // whatever the onboarding form told us, plus basic support.
   useEffect(() => {
     if (!catalog || Object.keys(selections).length > 0) return;
-    const seed: Record<string, Selection> = {};
-    const lms = catalog.products.find((p) => p.code === "LMS");
-    if (lms) {
-      seed.LMS = { productCode: "LMS", planCode: planForLearners(lms, learnersHint || 300) };
-    }
+    let seed: Record<string, Selection> = {};
     const support = catalog.products.find((p) => p.code === "SUPPORT");
     if (support) {
       seed.SUPPORT = { productCode: "SUPPORT", planCode: support.plans[0]?.code };
+    }
+    const lms = catalog.products.find((p) => p.code === "LMS");
+    if (lms) {
+      // Seeded through the same path as a click, so the tier's freebies come along with it.
+      seed = withInclusions(
+        seed,
+        "LMS",
+        { productCode: "LMS", planCode: planForLearners(lms, learnersHint || 300) },
+        catalog.products
+      );
     }
     setSelections(seed);
   }, [catalog, learnersHint, selections]);
@@ -130,7 +189,7 @@ export default function PlanBuilderPage() {
     });
 
   const update = (code: string, next: Selection) =>
-    setSelections((s) => ({ ...s, [code]: next }));
+    setSelections((s) => withInclusions(s, code, next, catalog?.products ?? []));
 
   const onSave = async () => {
     setSaving(true);
@@ -154,13 +213,14 @@ export default function PlanBuilderPage() {
     );
   }
 
-  if (isError || !catalog) {
+  if (isError || !catalog || catalog.products.length === 0) {
     return (
       <Shell>
         <div className="py-24 text-center">
           <h1 className="text-xl font-semibold">We couldn't load pricing</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Please refresh, or email hello@vacademy.io and we'll send your plan across.
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+            {loadError?.message ??
+              "Please refresh, or email hello@vacademy.io and we'll send your plan across."}
           </p>
         </div>
       </Shell>
@@ -232,6 +292,7 @@ export default function PlanBuilderPage() {
                 currencySymbol={symbol}
                 lockedBy={parentSelected ? undefined : parentName}
                 mirroredPlanName={mirrored}
+                includedBy={inclusionFor(product.code, selections, catalog.products)}
                 onToggle={() => toggle(product)}
                 onChange={(next) => update(product.code, next)}
               />

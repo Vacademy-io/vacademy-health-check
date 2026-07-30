@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Check, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuestionField } from "@/components/onboarding/QuestionField";
 import { BrandPanel } from "@/components/onboarding/BrandPanel";
@@ -320,7 +320,7 @@ function OnboardingWizard({ config, slug }: { config: PublicLinkConfig; slug: st
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-1.5 h-4 w-4" /> Get my demo
+                    See pricing <ArrowRight className="ml-1 h-4 w-4" />
                   </>
                 )}
               </Button>

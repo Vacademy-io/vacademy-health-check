@@ -47,6 +47,7 @@ export function ProductCard({
   currencySymbol,
   lockedBy,
   mirroredPlanName,
+  includedBy,
   onToggle,
   onChange,
 }: {
@@ -57,6 +58,8 @@ export function ProductCard({
   lockedBy?: string;
   /** When the product mirrors another, the plan name it has inherited. */
   mirroredPlanName?: string;
+  /** Set when a chosen plan bundles this product in, wholly or up to a free allowance. */
+  includedBy?: { planName: string; quantity?: number };
   onToggle: () => void;
   onChange: (next: Selection) => void;
 }) {
@@ -97,15 +100,26 @@ export function ProductCard({
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-sm font-semibold text-foreground">{product.name}</span>
-            {!on && product.fromPrice != null && (
-              <span className="text-xs text-muted-foreground">
-                from {money(product.fromPrice, currencySymbol)}
-                {product.pricingModel === "ONE_TIME" ? " one-time" : "/year"}
+            {includedBy ? (
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
+                {includedBy.quantity ? `${includedBy.quantity} included` : "Included"}
               </span>
+            ) : (
+              !on &&
+              product.fromPrice != null && (
+                <span className="text-xs text-muted-foreground">
+                  from {money(product.fromPrice, currencySymbol)}
+                  {product.pricingModel === "ONE_TIME" ? " one-time" : "/year"}
+                </span>
+              )
             )}
           </span>
           <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-            {locked ? `Available with ${lockedBy}` : product.tagline}
+            {locked
+              ? `Available with ${lockedBy}`
+              : includedBy
+                ? `Included in your ${includedBy.planName} plan${includedBy.quantity ? ` — ${includedBy.quantity} free, extras charged` : " at no extra cost"}`
+                : product.tagline}
           </span>
         </span>
 
