@@ -1,54 +1,32 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Loader2, Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { fetchFileUrl, useUploadFile } from "@/services/files-api";
+import {
+  MEDIA_ONLY,
+  useAttachmentUpload,
+  type AttachmentUploadController,
+} from "@/hooks/use-attachment-upload";
 import type { AttachmentDto } from "@/services/support-api";
-
-const MAX_BYTES = 50 * 1024 * 1024; // 50 MB — matches the institute-side raise-issue limit.
 
 function isImage(a: AttachmentDto): boolean {
   return /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(a.fileName ?? "");
 }
 
-/**
- * Attach images/files to a ticket. Uploads to media-service (public) and hands back the
- * `{fileId, fileName, url}` descriptors the support API stores on the ticket's opening message.
- */
-export function AttachmentUploader({
-  value,
-  onChange,
-}: {
+interface ViewProps {
   value: AttachmentDto[];
   onChange: (next: AttachmentDto[]) => void;
-}) {
-  const upload = useUploadFile();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(0);
+  uploader: AttachmentUploadController;
+  /** e.g. `MEDIA_ONLY`. Omitted means any file type. */
+  accept?: string;
+  label?: string;
+}
 
-  const addFiles = async (files: FileList) => {
-    setError(null);
-    for (const file of Array.from(files)) {
-      if (file.size > MAX_BYTES) {
-        setError(`${file.name} exceeds the 50 MB limit.`);
-        continue;
-      }
-      setBusy((n) => n + 1);
-      try {
-        const result = await upload.mutateAsync({ file, visibility: "PUBLIC" });
-        // The upload response usually carries a URL; fall back to resolving it by id.
-        const url = result.url ?? (await fetchFileUrl(result.id).catch(() => null));
-        onChange([
-          ...value,
-          { fileId: result.id, fileName: result.file_name ?? file.name, url: url ?? undefined },
-        ]);
-      } catch {
-        setError(`Could not upload ${file.name}.`);
-      } finally {
-        setBusy((n) => n - 1);
-      }
-    }
-  };
+/** The paperclip button plus the pending-attachment chips, driven by an external controller. */
+export function AttachmentUploaderView({ value, onChange, uploader, accept, label }: ViewProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { addFiles, busy, error } = uploader;
+  const buttonLabel =
+    label ?? (accept === MEDIA_ONLY ? "Attach image or video" : "Attach images or files");
 
   return (
     <div className="space-y-2">
@@ -56,6 +34,7 @@ export function AttachmentUploader({
         ref={inputRef}
         type="file"
         multiple
+        accept={accept}
         className="hidden"
         onChange={(e) => {
           if (e.target.files?.length) void addFiles(e.target.files);
@@ -67,14 +46,14 @@ export function AttachmentUploader({
         variant="outline"
         size="sm"
         onClick={() => inputRef.current?.click()}
-        disabled={busy > 0}
+        disabled={busy}
       >
-        {busy > 0 ? (
+        {busy ? (
           <Loader2 className="mr-1 h-4 w-4 animate-spin" />
         ) : (
           <Paperclip className="mr-1 h-4 w-4" />
         )}
-        {busy > 0 ? "Uploading…" : "Attach images or files"}
+        {busy ? "Uploading…" : buttonLabel}
       </Button>
 
       {value.length > 0 ? (
@@ -106,4 +85,10 @@ export function AttachmentUploader({
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
+}
+
+/** Self-contained uploader for hosts that don't need to trigger uploads themselves. */
+export function AttachmentUploader(props: Omit<ViewProps, "uploader">) {
+  const uploader = useAttachmentUpload(props);
+  return <AttachmentUploaderView {...props} uploader={uploader} />;
 }
