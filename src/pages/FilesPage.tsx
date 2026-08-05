@@ -349,11 +349,13 @@ export default function FilesPage() {
         className="w-36"
       />
       <Select value={datePreset} onValueChange={(v) => applyDatePreset(v as DatePreset)}>
+        {/* div, not span: SelectTrigger carries [&>span]:line-clamp-1, and line-clamp sets
+            display:-webkit-box, which overrides flex and stacks the icon above the label. */}
         <SelectTrigger className="w-40">
-          <span className="flex items-center gap-2">
-            <CalendarRange className="h-4 w-4 text-muted-foreground" />
+          <div className="flex min-w-0 items-center gap-2">
+            <CalendarRange className="h-4 w-4 shrink-0 text-muted-foreground" />
             <SelectValue />
-          </span>
+          </div>
         </SelectTrigger>
         <SelectContent>
           {DATE_PRESETS.map((p) => (
