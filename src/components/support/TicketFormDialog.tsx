@@ -23,6 +23,7 @@ import { useInstitutes } from "@/services/institutes-api";
 import {
   useCreateSupportTicket,
   useEngineers,
+  useInstituteContacts,
   useSupportTicket,
   useUpdateTicket,
   type AttachmentDto,
@@ -33,6 +34,9 @@ import {
   type TicketStatus,
 } from "@/services/support-api";
 import { AttachmentUploader } from "./AttachmentUploader";
+
+/** Radix Select forbids an empty-string item value, so "no reporter" needs a sentinel. */
+const NO_REPORTER = "__NONE__";
 
 const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
   { value: "OPEN", label: "Open" },
@@ -151,9 +155,35 @@ function TicketForm({
   const [status, setStatus] = useState<TicketStatus>(ticket?.status ?? "OPEN");
   const [eta, setEta] = useState(toLocalInput(ticket?.eta));
   const [internalOnly, setInternalOnly] = useState(ticket?.internalOnly ?? false);
+  // "" = nobody recorded. Existing tickets seed from raisedByEmail, which is only set once a
+  // reporter has been attributed — support-authored ones start blank.
+  const [reportedBy, setReportedBy] = useState(ticket?.raisedByEmail ?? "");
 
   // Only search while creating and before an institute is picked.
   const results = useInstitutes(0, 8, institute ? "" : search);
+  const contacts = useInstituteContacts(institute?.id ?? null);
+
+  // A portal raiser is often not an institute ADMIN, so they are absent from the contact list.
+  // Merge them in, or the Select falls back to its placeholder and the real raiser looks unset.
+  const contactOptions = (() => {
+    const list = (contacts.data ?? []).filter((c) => !!c.email);
+    const current = ticket?.raisedByEmail;
+    if (current && !list.some((c) => c.email === current)) {
+      return [{ userId: ticket?.raisedByUserId ?? null, email: current, name: ticket?.raisedByName ?? null }, ...list];
+    }
+    return list;
+  })();
+
+  const selectedContact = contactOptions.find((c) => c.email === reportedBy);
+  // Only touch the reporter when it was actually changed. Sending it on every edit would rewrite
+  // raisedBy* from the contact list and wipe the name/userId of anyone not in it.
+  const reporterChanged = reportedBy !== (ticket?.raisedByEmail ?? "");
+
+  const reporterFields = {
+    reportedByUserId: selectedContact?.userId ?? undefined,
+    reportedByName: selectedContact?.name ?? undefined,
+    reportedByEmail: reportedBy || undefined,
+  };
 
   const saving = create.isPending || update.isPending;
   const failed = create.isError || update.isError;
@@ -179,6 +209,7 @@ function TicketForm({
             etaSet: true,
             internalOnly,
             assignedEngineerId: engineerId === "NONE" ? "" : engineerId,
+            ...(reporterChanged ? { ...reporterFields, reportedBySet: true } : {}),
           },
         });
         onClose();
@@ -196,6 +227,7 @@ function TicketForm({
         eta: etaIso,
         internalOnly,
         assignedEngineerId: engineerId === "NONE" ? null : engineerId,
+        ...reporterFields,
       });
       if (created?.id) onCreated(created.id);
       else onClose();
@@ -217,7 +249,16 @@ function TicketForm({
                 // Moving a ticket between institutes would strand it in the wrong client's panel.
                 <span className="shrink-0 text-xs text-muted-foreground">Can't be changed</span>
               ) : (
-                <Button variant="ghost" size="sm" onClick={() => setInstitute(null)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setInstitute(null);
+                    // The reporter belongs to the old institute — keeping it would attribute this
+                    // ticket to someone at a different client and notify them.
+                    setReportedBy("");
+                  }}
+                >
                   Change
                 </Button>
               )}
@@ -247,7 +288,10 @@ function TicketForm({
                       <button
                         key={i.id}
                         type="button"
-                        onClick={() => setInstitute({ id: i.id, name: i.name })}
+                        onClick={() => {
+                          setInstitute({ id: i.id, name: i.name });
+                          setReportedBy(""); // reporters are institute-scoped
+                        }}
                         className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
                       >
                         <span className="truncate">{i.name}</span>
@@ -288,6 +332,37 @@ function TicketForm({
         <div className="space-y-1.5">
           <Label>Attachments</Label>
           <AttachmentUploader value={attachments} onChange={setAttachments} />
+        </div>
+
+        {/* Reported by — decides who hears about replies */}
+        <div className="space-y-1.5">
+          <Label>Reported by</Label>
+          <Select
+            value={reportedBy || NO_REPORTER}
+            onValueChange={(v) => setReportedBy(v === NO_REPORTER ? "" : v)}
+            disabled={!institute || contacts.isLoading}
+          >
+            <SelectTrigger>
+              <SelectValue
+                placeholder={institute ? "Select the person who reported it" : "Pick an institute first"}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_REPORTER}>Nobody — log against Vacademy Support</SelectItem>
+              {contactOptions.map((c) => (
+                <SelectItem key={c.email as string} value={c.email as string}>
+                  {c.name ? `${c.name} · ${c.email}` : c.email}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {reportedBy
+              ? "They'll get an email and an in-app alert whenever support replies."
+              : contacts.isError
+                ? "Couldn't load this institute's users — the ticket will be logged against Vacademy Support."
+                : "Nobody is notified when support replies unless you pick the person who reported it."}
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

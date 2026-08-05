@@ -266,6 +266,30 @@ export interface CreateSupportTicketPayload {
   /** true = support-team-only; hidden from the institute entirely. */
   internalOnly?: boolean;
   attachments?: AttachmentDto[];
+  /**
+   * The institute-side person who reported the issue. Without one the ticket is attributed to
+   * Vacademy Support and replies notify nobody, so always set it when you know who reported.
+   */
+  reportedByUserId?: string;
+  reportedByName?: string;
+  reportedByEmail?: string;
+}
+
+export interface InstituteContactDto {
+  userId: string | null;
+  email: string | null;
+  name: string | null;
+}
+
+/** The institute's own admins, for the "Reported by" picker. */
+export function useInstituteContacts(instituteId: string | null) {
+  return useQuery({
+    queryKey: ["support", "institute-contacts", instituteId],
+    queryFn: async () =>
+      (await api.get<InstituteContactDto[]>(`${BASE}/institutes/${instituteId}/contacts`)).data,
+    enabled: !!instituteId,
+    staleTime: 5 * 60 * 1000,
+  });
 }
 
 /** Log a ticket on an institute's behalf (issue reported over email / WhatsApp, etc.). */
@@ -295,6 +319,14 @@ export interface UpdateTicketPayload {
   /** Replaces the opening message's attachments; only applied when attachmentsSet is true. */
   attachments?: AttachmentDto[];
   attachmentsSet?: boolean;
+  /**
+   * Re-attributes the ticket to an institute-side reporter, which is what makes reply
+   * notifications reach someone. Only applied when reportedBySet is true.
+   */
+  reportedByUserId?: string | null;
+  reportedByName?: string | null;
+  reportedByEmail?: string | null;
+  reportedBySet?: boolean;
 }
 
 /** Edit an existing ticket (fields, internal flag, opening message + attachments). */
