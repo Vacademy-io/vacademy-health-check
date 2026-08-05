@@ -1,16 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CalendarClock, Inbox, Loader2, Lock, Plus, Search } from "lucide-react";
+import { AlertTriangle, CalendarClock, Inbox, Loader2, Lock, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { cn } from "@/lib/utils";
 import {
@@ -23,11 +15,10 @@ import {
   type TicketStatus,
 } from "@/services/support-api";
 import { TicketFormDialog } from "@/components/support/TicketFormDialog";
-import { InstituteFilter, type SelectedInstitute } from "@/components/support/InstituteFilter";
+import { SupportFilterBar } from "@/components/support/SupportFilterBar";
+import { EMPTY_FILTERS, UNASSIGNED, type SupportFilters } from "@/lib/support-filters";
+import { toCreatedParams } from "@/lib/date-range";
 import { useDebounced } from "@/hooks/use-debounced";
-
-/** Sentinel for the engineer filter's "Unassigned" option (not a real engineer id). */
-const UNASSIGNED = "__UNASSIGNED__";
 
 const COLUMNS: { status: TicketStatus; label: string; accent: string }[] = [
   { status: "OPEN", label: "Open", accent: "border-t-amber-400" },
@@ -65,26 +56,31 @@ function fmt(date: string | null | undefined): string {
 }
 
 export default function SupportBoardPage() {
-  const [engineerId, setEngineerId] = useState("ALL");
-  const [institutes, setInstitutes] = useState<SelectedInstitute[]>([]);
-  const [search, setSearch] = useState("");
+  // The board has no status filter — its columns are the status axis.
+  const [filters, setFilters] = useState<SupportFilters>({ ...EMPTY_FILTERS, status: undefined });
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<TicketStatus | null>(null);
 
   const engineers = useEngineers();
   const updateStatus = useUpdateTicketStatus();
-  const debouncedSearch = useDebounced(search, 300);
+  const debouncedSearch = useDebounced(filters.search, 300);
   const engineerParam =
-    engineerId === "ALL" || engineerId === UNASSIGNED ? undefined : engineerId;
-  const instituteIds = institutes.map((i) => i.id);
+    filters.engineerId === "ALL" || filters.engineerId === UNASSIGNED
+      ? undefined
+      : filters.engineerId;
+  const instituteIds = filters.institutes.map((i) => i.id);
 
   // One query per column so each is complete up to PER_COLUMN. Fixed count → hook order is stable.
+  // Newest activity first, so a column truncated at PER_COLUMN drops the stalest cards, not random ones.
   const common = {
     engineerId: engineerParam,
-    unassigned: engineerId === UNASSIGNED,
+    unassigned: filters.engineerId === UNASSIGNED,
     search: debouncedSearch,
     instituteIds,
+    ...toCreatedParams(filters.dateRange),
+    sortBy: "lastMessageAt" as const,
+    sortDirection: "DESC" as const,
     size: PER_COLUMN,
   };
   const open = useSupportTickets({ ...common, status: "OPEN" });
@@ -113,35 +109,12 @@ export default function SupportBoardPage() {
 
   return (
     <div className="flex h-full flex-col">
+      {/* The header keeps only actions; filters get their own row so neither wraps into the other. */}
       <PageHeader
         title="Support board"
         description="Drag tickets across columns to update status. Built for standups."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by title…"
-                className="h-9 w-52 pl-8"
-              />
-            </div>
-            <InstituteFilter value={institutes} onChange={setInstitutes} />
-            <Select value={engineerId} onValueChange={setEngineerId}>
-              <SelectTrigger className="h-9 w-48">
-                <SelectValue placeholder="Engineer" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All engineers</SelectItem>
-                <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                {(engineers.data ?? []).map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="mr-1 h-4 w-4" /> New ticket
             </Button>
@@ -152,6 +125,12 @@ export default function SupportBoardPage() {
             </Button>
           </div>
         }
+      />
+
+      <SupportFilterBar
+        value={filters}
+        onChange={setFilters}
+        engineers={engineers.data ?? []}
       />
 
       <TicketFormDialog open={createOpen} onOpenChange={setCreateOpen} />
