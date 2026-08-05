@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowDownWideNarrow,
   CalendarClock,
   CheckCircle2,
   Clock,
@@ -11,14 +12,12 @@ import {
   Lock,
   Pencil,
   Plus,
-  Search,
   Send,
   Settings2,
   UserCog,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -41,16 +40,32 @@ import {
   type AttachmentDto,
   type SupportTicketDto,
   type TicketPriority,
+  type TicketSortBy,
   type TicketSource,
   type TicketStatus,
 } from "@/services/support-api";
 import { InstituteSupportDialog } from "@/components/support/InstituteSupportDialog";
 import { TicketFormDialog } from "@/components/support/TicketFormDialog";
-import { InstituteFilter, type SelectedInstitute } from "@/components/support/InstituteFilter";
+import { AttachmentUploaderView } from "@/components/support/AttachmentUploader";
+import { SupportFilterBar } from "@/components/support/SupportFilterBar";
+import { EMPTY_FILTERS, UNASSIGNED, type SupportFilters } from "@/lib/support-filters";
+import { toCreatedParams } from "@/lib/date-range";
+import { MEDIA_ONLY, useAttachmentUpload } from "@/hooks/use-attachment-upload";
 import { useDebounced } from "@/hooks/use-debounced";
 
-/** Sentinel for the engineer filter's "Unassigned" option (not a real engineer id). */
-const UNASSIGNED = "__UNASSIGNED__";
+/** Inbox ordering. The API defaults to LATEST, so the list opens on the most recent chats. */
+const SORT_OPTIONS: {
+  value: string;
+  label: string;
+  sortBy: TicketSortBy;
+  sortDirection: "ASC" | "DESC";
+}[] = [
+  { value: "LATEST", label: "Latest activity", sortBy: "lastMessageAt", sortDirection: "DESC" },
+  { value: "OLDEST", label: "Oldest activity", sortBy: "lastMessageAt", sortDirection: "ASC" },
+  { value: "NEWEST_CREATED", label: "Newest created", sortBy: "createdAt", sortDirection: "DESC" },
+  { value: "OLDEST_CREATED", label: "Oldest created", sortBy: "createdAt", sortDirection: "ASC" },
+  { value: "DUE_SOONEST", label: "Due soonest", sortBy: "firstResponseDueAt", sortDirection: "ASC" },
+];
 
 const SOURCE_LABEL: Record<TicketSource, string> = {
   PORTAL: "Portal",
@@ -113,11 +128,8 @@ function timeAgo(date: string | null | undefined): string {
 }
 
 export default function SupportPage() {
-  const [status, setStatus] = useState("ALL");
-  const [engineerId, setEngineerId] = useState("ALL");
-  const [institutes, setInstitutes] = useState<SelectedInstitute[]>([]);
-  const [search, setSearch] = useState("");
-  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [filters, setFilters] = useState<SupportFilters>(EMPTY_FILTERS);
+  const [sort, setSort] = useState("LATEST");
   const [searchParams] = useSearchParams();
   // The board's "Open conversation" link deep-links here via ?ticket=<id>; seed it once on mount.
   const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("ticket"));
@@ -125,14 +137,21 @@ export default function SupportPage() {
 
   const counts = useTicketCounts();
   const engineers = useEngineers();
-  const debouncedSearch = useDebounced(search, 300);
+  const debouncedSearch = useDebounced(filters.search, 300);
+  const sortOption = SORT_OPTIONS.find((o) => o.value === sort) ?? SORT_OPTIONS[0];
   const ticketsQuery = useSupportTickets({
-    status: status === "ALL" ? undefined : status,
-    engineerId: engineerId === "ALL" || engineerId === UNASSIGNED ? undefined : engineerId,
-    unassigned: engineerId === UNASSIGNED,
+    status: filters.status === "ALL" ? undefined : filters.status,
+    engineerId:
+      filters.engineerId === "ALL" || filters.engineerId === UNASSIGNED
+        ? undefined
+        : filters.engineerId,
+    unassigned: filters.engineerId === UNASSIGNED,
     search: debouncedSearch,
-    instituteIds: institutes.map((i) => i.id),
-    overdue: overdueOnly,
+    instituteIds: filters.institutes.map((i) => i.id),
+    ...toCreatedParams(filters.dateRange),
+    sortBy: sortOption.sortBy,
+    sortDirection: sortOption.sortDirection,
+    overdue: filters.overdueOnly,
     size: 50,
   });
 
@@ -174,59 +193,40 @@ export default function SupportPage() {
         onCreated={(id) => setSelectedId(id)}
       />
 
-      {/* Filters */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by title…"
-            className="h-9 w-52 pl-8"
-          />
-        </div>
-        <InstituteFilter value={institutes} onChange={setInstitutes} />
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="h-9 w-44">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All statuses</SelectItem>
-            {STATUS_OPTIONS.map((s) => (
-              <SelectItem key={s} value={s}>
-                {STATUS_META[s].label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={engineerId} onValueChange={setEngineerId}>
-          <SelectTrigger className="h-9 w-48">
-            <SelectValue placeholder="Engineer" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All engineers</SelectItem>
-            <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-            {(engineers.data ?? []).map((e) => (
-              <SelectItem key={e.id} value={e.id}>
-                {e.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          variant={overdueOnly ? "default" : "outline"}
-          size="sm"
-          onClick={() => setOverdueOnly((v) => !v)}
-        >
-          <AlertTriangle className="mr-1 h-4 w-4" /> Overdue only
-        </Button>
-      </div>
+      <SupportFilterBar
+        value={filters}
+        onChange={setFilters}
+        engineers={engineers.data ?? []}
+        showStatus
+        showOverdue
+      />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
         {/* Inbox list */}
         <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
-          <div className="border-b px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {ticketsQuery.isLoading ? "Loading…" : `${tickets.length} conversation(s)`}
+          {/* Sort lives with the list it orders, not in the filter row — it selects nothing. */}
+          <div className="flex items-center justify-between gap-2 border-b py-1.5 pl-4 pr-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {ticketsQuery.isLoading ? "Loading…" : `${tickets.length} conversation(s)`}
+            </span>
+            <Select value={sort} onValueChange={setSort}>
+              <SelectTrigger
+                className="h-7 w-auto gap-1 border-0 px-2 text-xs text-muted-foreground shadow-none hover:bg-accent hover:text-foreground focus:ring-0 focus:ring-offset-0"
+                aria-label="Sort conversations"
+              >
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <ArrowDownWideNarrow className="h-3.5 w-3.5 shrink-0" />
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent align="end">
+                {SORT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {!ticketsQuery.isLoading && tickets.length === 0 ? (
@@ -247,7 +247,10 @@ export default function SupportPage() {
         {/* Thread */}
         <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
           {selectedId ? (
+            // Keyed so switching conversations resets the composer — a half-typed reply or a
+            // pending screenshot must never follow you to a different institute's ticket.
             <TicketThread
+              key={selectedId}
               ticketId={selectedId}
               engineers={engineers.data ?? []}
             />
@@ -349,9 +352,15 @@ function TicketThread({
   const updateStatus = useUpdateTicketStatus();
   const setEta = useSetTicketEta();
   const [draft, setDraft] = useState("");
+  const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
   const [internal, setInternal] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const uploader = useAttachmentUpload({
+    value: attachments,
+    onChange: setAttachments,
+    accept: MEDIA_ONLY,
+  });
 
   if (isLoading || !ticket) {
     return (
@@ -361,10 +370,19 @@ function TicketThread({
     );
   }
 
+  // A screenshot on its own is a valid reply, so either half is enough to send.
+  const canSend = !!draft.trim() || attachments.length > 0;
+
   const send = async () => {
-    if (!draft.trim()) return;
-    await reply.mutateAsync({ id: ticket.id, body: draft.trim(), internalNote: internal });
+    if (!canSend) return;
+    await reply.mutateAsync({
+      id: ticket.id,
+      body: draft.trim(),
+      internalNote: internal,
+      attachments,
+    });
     setDraft("");
+    setAttachments([]);
     setInternal(false);
   };
 
@@ -512,16 +530,33 @@ function TicketThread({
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
           }}
+          onPaste={(e) => {
+            // Screenshots are usually pasted, not picked from a file dialog.
+            const files = Array.from(e.clipboardData.files);
+            if (files.length) {
+              e.preventDefault();
+              void uploader.addFiles(files);
+            }
+          }}
         />
-        <div className="mt-2 flex items-center justify-between">
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={internal}
-              onChange={(e) => setInternal(e.target.checked)}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={internal}
+                onChange={(e) => setInternal(e.target.checked)}
+              />
+              Internal note
+            </label>
+            <AttachmentUploaderView
+              value={attachments}
+              onChange={setAttachments}
+              uploader={uploader}
+              accept={MEDIA_ONLY}
+              label="Attach"
             />
-            Internal note
-          </label>
+          </div>
           <div className="flex items-center gap-2">
             {ticket.status !== "RESOLVED" && ticket.status !== "CLOSED" ? (
               <Button
@@ -532,7 +567,7 @@ function TicketThread({
                 <CheckCircle2 className="mr-1 h-4 w-4" /> Resolve
               </Button>
             ) : null}
-            <Button size="sm" onClick={send} disabled={!draft.trim() || reply.isPending}>
+            <Button size="sm" onClick={send} disabled={!canSend || uploader.busy || reply.isPending}>
               {reply.isPending ? (
                 <Loader2 className="mr-1 h-4 w-4 animate-spin" />
               ) : (
@@ -669,7 +704,10 @@ function MessageBubble({
           </span>
           <span>{fmt(message.createdAt)}</span>
         </div>
-        <p className="whitespace-pre-wrap break-words">{message.body}</p>
+        {/* Attachment-only messages carry an empty body — skip the paragraph so it adds no gap. */}
+        {message.body ? (
+          <p className="whitespace-pre-wrap break-words">{message.body}</p>
+        ) : null}
         {message.attachments?.length ? (
           <div className="mt-2 flex flex-col gap-2">
             {message.attachments.map((a, i) => (

@@ -113,6 +113,9 @@ export interface PageResponse<T> {
   totalPages: number;
 }
 
+/** Ticket fields the API will sort on; anything else falls back to lastMessageAt server-side. */
+export type TicketSortBy = "lastMessageAt" | "createdAt" | "updatedAt" | "firstResponseDueAt";
+
 export interface TicketSearchParams {
   status?: string;
   instituteId?: string;
@@ -123,6 +126,13 @@ export interface TicketSearchParams {
   unassigned?: boolean;
   /** Case-insensitive substring match on the ticket subject. */
   search?: string;
+  /** Inclusive ISO-8601 lower bound on the ticket's creation time. */
+  createdFrom?: string;
+  /** Inclusive ISO-8601 upper bound on the ticket's creation time. */
+  createdTo?: string;
+  /** Defaults to lastMessageAt / DESC server-side — newest activity first. */
+  sortBy?: TicketSortBy;
+  sortDirection?: "ASC" | "DESC";
   overdue?: boolean;
   page?: number;
   size?: number;
@@ -161,6 +171,10 @@ export function useSupportTickets(params: TicketSearchParams) {
             engineerId: params.engineerId || undefined,
             unassigned: params.unassigned || undefined,
             search: params.search?.trim() || undefined,
+            createdFrom: params.createdFrom || undefined,
+            createdTo: params.createdTo || undefined,
+            sortBy: params.sortBy || undefined,
+            sortDirection: params.sortDirection || undefined,
             overdue: params.overdue || undefined,
             page: params.page ?? 0,
             size: params.size ?? 25,
@@ -192,11 +206,18 @@ function invalidateTicket(queryClient: ReturnType<typeof useQueryClient>, id?: s
 export function useReplyTicket() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: { id: string; body: string; internalNote?: boolean }) =>
+    mutationFn: async (vars: {
+      id: string;
+      body: string;
+      internalNote?: boolean;
+      /** Images/videos/files to send with the reply; the body may be empty when these are present. */
+      attachments?: AttachmentDto[];
+    }) =>
       (
         await api.post<SupportTicketDto>(`${BASE}/tickets/${vars.id}/messages`, {
           body: vars.body,
           internalNote: vars.internalNote ?? false,
+          attachments: vars.attachments?.length ? vars.attachments : undefined,
         })
       ).data,
     onSuccess: (_d, vars) => invalidateTicket(queryClient, vars.id),
