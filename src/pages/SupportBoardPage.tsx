@@ -229,6 +229,11 @@ function BoardCard({ ticket, onOpen }: { ticket: SupportTicketDto; onOpen: () =>
         </Badge>
       </div>
       <p className="truncate text-xs text-muted-foreground">
+        {ticket.ticketNumber ? (
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {ticket.ticketNumber} ·{" "}
+          </span>
+        ) : null}
         {ticket.instituteName || ticket.instituteId}
       </p>
       <div className="mt-1.5 flex flex-wrap items-center gap-1">
