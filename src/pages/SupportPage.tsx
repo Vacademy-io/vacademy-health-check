@@ -291,6 +291,11 @@ function TicketRow({
           {timeAgo(ticket.lastMessageAt)}
         </span>
       </div>
+      {ticket.ticketNumber ? (
+        <span className="font-mono text-[10px] tracking-wide text-muted-foreground">
+          {ticket.ticketNumber}
+        </span>
+      ) : null}
       <span className="truncate text-xs text-muted-foreground">
         {ticket.instituteName || ticket.instituteId}
       </span>
@@ -392,7 +397,14 @@ function TicketThread({
       <div className="border-b px-4 py-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold">{ticket.subject}</h2>
+            <div className="flex items-center gap-2">
+              {ticket.ticketNumber ? (
+                <span className="shrink-0 rounded border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                  {ticket.ticketNumber}
+                </span>
+              ) : null}
+              <h2 className="truncate text-base font-semibold">{ticket.subject}</h2>
+            </div>
             <p className="truncate text-xs text-muted-foreground">
               {ticket.instituteName || ticket.instituteId} · raised by{" "}
               {ticket.raisedByName || ticket.raisedByEmail || "unknown"} · {ticket.category}
