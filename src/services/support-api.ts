@@ -60,6 +60,8 @@ export interface SupportTicketDto {
   raisedByName: string | null;
   raisedByEmail: string | null;
   raisedByRole: string | null;
+  /** Human-facing reference, e.g. VAC-014. Null on tickets that predate numbering. */
+  ticketNumber: string | null;
   subject: string;
   category: TicketCategory;
   priority: TicketPriority;
