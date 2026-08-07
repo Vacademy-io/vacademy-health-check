@@ -69,12 +69,12 @@ export default function DashboardPage() {
                   <XAxis
                     dataKey="date"
                     tick={{ fontSize: 12 }}
-                    tickFormatter={(v) => new Date(v).toLocaleDateString("en", { month: "short", day: "numeric" })}
+                    tickFormatter={(v) => new Date(v as string).toLocaleDateString("en", { month: "short", day: "numeric" })}
                   />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip
                     contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
-                    labelFormatter={(v) => new Date(v).toLocaleDateString()}
+                    labelFormatter={(v) => new Date(v as string).toLocaleDateString()}
                   />
                   <Legend />
                   <Line

@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
+  PhoneCall,
   LayoutDashboard,
   Building2,
   CreditCard,
@@ -35,6 +36,7 @@ const navSections: Array<{
       { to: "/credits", label: "Credits", icon: CreditCard },
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/usage", label: "AI Usage", icon: Brain },
+      { to: "/calls", label: "Calls", icon: PhoneCall },
       { to: "/health", label: "System Health", icon: HeartPulse },
       { to: "/admin/status", label: "Status", icon: Megaphone },
       { to: "/broadcasts", label: "Broadcasts", icon: Radio },

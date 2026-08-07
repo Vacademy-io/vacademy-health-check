@@ -10,6 +10,7 @@ const CreditsPage = lazy(() => import("@/pages/CreditsPage"));
 const ActivityPage = lazy(() => import("@/pages/ActivityPage"));
 const PulsePage = lazy(() => import("@/pages/PulsePage"));
 const UsagePage = lazy(() => import("@/pages/UsagePage"));
+const CallsPage = lazy(() => import("@/pages/CallsPage"));
 const HealthPage = lazy(() => import("@/pages/HealthPage"));
 const StatusPage = lazy(() => import("@/pages/StatusPage"));
 const StatusAdminPage = lazy(() => import("@/pages/StatusAdminPage"));
@@ -55,6 +56,7 @@ function App() {
           <Route path="pulse" element={<PulsePage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="usage" element={<UsagePage />} />
+          <Route path="calls" element={<CallsPage />} />
           <Route path="health" element={<HealthPage />} />
           <Route path="admin/status" element={<StatusAdminPage />} />
           <Route path="files" element={<FilesPage />} />

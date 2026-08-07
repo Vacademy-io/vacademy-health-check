@@ -208,13 +208,13 @@ export default function PulsePage() {
                     dataKey="hour"
                     tick={{ fontSize: 12 }}
                     tickFormatter={(v) =>
-                      new Date(v).toLocaleTimeString("en", { hour: "numeric", hour12: true })
+                      new Date(v as string).toLocaleTimeString("en", { hour: "numeric", hour12: true })
                     }
                   />
                   <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
-                    labelFormatter={(v) => new Date(v).toLocaleString()}
+                    labelFormatter={(v) => new Date(v as string).toLocaleString()}
                   />
                   <Area
                     type="monotone"

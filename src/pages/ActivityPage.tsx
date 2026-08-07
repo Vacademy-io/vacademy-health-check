@@ -78,13 +78,13 @@ export default function ActivityPage() {
                   dataKey="date"
                   tick={{ fontSize: 12 }}
                   tickFormatter={(v) =>
-                    new Date(v).toLocaleDateString("en", { month: "short", day: "numeric" })
+                    new Date(v as string).toLocaleDateString("en", { month: "short", day: "numeric" })
                   }
                 />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
                   contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
-                  labelFormatter={(v) => new Date(v).toLocaleDateString()}
+                  labelFormatter={(v) => new Date(v as string).toLocaleDateString()}
                 />
                 <Legend />
                 <Line type="monotone" dataKey="unique_users" name="Unique Users" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
