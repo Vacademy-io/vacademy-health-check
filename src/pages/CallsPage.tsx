@@ -69,7 +69,7 @@ export default function CallsPage() {
         </div>
         {s?.cost_is_modelled && (
           <Badge variant="outline" className="text-amber-700 border-amber-300">
-            cost is modelled
+            cost modelled · billing reconstructed
           </Badge>
         )}
       </div>
@@ -199,7 +199,12 @@ export default function CallsPage() {
                     <TableCell className="whitespace-nowrap text-xs">
                       {c.call_start ? new Date(c.call_start).toLocaleString("en-IN") : "—"}
                     </TableCell>
-                    <TableCell className="max-w-[10rem] truncate">{c.institute_name ?? "—"}</TableCell>
+                    <TableCell className="max-w-[10rem] truncate">
+                      <div>{c.institute_name ?? "—"}</div>
+                      <div className="font-mono text-[10px] text-muted-foreground" title={c.id}>
+                        {c.id.slice(0, 8)}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-xs">
                       <div>{c.agent_name ?? "—"}</div>
                       <div className="text-muted-foreground">
@@ -257,6 +262,24 @@ export default function CallsPage() {
                 <span className="text-muted-foreground">
                   {open.institute_name} · {open.agent_name} · {open.tts_model} · {mmss(open.duration_seconds)}
                 </span>
+              </div>
+              <div className="flex flex-wrap gap-4 rounded-md border bg-muted/40 p-2 font-mono text-xs">
+                <span title="click to copy" className="cursor-pointer"
+                  onClick={() => navigator.clipboard?.writeText(open.id)}>
+                  call <b>{open.id}</b>
+                </span>
+                {open.provider_call_id && (
+                  <span title="click to copy" className="cursor-pointer"
+                    onClick={() => navigator.clipboard?.writeText(open.provider_call_id!)}>
+                    provider <b>{open.provider_call_id}</b>
+                  </span>
+                )}
+                {open.correlation_id && (
+                  <span title="click to copy" className="cursor-pointer"
+                    onClick={() => navigator.clipboard?.writeText(open.correlation_id!)}>
+                    corr <b>{open.correlation_id}</b>
+                  </span>
+                )}
               </div>
 
               {open.has_recording && open.recording_url ? (
