@@ -11,6 +11,8 @@ export interface CallRow {
   agent_name: string | null;
   tts_model: string | null;
   voice: string | null;
+  /** The provider's own call id — quote this to Plivo. */
+  provider_call_id: string | null;
   phone_number: string | null;
   customer_name: string | null;
   direction: string | null;
