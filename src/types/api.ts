@@ -192,18 +192,65 @@ export interface UsageByDayItem {
 
 export interface TopInstituteUsage {
   institute_id: string;
+  /** Resolved from institutes.name; null when the id has no institute row. */
+  institute_name: string | null;
   total_tokens: number;
   total_cost: number;
   request_count: number;
+  /** Credits burnt in the same window, net of refunds. */
+  credits_used: number;
 }
 
 export interface PlatformUsageSummary {
   total_tokens: number;
   total_cost: number;
   total_requests: number;
+  total_credits_used: number;
+  /** "hour" for windows <= 48h — tells us how to format `usage_by_day[].date`. */
+  bucket: "hour" | "day";
+  window_hours: number;
   usage_by_type: UsageByTypeItem[];
   usage_by_day: UsageByDayItem[];
   top_institutes: TopInstituteUsage[];
+}
+
+// NOTE: every credit/cost field above and below is a Postgres DECIMAL, which
+// pydantic v2 puts on the wire as a JSON *string* ("109.1238"). Always coerce
+// with Number() before doing arithmetic — `a + b` would concatenate.
+
+// Live credit burn — both windows come from one pass over credit_transactions,
+// so every row carries its 1h AND 24h numbers.
+export interface CreditWindowTotals {
+  hours: number;
+  since: string;
+  credits_used: number;
+  request_count: number;
+  institute_count: number;
+}
+
+export interface CreditWindowInstitute {
+  institute_id: string;
+  institute_name: string | null;
+  credits_1h: number;
+  requests_1h: number;
+  credits_24h: number;
+  requests_24h: number;
+}
+
+export interface CreditWindowTypeItem {
+  request_type: string;
+  credits_1h: number;
+  requests_1h: number;
+  credits_24h: number;
+  requests_24h: number;
+}
+
+export interface CreditUsageLive {
+  generated_at: string;
+  last_1h: CreditWindowTotals;
+  last_24h: CreditWindowTotals;
+  top_institutes: CreditWindowInstitute[];
+  by_request_type: CreditWindowTypeItem[];
 }
 
 // Status / Incidents — wire shape matches community-service controllers.
