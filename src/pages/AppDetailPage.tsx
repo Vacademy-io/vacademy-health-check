@@ -27,6 +27,7 @@ import { ToastStack, useToasts } from "@/components/shared/Toast";
 import { AssetStudio, PlatformTabs } from "@/components/apps/AssetStudio";
 import { ChecklistPanel, RegistrationProgressCard } from "@/components/apps/ChecklistPanel";
 import { FieldGrid, FieldRenderer } from "@/components/apps/FieldRenderer";
+import { FirebaseConfigCheck } from "@/components/apps/FirebaseConfigCheck";
 import { IntegrationsPanel } from "@/components/apps/IntegrationsPanel";
 import { OtaBuildCheck } from "@/components/apps/OtaBuildCheck";
 import { PrivacySecurityPanel } from "@/components/apps/PrivacySecurityPanel";
@@ -491,6 +492,23 @@ export default function AppDetailPage() {
                       />
                     </CardContent>
                   </Card>
+
+                  {(platform === "ANDROID" || platform === "IOS") && (
+                    <FirebaseConfigCheck
+                      platform={platform}
+                      expected={
+                        config.fields[platform === "IOS" ? "bundle_id" : "package_name"] || app.basics.packageName
+                      }
+                      currentState={
+                        config.fields[platform === "IOS" ? "google_service_info_plist" : "google_services_json"] ?? ""
+                      }
+                      onVerified={(fieldId, state, projectId) => {
+                        const fields = { ...config.fields, [fieldId]: state };
+                        if (projectId) fields.firebase_project = projectId;
+                        update({ ...app, platforms: { ...app.platforms, [platform]: { ...config, fields } } });
+                      }}
+                    />
+                  )}
 
                   <Card>
                     <CardContent className="pt-6">

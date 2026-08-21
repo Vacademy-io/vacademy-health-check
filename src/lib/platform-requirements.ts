@@ -423,6 +423,10 @@ export const PLATFORM_FIELDS: Record<Platform, FieldSpec[]> = {
     { id: "app_signing", label: "App Signing", type: "select", required: true, options: ["Play App Signing (upload key)", "Self-managed key"], helpText: "Play App Signing is mandatory for apps published as an AAB, which is all new apps." },
     { id: "target_sdk", label: "Target API Level", type: "text", required: true, placeholder: "36", helpText: "Play blocks updates that target more than one year behind the latest Android release — API 36 (Android 16) from 31 Aug 2026. Review this row each August." },
     { id: "min_sdk", label: "Minimum API Level", type: "text", required: false, placeholder: "24" },
+    { id: "app_domain", label: "App Domain", type: "text", required: true, placeholder: "stemx.vacademy.io", helpText: "The host this white-label build points at. Wrong domain = the app loads another client's content." },
+    { id: "google_services_json", label: "google-services.json", type: "select", required: true, options: ["Client-specific file added", "Placeholder / template file", "Firebase not used"], helpText: "Must be the file from THIS client's Firebase project. A leftover template file breaks push and analytics silently." },
+    { id: "firebase_project", label: "Firebase Project", type: "text", required: false, placeholder: "vacademy-app-2", helpText: "Which Firebase project the config file came from — worth recording, the platform has more than one." },
+    { id: "assetlinks_url", label: "Digital Asset Links URL", type: "url", required: false, placeholder: "https://stemx.vacademy.io/.well-known/assetlinks.json", helpText: "Needed for verified Android App Links. Without it, links open the browser instead of the app." },
     { id: "release_track", label: "Release Track", type: "select", required: true, options: ["Internal testing", "Closed testing", "Open testing", "Production"], helpText: "New personal developer accounts must run closed testing with 12 testers for 14 days before production. Organisation accounts are exempt." },
     { id: "countries", label: "Countries / Regions", type: "text", required: false, placeholder: "India, or All countries", helpText: "A listing with no country selected is live but downloadable by nobody." },
     { id: "privacy_policy_url", label: "Privacy Policy URL", type: "url", required: true },
@@ -445,6 +449,11 @@ export const PLATFORM_FIELDS: Record<Platform, FieldSpec[]> = {
     { id: "privacy_policy_url", label: "Privacy Policy URL", type: "url", required: true },
     { id: "copyright", label: "Copyright", type: "text", required: true, placeholder: "2026 Vidyayatan Technologies Pvt Ltd" },
     { id: "age_rating", label: "Age Rating", type: "select", required: true, options: ["4+", "9+", "12+", "17+"] },
+    { id: "app_domain", label: "App Domain", type: "text", required: true, placeholder: "stemx.vacademy.io", helpText: "The host this white-label build points at, and the domain used for Associated Domains / universal links." },
+    { id: "google_service_info_plist", label: "GoogleService-Info.plist", type: "select", required: true, options: ["Client-specific file added", "Placeholder / template file", "Firebase not used"], helpText: "Must be THIS client's file. A placeholder plist crashes the app the moment it launches — it has shipped that way before." },
+    { id: "firebase_project", label: "Firebase Project", type: "text", required: false, placeholder: "vacademy-app-2" },
+    { id: "aasa_url", label: "Apple App Site Association URL", type: "url", required: false, placeholder: "https://stemx.vacademy.io/.well-known/apple-app-site-association", helpText: "Must be served over HTTPS as application/json with no redirect, or universal links silently stop working." },
+    { id: "apns_key_id", label: "APNs Auth Key ID", type: "text", required: false, placeholder: "ABCD1234EF", helpText: "The .p8 APNs key backing push. The key itself stays server-side." },
     { id: "built_with_sdk", label: "Built With (Xcode / SDK)", type: "text", required: true, placeholder: "Xcode 16 / iOS 18 SDK", helpText: "Apple rejects binaries built with an out-of-date SDK. The floor moves roughly every April — review this row then." },
     { id: "min_ios_version", label: "Minimum iOS Version", type: "text", required: false, placeholder: "15.0" },
     { id: "version_release_option", label: "Version Release", type: "select", required: true, options: ["Manually release this version", "Automatically release after review", "Phased release over 7 days"], helpText: "Phased release is the safe default for a white-label update — it rolls out gradually and can be paused." },
@@ -463,6 +472,7 @@ export const PLATFORM_FIELDS: Record<Platform, FieldSpec[]> = {
     { id: "category", label: "Category", type: "select", required: true, options: ["Education", "Business", "Productivity", "Utilities & tools", "Books & reference"] },
     { id: "version", label: "Version", type: "text", required: true, placeholder: "2.4.1.0", helpText: "Windows uses a four-part version. The fourth part must be 0 for Store submissions." },
     { id: "architecture", label: "Architecture", type: "select", required: true, options: ["x64", "x86", "ARM64", "x64 + ARM64"] },
+    { id: "app_domain", label: "App Domain", type: "text", required: true, placeholder: "stemx.vacademy.io", helpText: "The host this desktop shell loads." },
   ],
   MACOS: [
     { id: "app_name", label: "App Name", type: "text", required: true, maxLength: 30 },
@@ -475,6 +485,7 @@ export const PLATFORM_FIELDS: Record<Platform, FieldSpec[]> = {
     { id: "keywords", label: "Keywords", type: "text", required: true, maxLength: 100, span: "full" },
     { id: "description", label: "Description", type: "textarea", required: true, maxLength: 4000, span: "full" },
     { id: "min_macos", label: "Minimum macOS Version", type: "text", required: true, placeholder: "12.0", helpText: "An arm64 build needs 12.0 or later; anything lower fails validation." },
+    { id: "app_domain", label: "App Domain", type: "text", required: true, placeholder: "stemx.vacademy.io", helpText: "The host this desktop shell loads." },
     { id: "built_with_sdk", label: "Built With (Xcode / SDK)", type: "text", required: true, placeholder: "Xcode 16 / macOS 15 SDK", helpText: "Same moving SDK floor as iOS." },
     { id: "version_release_option", label: "Version Release", type: "select", required: true, options: ["Manually release this version", "Automatically release after review", "Phased release over 7 days"] },
     { id: "privacy_policy_url", label: "Privacy Policy URL", type: "url", required: true },
@@ -733,6 +744,12 @@ export const PLATFORM_QUESTIONS: Record<Platform, QuestionSpec[]> = {
 export type CheckRule =
   | { kind: "basic"; key: keyof AppBasics }
   | { kind: "field"; fieldId: string }
+  /**
+   * Field must hold one of `anyOf`. Needed because "filled in" and "correct" are not the same
+   * thing: a GoogleService-Info.plist left at the template default is filled in, ships, and
+   * crashes the app on launch. A plain `field` rule would tick that green.
+   */
+  | { kind: "fieldEquals"; fieldId: string; anyOf: string[] }
   | { kind: "answer"; questionId: string }
   | { kind: "asset"; specId: string }
   | { kind: "privacy"; key: keyof PrivacyProfile }
@@ -818,6 +835,8 @@ export const PLATFORM_CHECKLISTS: Record<Platform, ChecklistItem[]> = {
     { id: "a_aab", section: "Build", label: "Android App Bundle (.aab) uploaded", required: true, help: "APKs are no longer accepted for new apps.", rule: { kind: "manual" } },
     { id: "a_64bit", section: "Build", label: "64-bit (arm64-v8a) included", required: true, help: "Required since 2019; 32-bit-only uploads are refused.", rule: { kind: "manual" } },
     { id: "a_track", section: "Build", label: "Release track selected", required: true, help: "New personal accounts need 12 testers for 14 days first.", rule: { kind: "field", fieldId: "release_track" } },
+    { id: "a_domain", section: "Platform Setup", label: "App domain set", required: true, help: "Wrong host = the app serves another client's content.", rule: { kind: "field", fieldId: "app_domain" } },
+    { id: "a_gservices", section: "Build", label: "google-services.json is this client's", required: true, help: "A template file breaks push and analytics silently.", rule: { kind: "fieldEquals", fieldId: "google_services_json", anyOf: ["Client-specific file added", "Firebase not used"] } },
     { id: "a_countries", section: "Store Listing", label: "Countries / regions selected", required: false, help: "A listing with no country is live but undownloadable.", rule: { kind: "field", fieldId: "countries" } },
   ],
   IOS: [
@@ -840,6 +859,8 @@ export const PLATFORM_CHECKLISTS: Record<Platform, ChecklistItem[]> = {
     { id: "i_privacy_manifest", section: "Build", label: "Privacy manifest (PrivacyInfo.xcprivacy)", required: true, help: "Missing manifest = automatic ITMS-91053 rejection.", rule: { kind: "answer", questionId: "privacy_manifest" } },
     { id: "i_required_reason", section: "Build", label: "Required-reason API declarations", required: true, help: "UserDefaults, file timestamps, disk space, boot time.", rule: { kind: "answer", questionId: "required_reason_apis" } },
     { id: "i_sdk", section: "Build", label: "Built with the required Xcode / SDK", required: true, help: "Out-of-date SDK builds are refused at upload.", rule: { kind: "field", fieldId: "built_with_sdk" } },
+    { id: "i_domain", section: "Platform Setup", label: "App domain set", required: true, help: "Also the Associated Domains host for universal links.", rule: { kind: "field", fieldId: "app_domain" } },
+    { id: "i_plist", section: "Build", label: "GoogleService-Info.plist is this client's", required: true, help: "A placeholder plist crashes the app on launch — it has shipped that way before.", rule: { kind: "fieldEquals", fieldId: "google_service_info_plist", anyOf: ["Client-specific file added", "Firebase not used"] } },
     { id: "i_release_option", section: "Submission", label: "Version release option chosen", required: true, help: "Phased release is the safe default.", rule: { kind: "field", fieldId: "version_release_option" } },
   ],
   WINDOWS: [
@@ -849,6 +870,7 @@ export const PLATFORM_CHECKLISTS: Record<Platform, ChecklistItem[]> = {
     { id: "w_publisher", section: "Platform Setup", label: "Publisher ID", required: true, help: "From Partner Center; signs the package.", rule: { kind: "field", fieldId: "publisher_id" } },
     { id: "w_arch", section: "Build", label: "Architecture selected", required: true, help: "x64 covers most; add ARM64 for Copilot+ PCs.", rule: { kind: "field", fieldId: "architecture" } },
     { id: "w_version", section: "Build", label: "Four-part version", required: true, help: "Fourth part must be 0.", rule: { kind: "field", fieldId: "version" } },
+    { id: "w_domain", section: "Platform Setup", label: "App domain set", required: true, help: "The host this desktop shell loads.", rule: { kind: "field", fieldId: "app_domain" } },
     { id: "w_logo", section: "Assets", label: "Store Logo (300×300)", required: true, help: "Separate from in-package tiles.", rule: { kind: "asset", specId: "windows_store_logo" } },
     { id: "w_shots", section: "Assets", label: "Desktop Screenshots", required: true, help: "At least one, 1366×768 or larger.", rule: { kind: "asset", specId: "windows_desktop_screenshot" } },
   ],
@@ -864,6 +886,7 @@ export const PLATFORM_CHECKLISTS: Record<Platform, ChecklistItem[]> = {
     { id: "m_privacy_manifest", section: "Build", label: "Privacy manifest (PrivacyInfo.xcprivacy)", required: true, help: "Same automatic rejection as iOS.", rule: { kind: "answer", questionId: "privacy_manifest" } },
     { id: "m_required_reason", section: "Build", label: "Required-reason API declarations", required: true, help: "Same rules as iOS.", rule: { kind: "answer", questionId: "required_reason_apis" } },
     { id: "m_sdk", section: "Build", label: "Built with the required Xcode / SDK", required: true, help: "Out-of-date SDK builds are refused at upload.", rule: { kind: "field", fieldId: "built_with_sdk" } },
+    { id: "m_domain", section: "Platform Setup", label: "App domain set", required: true, help: "The host this desktop shell loads.", rule: { kind: "field", fieldId: "app_domain" } },
     { id: "m_content_rights", section: "App Content", label: "Content rights declaration", required: true, help: "Third-party content may need written proof.", rule: { kind: "answer", questionId: "content_rights" } },
     { id: "m_review_contact", section: "Submission", label: "App Review contact details", required: true, help: "Apple wants a named person, phone and email.", rule: { kind: "all", rules: [{ kind: "review", key: "contactFirstName" }, { kind: "review", key: "contactLastName" }, { kind: "review", key: "contactPhone" }, { kind: "review", key: "contactEmail" }] } },
   ],

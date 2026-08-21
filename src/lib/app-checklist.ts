@@ -53,6 +53,8 @@ function evaluate(rule: CheckRule, app: AppRecord, platform: Platform): CheckSta
       return filled(app.basics[rule.key]) ? "COMPLETED" : "PENDING";
     case "field":
       return filled(cfg.fields[rule.fieldId]) ? "COMPLETED" : "PENDING";
+    case "fieldEquals":
+      return rule.anyOf.includes(String(cfg.fields[rule.fieldId] ?? "")) ? "COMPLETED" : "PENDING";
     case "answer":
       return filled(cfg.answers[rule.questionId]) ? "COMPLETED" : "PENDING";
     case "asset": {

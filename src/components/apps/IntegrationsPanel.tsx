@@ -22,6 +22,34 @@ const OPERATION_LABELS: Array<{ key: keyof ProviderCapabilities; label: string }
   { key: "submitForReview", label: "Submit for review" },
 ];
 
+/**
+ * What each store actually issues, in the store's own words. The three differ enough that one
+ * generic label was actively misleading — Azure secrets really do expire, Apple and Google keys
+ * never do, so "Credential expires" means "rotate by" for two of the four.
+ */
+const CREDENTIAL_HINTS: Record<Platform, { identifier: string; secret: string; expiry: string }> = {
+  ANDROID: {
+    identifier: "The service-account email, e.g. play-api@vacademy.iam.gserviceaccount.com.",
+    secret: "Name of the env var holding the service-account JSON — never the JSON itself.",
+    expiry: "Google service-account keys don't expire on their own. Use this as a rotation reminder.",
+  },
+  IOS: {
+    identifier: "Paste both: Issuer ID (a UUID, shown once at the top of the Integrations page) and Key ID (10 characters, on the key's row).",
+    secret: "Name of the env var holding the .p8 contents — never the key itself.",
+    expiry: "App Store Connect keys never expire. Set a date you want to be reminded to rotate.",
+  },
+  WINDOWS: {
+    identifier: "Azure AD tenant ID plus the application (client) ID.",
+    secret: "Name of the env var holding the Azure AD client secret.",
+    expiry: "Azure AD client secrets DO expire — 24 months maximum. Put the real expiry here; when it lapses every status check stops.",
+  },
+  MACOS: {
+    identifier: "Same credential as iOS — Issuer ID and Key ID.",
+    secret: "Same env var as iOS unless you deliberately split the teams.",
+    expiry: "App Store Connect keys never expire. Set a date you want to be reminded to rotate.",
+  },
+};
+
 /** Captured once at module load — reading the clock during render is impure. */
 const LOADED_AT = Date.now();
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
@@ -102,6 +130,7 @@ function ProviderCard({
   const [draft, setDraft] = useState(record);
   const set = (patch: Partial<IntegrationRecord>) => setDraft({ ...draft, ...patch });
 
+  const hints = CREDENTIAL_HINTS[platform];
   const expiringSoon = Boolean(
     draft.expiresAt && new Date(draft.expiresAt).getTime() - LOADED_AT < THIRTY_DAYS
   );
@@ -169,6 +198,7 @@ function ProviderCard({
               placeholder={platform === "IOS" || platform === "MACOS" ? "Issuer ID / Key ID" : "Tenant / service account"}
               onChange={(e) => set({ publicIdentifier: e.target.value })}
             />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">{hints.identifier}</p>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Server secret reference</Label>
@@ -177,11 +207,20 @@ function ProviderCard({
               placeholder="e.g. APP_STORE_CONNECT_P8 (env var name only)"
               onChange={(e) => set({ secretRef: e.target.value })}
             />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">{hints.secret}</p>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Credential expires</Label>
+            <Label className="text-xs">
+              {platform === "WINDOWS" ? "Credential expires" : "Rotate by"}
+            </Label>
             <Input type="date" value={draft.expiresAt} onChange={(e) => set({ expiresAt: e.target.value })} />
-            {expiringSoon && <p className="text-xs font-medium text-amber-600">Expires within 30 days.</p>}
+            {expiringSoon ? (
+              <p className="text-xs font-medium text-amber-600">
+                {platform === "WINDOWS" ? "Expires within 30 days." : "Rotation due within 30 days."}
+              </p>
+            ) : (
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{hints.expiry}</p>
+            )}
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label className="text-xs">Notes</Label>
