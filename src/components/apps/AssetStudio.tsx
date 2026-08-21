@@ -587,28 +587,34 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
               <div
                 className={cn(
                   "space-y-1.5 rounded-md border p-3 text-xs",
-                  validation.issues.length === 0
-                    ? "border-green-500/40 bg-green-500/5"
-                    : "border-amber-500/40 bg-amber-500/5"
+                  validation.needsAttention
+                    ? "border-amber-500/40 bg-amber-500/5"
+                    : "border-green-500/40 bg-green-500/5"
                 )}
               >
                 <p className="flex items-center gap-1.5 font-medium">
-                  {validation.issues.length === 0 ? (
+                  {validation.needsAttention ? (
                     <>
-                      <CheckCircle2 className="h-4 w-4 text-green-600" /> Ready for upload
+                      <AlertTriangle className="h-4 w-4 text-amber-600" /> Needs attention
                     </>
                   ) : (
                     <>
-                      <AlertTriangle className="h-4 w-4 text-amber-600" /> Needs attention
+                      <CheckCircle2 className="h-4 w-4 text-green-600" /> Ready for upload
                     </>
                   )}
                 </p>
                 {validation.issues.map((issue, index) => (
-                  <p key={index} className="leading-relaxed text-muted-foreground">
+                  <p
+                    key={index}
+                    className={cn(
+                      "leading-relaxed",
+                      issue.level === "info" ? "text-muted-foreground/80" : "text-muted-foreground"
+                    )}
+                  >
                     {issue.message}
                   </p>
                 ))}
-                {validation.issues.some((i) => i.autoFixable) && (
+                {validation.needsAttention && validation.issues.some((i) => i.autoFixable) && (
                   <Button size="sm" variant="outline" className="mt-1 h-7 w-full text-xs" onClick={autoFix}>
                     <Wand2 className="mr-1 h-3.5 w-3.5" />
                     Auto Fix

@@ -292,9 +292,11 @@ export function generateReviewNotes(app: AppRecord, platform: Platform): string 
   if (r.specialFeatures) lines.push("NOTABLE FEATURES", r.specialFeatures, "");
   if (r.restrictedFeatures) lines.push("NOT AVAILABLE TO THIS ACCOUNT", r.restrictedFeatures, "");
 
+  const namedContact = [r.contactFirstName, r.contactLastName].filter(Boolean).join(" ");
   lines.push(
     "CONTACT",
-    r.contactInformation ||
+    [namedContact, r.contactPhone, r.contactEmail].filter(Boolean).join(" · ") ||
+      r.contactInformation ||
       [app.basics.supportEmail, app.basics.supportPhone].filter(Boolean).join(" · ") ||
       "Add a contact for the reviewer.",
     "",
@@ -337,6 +339,13 @@ export function missingReviewFields(app: AppRecord, platform: Platform): Array<k
   }
   if (!app.review.contactInformation.trim() && !app.basics.supportEmail.trim()) {
     missing.push("contactInformation");
+  }
+  // Apple blocks submission on these four specifically; Google never asks for them.
+  if (platform === "IOS" || platform === "MACOS") {
+    if (!app.review.contactFirstName.trim()) missing.push("contactFirstName");
+    if (!app.review.contactLastName.trim()) missing.push("contactLastName");
+    if (!app.review.contactPhone.trim()) missing.push("contactPhone");
+    if (!app.review.contactEmail.trim()) missing.push("contactEmail");
   }
   return missing;
 }

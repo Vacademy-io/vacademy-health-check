@@ -72,6 +72,8 @@ function evaluate(rule: CheckRule, app: AppRecord, platform: Platform): CheckSta
       return app.submissions.some((s) => s.platform === platform) ? "COMPLETED" : "PENDING";
     case "all":
       return rule.rules.every((r) => evaluate(r, app, platform) === "COMPLETED") ? "COMPLETED" : "PENDING";
+    case "any":
+      return rule.rules.some((r) => evaluate(r, app, platform) === "COMPLETED") ? "COMPLETED" : "PENDING";
     case "manual":
       return "PENDING";
   }

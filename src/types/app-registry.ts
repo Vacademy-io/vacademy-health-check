@@ -218,6 +218,14 @@ export interface PrivacyProfile {
 }
 
 export interface ReviewInfo {
+  /**
+   * Apple's App Review Information panel asks for a named human, not a shared inbox — first name,
+   * last name, phone and email are all separate required fields. Google has no equivalent.
+   */
+  contactFirstName: string;
+  contactLastName: string;
+  contactPhone: string;
+  contactEmail: string;
   demoAccount: string;
   username: string;
   password: string;
@@ -329,6 +337,10 @@ export function emptyPrivacy(): PrivacyProfile {
 
 export function emptyReview(): ReviewInfo {
   return {
+    contactFirstName: "",
+    contactLastName: "",
+    contactPhone: "",
+    contactEmail: "",
     demoAccount: "",
     username: "",
     password: "",

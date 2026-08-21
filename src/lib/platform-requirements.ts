@@ -32,6 +32,12 @@ export interface AssetSpec {
   maxBytes: number;
   /** Alpha channel: some stores demand it (Play icon), some reject it (Apple icon). */
   transparency: "REQUIRED" | "FORBIDDEN" | "ANY";
+  /**
+   * Hard cap the store puts on long-side:short-side for a *submitted* file. Play refuses anything
+   * over 2:1, which every 19.5:9 and 20:9 phone screenshot exceeds — so those must be cropped, not
+   * merely resized. Undefined means the store publishes no cap.
+   */
+  maxAspectRatio?: number;
   required: boolean;
   minCount: number;
   maxCount: number;
@@ -52,6 +58,7 @@ export const ASSET_SPECS: AssetSpec[] = [
     mode: "MIN",
     formats: ["png", "jpeg"],
     maxBytes: 8 * MB,
+    maxAspectRatio: 2,
     transparency: "ANY",
     required: true,
     minCount: 2,
@@ -69,6 +76,7 @@ export const ASSET_SPECS: AssetSpec[] = [
     mode: "MIN",
     formats: ["png", "jpeg"],
     maxBytes: 8 * MB,
+    maxAspectRatio: 2,
     transparency: "ANY",
     required: false,
     minCount: 0,
@@ -85,6 +93,7 @@ export const ASSET_SPECS: AssetSpec[] = [
     mode: "MIN",
     formats: ["png", "jpeg"],
     maxBytes: 8 * MB,
+    maxAspectRatio: 2,
     transparency: "ANY",
     required: false,
     minCount: 0,
@@ -126,6 +135,23 @@ export const ASSET_SPECS: AssetSpec[] = [
 
   /* -------------------------------------------------------------------- iOS */
   {
+    id: "ios_iphone_69_screenshot",
+    platform: "IOS",
+    label: 'iPhone 6.9" Screenshot',
+    group: "screenshot",
+    width: 1320,
+    height: 2868,
+    mode: "EXACT",
+    formats: ["png", "jpeg"],
+    maxBytes: 10 * MB,
+    transparency: "FORBIDDEN",
+    required: true,
+    minCount: 1,
+    maxCount: 10,
+    helpText:
+      "Apple's current primary iPhone set — 1320×2868 (iPhone 16 Pro Max). Supply this or the 6.7\" set; Apple scales whichever you give it down to every smaller device.",
+  },
+  {
     id: "ios_iphone_67_screenshot",
     platform: "IOS",
     label: 'iPhone 6.7" Screenshot',
@@ -136,11 +162,11 @@ export const ASSET_SPECS: AssetSpec[] = [
     formats: ["png", "jpeg"],
     maxBytes: 10 * MB,
     transparency: "FORBIDDEN",
-    required: true,
-    minCount: 1,
+    required: false,
+    minCount: 0,
     maxCount: 10,
     helpText:
-      "The one screenshot set Apple always requires. 1290×2796 (iPhone 15/16 Pro Max). Apple scales these down for smaller devices.",
+      "1290×2796 (iPhone 15/16 Plus & Pro Max). Still accepted in place of the 6.9\" set — you need one or the other, not both.",
   },
   {
     id: "ios_iphone_65_screenshot",
@@ -173,6 +199,23 @@ export const ASSET_SPECS: AssetSpec[] = [
     minCount: 0,
     maxCount: 10,
     helpText: "Mandatory the moment the binary declares iPad support. Submission is blocked without it.",
+  },
+  {
+    id: "ios_ipad_13_screenshot",
+    platform: "IOS",
+    label: 'iPad 13" Screenshot',
+    group: "screenshot",
+    width: 2064,
+    height: 2752,
+    mode: "EXACT",
+    formats: ["png", "jpeg"],
+    maxBytes: 10 * MB,
+    transparency: "FORBIDDEN",
+    required: false,
+    minCount: 0,
+    maxCount: 10,
+    helpText:
+      'Current iPad set (13-inch iPad Pro M4). Required as soon as the binary declares iPad support — supply this or the 12.9" set, or submission is blocked.',
   },
   {
     id: "ios_app_icon",
@@ -377,6 +420,11 @@ export const PLATFORM_FIELDS: Record<Platform, FieldSpec[]> = {
     { id: "target_audience", label: "Target Audience", type: "select", required: true, options: ["Ages 18+", "Ages 13-17", "Ages 6-12", "Under 5", "Mixed ages"], helpText: "Anything including under-13 pulls the app into Play's Families policy." },
     { id: "app_access_notes", label: "App Access (reviewer credentials)", type: "textarea", required: true, span: "full", helpText: "If any part of the app is behind a login, Play needs working demo credentials here or it rejects the release." },
     { id: "signing_sha1", label: "Signing SHA-1", type: "text", required: false, helpText: "Handy for Firebase/Maps key setup and for verifying which keystore produced a build." },
+    { id: "app_signing", label: "App Signing", type: "select", required: true, options: ["Play App Signing (upload key)", "Self-managed key"], helpText: "Play App Signing is mandatory for apps published as an AAB, which is all new apps." },
+    { id: "target_sdk", label: "Target API Level", type: "text", required: true, placeholder: "36", helpText: "Play blocks updates that target more than one year behind the latest Android release — API 36 (Android 16) from 31 Aug 2026. Review this row each August." },
+    { id: "min_sdk", label: "Minimum API Level", type: "text", required: false, placeholder: "24" },
+    { id: "release_track", label: "Release Track", type: "select", required: true, options: ["Internal testing", "Closed testing", "Open testing", "Production"], helpText: "New personal developer accounts must run closed testing with 12 testers for 14 days before production. Organisation accounts are exempt." },
+    { id: "countries", label: "Countries / Regions", type: "text", required: false, placeholder: "India, or All countries", helpText: "A listing with no country selected is live but downloadable by nobody." },
     { id: "privacy_policy_url", label: "Privacy Policy URL", type: "url", required: true },
   ],
   IOS: [
@@ -397,6 +445,10 @@ export const PLATFORM_FIELDS: Record<Platform, FieldSpec[]> = {
     { id: "privacy_policy_url", label: "Privacy Policy URL", type: "url", required: true },
     { id: "copyright", label: "Copyright", type: "text", required: true, placeholder: "2026 Vidyayatan Technologies Pvt Ltd" },
     { id: "age_rating", label: "Age Rating", type: "select", required: true, options: ["4+", "9+", "12+", "17+"] },
+    { id: "built_with_sdk", label: "Built With (Xcode / SDK)", type: "text", required: true, placeholder: "Xcode 16 / iOS 18 SDK", helpText: "Apple rejects binaries built with an out-of-date SDK. The floor moves roughly every April — review this row then." },
+    { id: "min_ios_version", label: "Minimum iOS Version", type: "text", required: false, placeholder: "15.0" },
+    { id: "version_release_option", label: "Version Release", type: "select", required: true, options: ["Manually release this version", "Automatically release after review", "Phased release over 7 days"], helpText: "Phased release is the safe default for a white-label update — it rolls out gradually and can be paused." },
+    { id: "localizations", label: "Localizations", type: "text", required: false, placeholder: "English (India)", helpText: "Every extra locale needs its own name, description, keywords and screenshots." },
   ],
   WINDOWS: [
     { id: "app_name", label: "App Name", type: "text", required: true, helpText: "Must be reserved in Partner Center before anything else can be filled in." },
@@ -423,6 +475,8 @@ export const PLATFORM_FIELDS: Record<Platform, FieldSpec[]> = {
     { id: "keywords", label: "Keywords", type: "text", required: true, maxLength: 100, span: "full" },
     { id: "description", label: "Description", type: "textarea", required: true, maxLength: 4000, span: "full" },
     { id: "min_macos", label: "Minimum macOS Version", type: "text", required: true, placeholder: "12.0", helpText: "An arm64 build needs 12.0 or later; anything lower fails validation." },
+    { id: "built_with_sdk", label: "Built With (Xcode / SDK)", type: "text", required: true, placeholder: "Xcode 16 / macOS 15 SDK", helpText: "Same moving SDK floor as iOS." },
+    { id: "version_release_option", label: "Version Release", type: "select", required: true, options: ["Manually release this version", "Automatically release after review", "Phased release over 7 days"] },
     { id: "privacy_policy_url", label: "Privacy Policy URL", type: "url", required: true },
     { id: "support_url", label: "Support URL", type: "url", required: true },
     { id: "marketing_url", label: "Marketing URL", type: "url", required: false },
@@ -595,6 +649,35 @@ const ANDROID_ONLY: QuestionSpec[] = [
     why: "Play's Health apps declaration. Applies to anything giving medical, mental-health or fitness guidance.",
     type: "YES_NO",
   },
+  {
+    id: "news_app",
+    question: "Is this a news app?",
+    why: "Play's News policy requires a named publisher, contact details and disclosed ownership. Undeclared news apps get removed.",
+    type: "YES_NO",
+  },
+  {
+    id: "sensitive_permissions",
+    question: "Which sensitive permissions does the app request?",
+    why: "Each of these has its own Play declaration form, and an undeclared one blocks the release. Tick only what the manifest actually asks for — requesting a permission you don't need is itself a policy violation.",
+    type: "MULTI",
+    options: [
+      "All files access (MANAGE_EXTERNAL_STORAGE)",
+      "Broad photo/video access (READ_MEDIA_IMAGES / VIDEO)",
+      "Exact alarms (USE_EXACT_ALARM)",
+      "Package visibility (QUERY_ALL_PACKAGES)",
+      "Background location",
+      "Foreground service",
+      "SMS or Call Log",
+      "Accessibility service",
+      "None of these",
+    ],
+  },
+  {
+    id: "foreground_service_declared",
+    question: "Is every foreground service given a declared type?",
+    why: "From Android 14 a foreground service without a declared type crashes at runtime, and Play requires the type plus a justification. This bites download and video-playback apps hardest.",
+    type: "YES_NO",
+  },
 ];
 
 const IOS_ONLY: QuestionSpec[] = [
@@ -608,6 +691,28 @@ const IOS_ONLY: QuestionSpec[] = [
     id: "uses_encryption",
     question: "Does the app use encryption beyond standard HTTPS?",
     why: "Export-compliance question asked on every single build upload. Standard HTTPS alone qualifies for the exemption.",
+    type: "YES_NO",
+  },
+  {
+    id: "content_rights",
+    question: "Does the app contain, show or access third-party content?",
+    why: "Asked on every App Store Connect submission. If yes, Apple can ask for written proof you're allowed to use it — textbook extracts and past exam papers both count.",
+    type: "YES_NO",
+  },
+  {
+    id: "privacy_manifest",
+    question: "Does the build include a privacy manifest (PrivacyInfo.xcprivacy)?",
+    why: "Required for the app and for every commonly-used third-party SDK. A missing manifest or an unsigned SDK triggers an automatic ITMS-91053 rejection on upload — before a human ever sees the build.",
+    type: "YES_NO",
+    noteOnAnswer: {
+      whenAnswer: "NO",
+      text: "This will be rejected automatically at upload. Add PrivacyInfo.xcprivacy to the app target and update any SDK that doesn't ship its own signed manifest.",
+    },
+  },
+  {
+    id: "required_reason_apis",
+    question: "Are reasons declared for the required-reason APIs the app uses?",
+    why: "UserDefaults, file timestamps, disk space and system boot time all need a declared reason code in the privacy manifest. Undeclared use is the other half of the ITMS-91053 rejection.",
     type: "YES_NO",
   },
 ];
@@ -636,6 +741,8 @@ export type CheckRule =
   | { kind: "version" }
   | { kind: "submitted" }
   | { kind: "all"; rules: CheckRule[] }
+  /** Satisfied when ANY sub-rule passes — stores often accept one of several alternatives. */
+  | { kind: "any"; rules: CheckRule[] }
   | { kind: "manual" };
 
 export type ChecklistSection =
@@ -703,6 +810,15 @@ export const PLATFORM_CHECKLISTS: Record<Platform, ChecklistItem[]> = {
     { id: "a_gov", section: "App Content", label: "Government app declaration", required: true, help: "Needs authorisation proof if yes.", rule: { kind: "answer", questionId: "government_app" } },
     { id: "a_financial", section: "App Content", label: "Financial features declaration", required: true, help: "Licence docs required if yes.", rule: { kind: "answer", questionId: "financial_features" } },
     { id: "a_health", section: "App Content", label: "Health features declaration", required: true, help: "Health apps declaration form.", rule: { kind: "answer", questionId: "health_features" } },
+    { id: "a_news", section: "App Content", label: "News app declaration", required: true, help: "Needs a named publisher if yes.", rule: { kind: "answer", questionId: "news_app" } },
+    { id: "a_permissions", section: "App Content", label: "Sensitive permissions declared", required: true, help: "Each ticked permission has its own Play form.", rule: { kind: "answer", questionId: "sensitive_permissions" } },
+    { id: "a_fgs", section: "App Content", label: "Foreground service types declared", required: true, help: "Android 14+ crashes without a declared type.", rule: { kind: "answer", questionId: "foreground_service_declared" } },
+    { id: "a_signing", section: "Platform Setup", label: "Play App Signing configured", required: true, help: "Mandatory for AAB releases.", rule: { kind: "field", fieldId: "app_signing" } },
+    { id: "a_target_sdk", section: "Build", label: "Target API level meets Play's deadline", required: true, help: "Updates are blocked below the floor.", rule: { kind: "field", fieldId: "target_sdk" } },
+    { id: "a_aab", section: "Build", label: "Android App Bundle (.aab) uploaded", required: true, help: "APKs are no longer accepted for new apps.", rule: { kind: "manual" } },
+    { id: "a_64bit", section: "Build", label: "64-bit (arm64-v8a) included", required: true, help: "Required since 2019; 32-bit-only uploads are refused.", rule: { kind: "manual" } },
+    { id: "a_track", section: "Build", label: "Release track selected", required: true, help: "New personal accounts need 12 testers for 14 days first.", rule: { kind: "field", fieldId: "release_track" } },
+    { id: "a_countries", section: "Store Listing", label: "Countries / regions selected", required: false, help: "A listing with no country is live but undownloadable.", rule: { kind: "field", fieldId: "countries" } },
   ],
   IOS: [
     ...commonRows(),
@@ -714,10 +830,17 @@ export const PLATFORM_CHECKLISTS: Record<Platform, ChecklistItem[]> = {
     { id: "i_copyright", section: "Store Listing", label: "Copyright", required: true, help: "Legal entity plus year.", rule: { kind: "field", fieldId: "copyright" } },
     { id: "i_age", section: "App Content", label: "Age Rating", required: true, help: "From Apple's rating questionnaire.", rule: { kind: "field", fieldId: "age_rating" } },
     { id: "i_icon", section: "Assets", label: "App Icon (1024×1024)", required: true, help: "No alpha channel.", rule: { kind: "asset", specId: "ios_app_icon" } },
-    { id: "i_shots", section: "Assets", label: 'iPhone 6.7" Screenshots', required: true, help: "The one required set.", rule: { kind: "asset", specId: "ios_iphone_67_screenshot" } },
+    { id: "i_shots", section: "Assets", label: "iPhone Screenshots", required: true, help: 'Either the 6.9" or the 6.7" set — one of the two is enough.', rule: { kind: "any", rules: [{ kind: "asset", specId: "ios_iphone_69_screenshot" }, { kind: "asset", specId: "ios_iphone_67_screenshot" }] } },
+    { id: "i_ipad_shots", section: "Assets", label: "iPad Screenshots (if iPad is supported)", required: false, help: "Mandatory the moment the binary declares iPad support.", rule: { kind: "any", rules: [{ kind: "asset", specId: "ios_ipad_13_screenshot" }, { kind: "asset", specId: "ios_ipad_129_screenshot" }] } },
     { id: "i_atn", section: "App Content", label: "Tracking (ATT) declaration", required: true, help: "Drives the ATT prompt requirement.", rule: { kind: "answer", questionId: "uses_idfa" } },
     { id: "i_export", section: "App Content", label: "Export compliance", required: true, help: "Asked on every build upload.", rule: { kind: "answer", questionId: "uses_encryption" } },
     { id: "i_demo", section: "Submission", label: "Demo account for reviewer", required: true, help: "Mandatory when login is required.", rule: { kind: "review", key: "username" } },
+    { id: "i_review_contact", section: "Submission", label: "App Review contact details", required: true, help: "Apple wants a named person, phone and email.", rule: { kind: "all", rules: [{ kind: "review", key: "contactFirstName" }, { kind: "review", key: "contactLastName" }, { kind: "review", key: "contactPhone" }, { kind: "review", key: "contactEmail" }] } },
+    { id: "i_content_rights", section: "App Content", label: "Content rights declaration", required: true, help: "Third-party content may need written proof.", rule: { kind: "answer", questionId: "content_rights" } },
+    { id: "i_privacy_manifest", section: "Build", label: "Privacy manifest (PrivacyInfo.xcprivacy)", required: true, help: "Missing manifest = automatic ITMS-91053 rejection.", rule: { kind: "answer", questionId: "privacy_manifest" } },
+    { id: "i_required_reason", section: "Build", label: "Required-reason API declarations", required: true, help: "UserDefaults, file timestamps, disk space, boot time.", rule: { kind: "answer", questionId: "required_reason_apis" } },
+    { id: "i_sdk", section: "Build", label: "Built with the required Xcode / SDK", required: true, help: "Out-of-date SDK builds are refused at upload.", rule: { kind: "field", fieldId: "built_with_sdk" } },
+    { id: "i_release_option", section: "Submission", label: "Version release option chosen", required: true, help: "Phased release is the safe default.", rule: { kind: "field", fieldId: "version_release_option" } },
   ],
   WINDOWS: [
     ...commonRows(),
@@ -738,6 +861,11 @@ export const PLATFORM_CHECKLISTS: Record<Platform, ChecklistItem[]> = {
     { id: "m_icon", section: "Assets", label: "App Icon (1024×1024)", required: true, help: "Flattened, no alpha.", rule: { kind: "asset", specId: "macos_app_icon" } },
     { id: "m_shots", section: "Assets", label: "Mac Screenshots", required: true, help: "Only four exact sizes are accepted.", rule: { kind: "asset", specId: "macos_screenshot" } },
     { id: "m_notarize", section: "Build", label: "Signed & notarised archive", required: true, help: "Mac App Store distribution certificate, then notarisation.", rule: { kind: "manual" } },
+    { id: "m_privacy_manifest", section: "Build", label: "Privacy manifest (PrivacyInfo.xcprivacy)", required: true, help: "Same automatic rejection as iOS.", rule: { kind: "answer", questionId: "privacy_manifest" } },
+    { id: "m_required_reason", section: "Build", label: "Required-reason API declarations", required: true, help: "Same rules as iOS.", rule: { kind: "answer", questionId: "required_reason_apis" } },
+    { id: "m_sdk", section: "Build", label: "Built with the required Xcode / SDK", required: true, help: "Out-of-date SDK builds are refused at upload.", rule: { kind: "field", fieldId: "built_with_sdk" } },
+    { id: "m_content_rights", section: "App Content", label: "Content rights declaration", required: true, help: "Third-party content may need written proof.", rule: { kind: "answer", questionId: "content_rights" } },
+    { id: "m_review_contact", section: "Submission", label: "App Review contact details", required: true, help: "Apple wants a named person, phone and email.", rule: { kind: "all", rules: [{ kind: "review", key: "contactFirstName" }, { kind: "review", key: "contactLastName" }, { kind: "review", key: "contactPhone" }, { kind: "review", key: "contactEmail" }] } },
   ],
 };
 
@@ -803,11 +931,14 @@ export const PROVIDER_CAPABILITIES: Record<
       getReleaseStatus: true,
       getSubmissionStatus: true,
       getReviews: true,
-      createListing: true,
+      // No public endpoint creates an app record. The Bundle ID is registered in the Developer
+      // portal and the app is created in App Store Connect by hand; the API takes over from the
+      // first version onwards.
+      createListing: false,
       submitForReview: true,
     },
     notes:
-      "The most complete of the four APIs: app records, versions, builds, review submissions and customer reviews are all readable and writable.",
+      "The most complete of the four APIs for everything after the app exists — versions, builds, review submissions and customer reviews are all readable and writable. Creating the app record itself is still manual.",
   },
   WINDOWS: {
     provider: "MicrosoftStoreProvider",
@@ -837,9 +968,10 @@ export const PROVIDER_CAPABILITIES: Record<
       getReleaseStatus: true,
       getSubmissionStatus: true,
       getReviews: true,
-      createListing: true,
+      createListing: false,
       submitForReview: true,
     },
-    notes: "Shares the iOS credential and endpoints; the platform filter on the app record selects MAC_OS.",
+    notes:
+      "Shares the iOS credential and endpoints; the platform filter on the app record selects MAC_OS. Like iOS, the app record itself must be created by hand first.",
   },
 };

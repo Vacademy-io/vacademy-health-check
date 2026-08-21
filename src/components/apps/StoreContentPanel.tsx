@@ -164,6 +164,10 @@ export function StoreContentPanel({ app, platform, onChange, notify }: StoreCont
 }
 
 const REVIEW_FIELDS: Array<{ key: keyof ReviewInfo; label: string; multiline?: boolean; help?: string }> = [
+  { key: "contactFirstName", label: "Review Contact — First Name", help: "Apple wants a named person it can call about this build, not a shared inbox." },
+  { key: "contactLastName", label: "Review Contact — Last Name" },
+  { key: "contactPhone", label: "Review Contact — Phone", help: "Include the country code. Apple has phoned this number during review." },
+  { key: "contactEmail", label: "Review Contact — Email" },
   { key: "demoAccount", label: "Demo Account", help: "Which account the reviewer should use, and what it can see." },
   { key: "username", label: "Username" },
   { key: "password", label: "Password", help: "Reviewers need a working password. Use a dedicated review account, never a real learner's." },
