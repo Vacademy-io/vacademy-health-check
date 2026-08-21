@@ -225,7 +225,12 @@ export async function encodeWithinBudget(canvas: HTMLCanvasElement, spec: AssetS
 
 /* ---------------------------------------------------------------- validation */
 
-export type IssueLevel = "error" | "warning";
+/**
+ * `info` is not a problem — it's the tool telling you what it's about to do on your behalf.
+ * Cropping a 20:9 phone capture down to 16:9 is the whole point of the studio, so surfacing it as
+ * a warning would train people to ignore the warnings that matter.
+ */
+export type IssueLevel = "error" | "warning" | "info";
 
 export interface ValidationIssue {
   level: IssueLevel;
@@ -235,7 +240,10 @@ export interface ValidationIssue {
 }
 
 export interface ValidationResult {
+  /** No blocking errors. */
   ok: boolean;
+  /** Something the user should actually look at — informational notes don't count. */
+  needsAttention: boolean;
   issues: ValidationIssue[];
 }
 
@@ -267,10 +275,26 @@ export function validateSource(
   const ratioDrift = Math.abs(sourceRatio - targetRatio) / targetRatio;
   if (ratioDrift > 0.15) {
     issues.push({
-      level: "warning",
-      message: `Aspect ratio ${ratio(sourceRatio)} doesn't match the required ${ratio(targetRatio)} — the crop will cut off part of the image.`,
+      // A screenshot is *meant* to be recomposed; a logo cropped through the middle is a mistake.
+      level: spec.group === "screenshot" ? "info" : "warning",
+      message:
+        spec.group === "screenshot"
+          ? `Source is ${ratioOf(source.width, source.height)}, the slot is ${ratioOf(spec.width, spec.height)} — drag to choose what stays in frame.`
+          : `Aspect ratio ${ratio(sourceRatio)} doesn't match the required ${ratio(targetRatio)} — the crop will cut off part of the image.`,
       autoFixable: true,
     });
+  }
+
+  // Stores that publish a hard cap reject the raw file outright; cropping is what makes it legal.
+  if (spec.maxAspectRatio) {
+    const longToShort = Math.max(source.width, source.height) / Math.min(source.width, source.height);
+    if (longToShort > spec.maxAspectRatio) {
+      issues.push({
+        level: "info",
+        message: `Your ${longToShort.toFixed(2)}:1 source is past this store's ${spec.maxAspectRatio}:1 limit and would be refused as-is. Generating at ${spec.width} × ${spec.height} brings it inside the limit.`,
+        autoFixable: true,
+      });
+    }
   }
 
   if (spec.transparency === "FORBIDDEN" && source.type === "image/png") {
@@ -289,7 +313,11 @@ export function validateSource(
     });
   }
 
-  return { ok: !issues.some((i) => i.level === "error"), issues };
+  return {
+    ok: !issues.some((i) => i.level === "error"),
+    needsAttention: issues.some((i) => i.level === "error" || i.level === "warning"),
+    issues,
+  };
 }
 
 /**
@@ -331,9 +359,16 @@ export function ratio(value: number): string {
   return `${rw}:${rh}`;
 }
 
+/**
+ * Human-readable aspect ratio. A tidy reduction (9:16, 4:3) is what people recognise, but real
+ * capture sizes reduce to nonsense like 195:422 — fall back to a decimal against 1 for those.
+ */
 export function ratioOf(w: number, h: number): string {
   const g = gcd(w, h);
-  return `${w / g}:${h / g}`;
+  const rw = w / g;
+  const rh = h / g;
+  if (rw <= 40 && rh <= 40) return `${rw}:${rh}`;
+  return w >= h ? `${(w / h).toFixed(2)}:1` : `1:${(h / w).toFixed(2)}`;
 }
 
 /* ---------------------------------------------------------------- downloads */
