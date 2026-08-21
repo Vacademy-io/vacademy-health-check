@@ -21,6 +21,7 @@ import {
   KanbanSquare,
   BookOpen,
   Milestone,
+  AppWindow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,10 @@ const navSections: Array<{
       { to: "/admin/status", label: "Status", icon: Megaphone },
       { to: "/broadcasts", label: "Broadcasts", icon: Radio },
     ],
+  },
+  {
+    label: "App Stores",
+    items: [{ to: "/apps", label: "App Registration", icon: AppWindow }],
   },
   {
     label: "Support",
