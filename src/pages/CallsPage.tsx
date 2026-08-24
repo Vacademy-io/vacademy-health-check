@@ -11,9 +11,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalls, useCallSummary, useCallRateCard, type CallRow, type CallFilters }
   from "@/services/calls-api";
 import CallDiagnosticsPanel from "@/components/calls/CallDiagnosticsPanel";
+import CacheAnalyticsTab from "@/components/calls/CacheAnalyticsTab";
 import { useInstitutes } from "@/services/institutes-api";
 
 const rupees = (n: number | null | undefined) =>
@@ -92,6 +94,14 @@ export default function CallsPage() {
         )}
       </div>
 
+      <Tabs defaultValue="calls" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="calls">Calls</TabsTrigger>
+          <TabsTrigger value="cache">Cache analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="calls" className="space-y-4">
+
       {/* Filters */}
       <Card>
         <CardContent className="flex flex-wrap items-end gap-3 pt-6">
@@ -144,7 +154,7 @@ export default function CallsPage() {
       </Card>
 
       {/* Totals for whatever is filtered */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
         {[
           ["Calls", s ? s.calls.toLocaleString("en-IN") : "—"],
           ["Minutes", s ? Math.round(s.minutes).toLocaleString("en-IN") : "—"],
@@ -152,6 +162,9 @@ export default function CallsPage() {
           ["Billed", rupees(s?.billed_inr)],
           ["Margin", s ? `${rupees(s.margin_inr)}${s.margin_pct != null ? ` (${s.margin_pct}%)` : ""}` : "—"],
           ["Red / Amber", s ? `${s.red} / ${s.amber}` : "—"],
+          ["Cache saved", s?.tts_cache_saved_inr == null
+            ? "—"
+            : `${rupees(s.tts_cache_saved_inr)}${s.tts_cache_hit_rate != null ? ` (${s.tts_cache_hit_rate}%)` : ""}`],
         ].map(([label, value]) => (
           <Card key={label as string}>
             <CardHeader className="pb-1"><CardTitle className="text-xs font-medium text-muted-foreground">{label}</CardTitle></CardHeader>
@@ -303,6 +316,13 @@ export default function CallsPage() {
           </div>
         </CardContent>
       </Card>
+
+        </TabsContent>
+
+        <TabsContent value="cache">
+          <CacheAnalyticsTab />
+        </TabsContent>
+      </Tabs>
 
       {/* Health + recording for one call */}
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
