@@ -155,6 +155,13 @@ export interface CallSummary {
   cost_breakdown: Record<string, number> | null;
   by_tts_model: Record<string, number> | null;
   cost_is_modelled: boolean | null;
+  /** Cache totals for the same filtered window as the rest of this object. */
+  tts_cache_hits: number | null;
+  tts_cache_misses: number | null;
+  /** Percentage, 0-100. Null means nothing in the window measured the cache. */
+  tts_cache_hit_rate: number | null;
+  tts_cache_chars_saved: number | null;
+  tts_cache_saved_inr: number | null;
 }
 
 export interface CallFilters {
