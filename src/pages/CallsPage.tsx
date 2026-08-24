@@ -31,6 +31,13 @@ const phone = (p: string | null | undefined) =>
       .join("")
       .trim();
 
+/** Hits over everything the agent asked for. Null when the call recorded no cache at all. */
+const hitRate = (hits: number | null, misses: number | null) => {
+  if (hits == null && misses == null) return null;
+  const total = (hits ?? 0) + (misses ?? 0);
+  return total === 0 ? null : `${Math.round(((hits ?? 0) / total) * 100)}%`;
+};
+
 function HealthChip({ health }: { health: string | null }) {
   if (!health) return <span className="text-muted-foreground">—</span>;
   const tone =
@@ -202,6 +209,7 @@ export default function CallsPage() {
                   <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right">Billed</TableHead>
                   <TableHead className="text-right">Margin</TableHead>
+                  <TableHead className="text-right">Cache</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -245,13 +253,27 @@ export default function CallsPage() {
                     <TableCell className={`text-right ${(c.margin_inr ?? 0) < 0 ? "text-red-600" : ""}`}>
                       {rupees(c.margin_inr)}
                     </TableCell>
+                    <TableCell className="text-right text-xs">
+                      {c.tts_cache_hits == null && c.tts_cache_misses == null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <>
+                          <div title={`${c.tts_cache_hits ?? 0} hits · ${c.tts_cache_misses ?? 0} misses`}>
+                            {hitRate(c.tts_cache_hits, c.tts_cache_misses) ?? "—"}
+                          </div>
+                          <div className="text-muted-foreground">
+                            {c.tts_cache_saved_inr ? `${rupees(c.tts_cache_saved_inr)} saved` : "nothing saved"}
+                          </div>
+                        </>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant="outline" onClick={() => setOpen(c)}>Health</Button>
                     </TableCell>
                   </TableRow>
                 ))}
                 {calls.data?.content.length === 0 && (
-                  <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
+                  <TableRow><TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
                     No calls match these filters.
                   </TableCell></TableRow>
                 )}
