@@ -395,6 +395,7 @@ export const BASIC_FIELDS: Array<FieldSpec & { key: keyof AppBasics }> = [
   { id: "displayName", key: "displayName", label: "App Display Name", type: "text", required: true, placeholder: "STEMx", helpText: "The name under the icon on the home screen." },
   { id: "packageName", key: "packageName", label: "Package Name / Bundle ID", type: "text", required: true, placeholder: "io.vacademy.stemx", helpText: "Permanent. Cannot be changed after the first store submission." },
   { id: "client", key: "client", label: "Client / Institute", type: "text", required: true, placeholder: "STEMx Education" },
+  { id: "instituteId", key: "instituteId", label: "Institute ID", type: "text", required: false, placeholder: "7571a580-55c4-4668-87a0-58fef790961e", helpText: "The institute's UUID from admin_core_service. Links this app to that institute's own admin dashboard, where their team can see (read-only) the status you set here. Leave blank for internal/ops-only apps with no single owning institute." },
   { id: "websiteUrl", key: "websiteUrl", label: "Website URL", type: "url", required: false, placeholder: "https://stemx.vacademy.io", helpText: "Used by the store-content generator to draft descriptions." },
   { id: "supportEmail", key: "supportEmail", label: "Support Email", type: "email", required: true, placeholder: "support@stemx.io", helpText: "Shown publicly on the listing. Must be a monitored inbox." },
   { id: "supportPhone", key: "supportPhone", label: "Support Phone", type: "tel", required: false, placeholder: "+91 98765 43210" },
