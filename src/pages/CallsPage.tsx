@@ -13,12 +13,30 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCalls, useCallSummary, useCallRateCard, type CallRow, type CallFilters }
   from "@/services/calls-api";
+import CallDiagnosticsPanel from "@/components/calls/CallDiagnosticsPanel";
 import { useInstitutes } from "@/services/institutes-api";
 
 const rupees = (n: number | null | undefined) =>
   n == null ? "—" : `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const mmss = (s: number | null | undefined) =>
   s == null ? "—" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+/** Some numbers arrive wrapped in bidi marks, which break copy-paste and alignment. */
+const phone = (p: string | null | undefined) =>
+  p == null ? "—"
+    : Array.from(p)
+      .filter((ch) => {
+        const c = ch.codePointAt(0) ?? 0;
+        return !(c === 0x200e || c === 0x200f || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069));
+      })
+      .join("")
+      .trim();
+
+/** Hits over everything the agent asked for. Null when the call recorded no cache at all. */
+const hitRate = (hits: number | null, misses: number | null) => {
+  if (hits == null && misses == null) return null;
+  const total = (hits ?? 0) + (misses ?? 0);
+  return total === 0 ? null : `${Math.round(((hits ?? 0) / total) * 100)}%`;
+};
 
 function HealthChip({ health }: { health: string | null }) {
   if (!health) return <span className="text-muted-foreground">—</span>;
@@ -183,6 +201,7 @@ export default function CallsPage() {
                 <TableRow>
                   <TableHead>When</TableHead>
                   <TableHead>Institute</TableHead>
+                  <TableHead>Who</TableHead>
                   <TableHead>Agent / voice</TableHead>
                   <TableHead>Dur</TableHead>
                   <TableHead>Disposition</TableHead>
@@ -190,6 +209,7 @@ export default function CallsPage() {
                   <TableHead className="text-right">Cost</TableHead>
                   <TableHead className="text-right">Billed</TableHead>
                   <TableHead className="text-right">Margin</TableHead>
+                  <TableHead className="text-right">Cache</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -205,6 +225,12 @@ export default function CallsPage() {
                         {c.id.slice(0, 8)}
                       </div>
                     </TableCell>
+                    <TableCell className="max-w-[9rem] truncate text-xs">
+                      <div>{c.customer_name ?? "—"}</div>
+                      <div className="font-mono text-[10px] text-muted-foreground">
+                        {c.direction === "INBOUND" ? "in" : "out"} · {phone(c.phone_number)}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-xs">
                       <div>{c.agent_name ?? "—"}</div>
                       <div className="text-muted-foreground">
@@ -213,11 +239,33 @@ export default function CallsPage() {
                     </TableCell>
                     <TableCell>{mmss(c.duration_seconds)}</TableCell>
                     <TableCell className="max-w-[10rem] truncate text-xs">{c.disposition ?? "—"}</TableCell>
-                    <TableCell><HealthChip health={c.health} /></TableCell>
+                    <TableCell>
+                      <HealthChip health={c.health} />
+                      {c.faults && c.faults.length > 0 && (
+                        <div className="mt-0.5 font-mono text-[10px] text-muted-foreground"
+                          title={c.faults.join(", ")}>
+                          {c.faults[0]}{c.faults.length > 1 ? ` +${c.faults.length - 1}` : ""}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">{rupees(c.cost_inr)}</TableCell>
                     <TableCell className="text-right">{rupees(c.billed_inr)}</TableCell>
                     <TableCell className={`text-right ${(c.margin_inr ?? 0) < 0 ? "text-red-600" : ""}`}>
                       {rupees(c.margin_inr)}
+                    </TableCell>
+                    <TableCell className="text-right text-xs">
+                      {c.tts_cache_hits == null && c.tts_cache_misses == null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <>
+                          <div title={`${c.tts_cache_hits ?? 0} hits · ${c.tts_cache_misses ?? 0} misses`}>
+                            {hitRate(c.tts_cache_hits, c.tts_cache_misses) ?? "—"}
+                          </div>
+                          <div className="text-muted-foreground">
+                            {c.tts_cache_saved_inr ? `${rupees(c.tts_cache_saved_inr)} saved` : "nothing saved"}
+                          </div>
+                        </>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant="outline" onClick={() => setOpen(c)}>Health</Button>
@@ -225,7 +273,7 @@ export default function CallsPage() {
                   </TableRow>
                 ))}
                 {calls.data?.content.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
+                  <TableRow><TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
                     No calls match these filters.
                   </TableCell></TableRow>
                 )}
@@ -256,12 +304,16 @@ export default function CallsPage() {
             <div className="space-y-4 text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <HealthChip health={open.health} />
-                {open.faults?.map((f) => (
-                  <Badge key={f} variant="outline" className="text-xs">{f}</Badge>
-                ))}
                 <span className="text-muted-foreground">
                   {open.institute_name} · {open.agent_name} · {open.tts_model} · {mmss(open.duration_seconds)}
                 </span>
+              </div>
+              <div className="text-muted-foreground">
+                {open.direction === "INBOUND" ? "Inbound from" : "Outbound to"}{" "}
+                <b className="text-foreground">{open.customer_name ?? "unknown caller"}</b>{" "}
+                <span className="font-mono">{phone(open.phone_number)}</span>
+                {open.disposition ? <> · ended as <b className="text-foreground">{open.disposition}</b></> : null}
+                {open.call_start ? ` · ${new Date(open.call_start).toLocaleString("en-IN")}` : ""}
               </div>
               <div className="flex flex-wrap gap-4 rounded-md border bg-muted/40 p-2 font-mono text-xs">
                 <span title="click to copy" className="cursor-pointer"
@@ -301,25 +353,26 @@ export default function CallsPage() {
                   ))}
                   <div className="ml-auto">
                     <div className="text-xs uppercase text-muted-foreground">margin</div>
-                    <div className="font-medium">{rupees(open.margin_inr)}</div>
+                    <div className="font-medium">
+                      {rupees(open.margin_inr)}
+                      {open.margin_pct != null && (
+                        <span className="ml-1 text-xs text-muted-foreground">{open.margin_pct}%</span>
+                      )}
+                    </div>
                   </div>
                 </div>
+                {(open.tts_cache_hits != null || open.tts_cache_misses != null) && (
+                  <div className="mt-3 border-t pt-2 text-xs text-muted-foreground">
+                    TTS cache: {open.tts_cache_hits ?? 0} hit
+                    {(open.tts_cache_hits ?? 0) === 1 ? "" : "s"} / {open.tts_cache_misses ?? 0} miss
+                    {(open.tts_cache_misses ?? 0) === 1 ? "" : "es"}
+                    {open.tts_cache_chars_saved ? ` · ${open.tts_cache_chars_saved} chars not re-synthesised` : ""}
+                    {open.tts_cache_saved_inr ? ` · saved ${rupees(open.tts_cache_saved_inr)}` : ""}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <div className="mb-1 text-xs font-medium uppercase text-muted-foreground">
-                  Diagnostics
-                </div>
-                <pre className="max-h-96 overflow-auto rounded-md bg-muted p-3 text-xs">
-                  {(() => {
-                    try {
-                      return JSON.stringify(JSON.parse(open.diagnostics ?? "{}"), null, 2);
-                    } catch {
-                      return open.diagnostics ?? "—";
-                    }
-                  })()}
-                </pre>
-              </div>
+              <CallDiagnosticsPanel raw={open.diagnostics} />
             </div>
           )}
         </DialogContent>
