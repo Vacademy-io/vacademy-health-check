@@ -32,6 +32,113 @@ export interface CallRow {
   margin_pct: number | null;
   cost_breakdown: Record<string, number> | null;
   cost_is_modelled: boolean | null;
+  /** TTS cache — speech replayed instead of re-synthesised, and what that saved. */
+  tts_cache_hits: number | null;
+  tts_cache_misses: number | null;
+  tts_cache_chars_saved: number | null;
+  tts_cache_saved_inr: number | null;
+}
+
+/** The shape of {@link CallRow.diagnostics} once parsed. Every field is best-effort. */
+export interface CallDiagnostics {
+  health?: string | null;
+  /** The single fault the bot blames the call on, e.g. DEAD_AIR. */
+  headline?: string | null;
+  /** That fault in plain words, e.g. "Long silence during the call". */
+  headlineText?: string | null;
+  faults?: string[] | null;
+  faultLevels?: Record<string, string> | null;
+  rulesVersion?: number | null;
+  silences?: Array<{ secs: number; cause: string }> | null;
+  latency?: {
+    deadAirMax?: number | null;
+    deadAirP95?: number | null;
+    llmTtfbP50?: number | null;
+    llmTtfbP95?: number | null;
+    sttTtfbP50?: number | null;
+    sttTtfbP95?: number | null;
+  } | null;
+  turnTaking?: {
+    botTurns?: number | null;
+    userTurns?: number | null;
+    bargeIns?: number | null;
+    ducks?: number | null;
+    duckAbsorbs?: number | null;
+    duckTimeoutResumes?: number | null;
+    handbacks?: number | null;
+    nudges?: number | null;
+    echoesTrimmed?: number | null;
+    repeatsSuppressed?: number | null;
+    repeatEscalations?: number | null;
+    unsaidReverted?: number | null;
+    contentFreeTurns?: number | null;
+    emptyRunsBlocked?: number | null;
+    maxReplyRestarts?: number | null;
+    orphanReasks?: number | null;
+    orphanFalseReasks?: number | null;
+    bargeInCancels?: number | null;
+    carrierAnnouncements?: number | null;
+    fragmentsLost?: number | null;
+    fragmentsLostSamples?: string[] | null;
+    answersDeleted?: number | null;
+    answersDeletedSamples?: string[] | null;
+    idleHangup?: boolean | null;
+    capFarewell?: boolean | null;
+    [key: string]: unknown;
+  } | null;
+  tts?: {
+    vendor?: string | null;
+    stalls?: number | null;
+    wedges?: number | null;
+    wedgeReconnects?: number | null;
+    silentGenerations?: number | null;
+    letterlessSkipped?: number | null;
+    stallCapHit?: boolean | null;
+    cacheHits?: number | null;
+    cacheMisses?: number | null;
+    cacheHitRate?: number | null;
+    cacheCharsSaved?: number | null;
+    cacheSecsSaved?: number | null;
+    [key: string]: unknown;
+  } | null;
+  setup?: {
+    greetPath?: string | null;
+    greetDelaySecs?: number | null;
+    setupSecs?: number | null;
+    openingTruncated?: number | null;
+  } | null;
+  infra?: {
+    crash?: string | null;
+    sttReconnects?: number | null;
+    hearingFailures?: number | null;
+    unheardUtterances?: number | null;
+    transferRequested?: boolean | null;
+    transferRegistered?: boolean | null;
+    [key: string]: unknown;
+  } | null;
+  machine?: {
+    src?: string | null;
+    score?: number | null;
+    longestUserSecs?: number | null;
+    firstUserSecs?: number | null;
+    [key: string]: unknown;
+  } | null;
+  playout?: {
+    repliesGenerated?: number | null;
+    repliesNeverPlayed?: number | null;
+  } | null;
+  [key: string]: unknown;
+}
+
+/** The blob arrives as JSON text, and older calls have none. */
+export function parseDiagnostics(raw: string | null | undefined): CallDiagnostics | null {
+  if (!raw) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as CallDiagnostics) : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface CallSummary {
