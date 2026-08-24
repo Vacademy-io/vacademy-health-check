@@ -96,6 +96,11 @@ export interface AppBasics {
   displayName: string;
   packageName: string;
   client: string;
+  /**
+   * Owning institute id, so the institute's own admin dashboard can show this app's status.
+   * Optional — internal/ops tooling apps with no single owning institute leave this blank.
+   */
+  instituteId: string;
   websiteUrl: string;
   supportEmail: string;
   supportPhone: string;
@@ -301,6 +306,7 @@ export function emptyBasics(): AppBasics {
     displayName: "",
     packageName: "",
     client: "",
+    instituteId: "",
     websiteUrl: "",
     supportEmail: "",
     supportPhone: "",
