@@ -25,3 +25,10 @@ dist-ssr
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
+
+# Secrets. The AI-queue client signature belongs in .env.local (dev) and a
+# Cloudflare Pages env binding (deployed) — never in a VITE_ var, which is
+# inlined into the browser bundle.
+.env
+.env.*
+!.env.example

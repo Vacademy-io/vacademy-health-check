@@ -41,6 +41,21 @@ export function ago(iso: string | null | undefined) {
   return `${Math.round(hrs / 24)}d ago`;
 }
 
+/** Some numbers arrive wrapped in bidi marks, which break copy-paste and alignment. */
+export const phone = (p: string | null | undefined) =>
+  p == null ? DASH
+    : Array.from(p)
+      .filter((ch) => {
+        const c = ch.codePointAt(0) ?? 0;
+        return !(c === 0x200e || c === 0x200f || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069));
+      })
+      .join("")
+      .trim();
+
+/** A wait of zero is the next call out, not an absent estimate. */
+export const eta = (mins: number | null | undefined) =>
+  mins == null ? DASH : mins <= 0 ? "next up" : mins === 1 ? "1 min" : `${mins} min`;
+
 /** OFF explains an agent's zeroes, so it reads differently from a mode that is on. */
 export const MODE_TONE: Record<string, string> = {
   FULL: "border-emerald-300 bg-emerald-50 text-emerald-700",
