@@ -15,23 +15,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalls, useCallSummary, useCallRateCard, type CallRow, type CallFilters }
   from "@/services/calls-api";
 import CallDiagnosticsPanel from "@/components/calls/CallDiagnosticsPanel";
+import { phone } from "@/components/calls/format";
 import CacheAnalyticsTab from "@/components/calls/CacheAnalyticsTab";
+import CallQueueTab from "@/components/calls/CallQueueTab";
 import { useInstitutes } from "@/services/institutes-api";
 
 const rupees = (n: number | null | undefined) =>
   n == null ? "—" : `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const mmss = (s: number | null | undefined) =>
   s == null ? "—" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-/** Some numbers arrive wrapped in bidi marks, which break copy-paste and alignment. */
-const phone = (p: string | null | undefined) =>
-  p == null ? "—"
-    : Array.from(p)
-      .filter((ch) => {
-        const c = ch.codePointAt(0) ?? 0;
-        return !(c === 0x200e || c === 0x200f || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069));
-      })
-      .join("")
-      .trim();
 
 /** Hits over everything the agent asked for. Null when the call recorded no cache at all. */
 const hitRate = (hits: number | null, misses: number | null) => {
@@ -97,6 +89,7 @@ export default function CallsPage() {
       <Tabs defaultValue="calls" className="space-y-4">
         <TabsList>
           <TabsTrigger value="calls">Calls</TabsTrigger>
+          <TabsTrigger value="queue">Call queue</TabsTrigger>
           <TabsTrigger value="cache">Cache analytics</TabsTrigger>
         </TabsList>
 
@@ -317,6 +310,10 @@ export default function CallsPage() {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        <TabsContent value="queue">
+          <CallQueueTab />
         </TabsContent>
 
         <TabsContent value="cache">
