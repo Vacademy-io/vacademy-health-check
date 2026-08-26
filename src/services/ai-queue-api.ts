@@ -1,14 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
+import { API_PREFIXES } from "@/lib/constants";
 
 /**
- * The queue snapshot sits on the internal surface, which authenticates with a client
- * name and signature rather than the user's session. That pair is attached by the
- * proxy in front of this app — the dev proxy in vite.config.ts and the Cloudflare
- * function in functions/[[route]].ts — so the secret stays server-side and the browser
- * just calls the path. Fields are camelCase here, unlike the super-admin surface.
+ * Fields come back camelCase here, unlike the rest of the super-admin surface.
  */
-const SNAPSHOT = "/admin-core-service/internal/ai-queue/snapshot";
+const OVERVIEW = `${API_PREFIXES.ADMIN_CORE}/ai-queue/overview`;
 
 export interface QueueBox {
   slug: string | null;
@@ -79,7 +76,7 @@ export function useQueueSnapshot(limit: number, instituteId?: string, refreshMs 
   return useQuery({
     queryKey: ["super-admin", "ai-queue", limit, instituteId ?? ""],
     queryFn: async () => {
-      const { data } = await api.get(SNAPSHOT, {
+      const { data } = await api.get(OVERVIEW, {
         params: instituteId ? { limit, instituteId } : { limit },
       });
       return data as QueueSnapshot;
