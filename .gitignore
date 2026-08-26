@@ -26,9 +26,7 @@ branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
 
-# Secrets. The AI-queue client signature belongs in .env.local (dev) and a
-# Cloudflare Pages env binding (deployed) — never in a VITE_ var, which is
-# inlined into the browser bundle.
+# Secrets. Anything VITE_-prefixed is inlined into the browser bundle, so a
+# credential belongs in a server-side env var, never in one of these files.
 .env
 .env.*
-!.env.example
