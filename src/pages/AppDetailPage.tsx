@@ -28,6 +28,7 @@ import { AssetStudio, PlatformTabs } from "@/components/apps/AssetStudio";
 import { ChecklistPanel, RegistrationProgressCard } from "@/components/apps/ChecklistPanel";
 import { FieldGrid, FieldRenderer } from "@/components/apps/FieldRenderer";
 import { FirebaseConfigCheck } from "@/components/apps/FirebaseConfigCheck";
+import { InstituteLinkCheck } from "@/components/apps/InstituteLinkCheck";
 import { IntegrationsPanel } from "@/components/apps/IntegrationsPanel";
 import { OtaBuildCheck } from "@/components/apps/OtaBuildCheck";
 import { PrivacySecurityPanel } from "@/components/apps/PrivacySecurityPanel";
@@ -126,7 +127,26 @@ export default function AppDetailPage() {
     setParams(next, { replace: true });
   }
 
-  if (query.isLoading || !record) {
+  // Order matters: `!record` is true both while loading AND when the fetch failed, so checking it
+  // first (as this did) left a failed load spinning on skeletons forever, with the error branch
+  // below unreachable. Reading the registry can genuinely fail now that it comes over the network.
+  if (query.isError) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-sm text-muted-foreground">Couldn't load this app from the shared registry.</p>
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => query.refetch()}>
+            Try again
+          </Button>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/apps">Back to App Registration</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (query.isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
@@ -135,7 +155,7 @@ export default function AppDetailPage() {
     );
   }
 
-  if (query.isError || (!query.isLoading && !query.data)) {
+  if (!record) {
     return (
       <div className="py-16 text-center">
         <p className="text-sm text-muted-foreground">That app no longer exists.</p>
@@ -464,7 +484,7 @@ export default function AppDetailPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">Basic information</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     {BASIC_FIELDS.map((field) => (
                       <FieldRenderer
@@ -475,6 +495,7 @@ export default function AppDetailPage() {
                       />
                     ))}
                   </div>
+                  <InstituteLinkCheck instituteId={app.basics.instituteId} />
                 </CardContent>
               </Card>
 

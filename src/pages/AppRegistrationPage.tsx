@@ -11,9 +11,11 @@ import {
   HardDriveDownload,
   Hourglass,
   Info,
+  Loader2,
   Package,
   Plus,
   Upload,
+  UploadCloud,
   XCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +39,7 @@ import { computeAlerts, type AlertLevel } from "@/lib/app-notifications";
 import { PROVIDER_CAPABILITIES, assetSpecsFor } from "@/lib/platform-requirements";
 import { cn } from "@/lib/utils";
 import { useApps, useImportApps, useSaveApp } from "@/services/app-registry-api";
-import { STORAGE_MODE } from "@/services/app-registry-store";
+import { STORAGE_MODE, pushLocalBacklog, readLocalBacklog } from "@/services/app-registry-store";
 import { CONSOLE_URLS } from "@/services/store-providers";
 import {
   PLATFORMS,
@@ -67,6 +69,12 @@ export default function AppRegistrationPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [studioAppId, setStudioAppId] = useState<string>("");
+  // Apps a previous session left in this browser. Read once: it only ever shrinks, and it shrinks
+  // through the button below.
+  const [backlog, setBacklog] = useState<AppRecord[]>(() =>
+    STORAGE_MODE === "remote" ? readLocalBacklog() : []
+  );
+  const [pushingBacklog, setPushingBacklog] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   const apps = useMemo(() => (query.data ?? []).filter((a) => !a.archived), [query.data]);
@@ -97,6 +105,33 @@ export default function AppRegistrationPage() {
     });
   }
 
+  async function pushBacklog() {
+    setPushingBacklog(true);
+    try {
+      const { pushed, failed, skipped } = await pushLocalBacklog();
+      if (failed.length === 0 && skipped.length === 0) {
+        setBacklog([]);
+        push("success", `Moved ${pushed} app${pushed === 1 ? "" : "s"} into the shared registry.`);
+      } else {
+        // Nothing was cleared, so the banner stays and names what is still stuck here.
+        setBacklog(readLocalBacklog());
+        if (skipped.length > 0) {
+          push(
+            "info",
+            `Moved ${pushed}. Already in the shared registry and left untouched: ${skipped.join(", ")}. ` +
+              `Compare before replacing anything — the shared copy may be newer than this browser's.`
+          );
+        }
+        if (failed.length > 0) {
+          push("error", `Still only in this browser: ${failed.join(", ")}.`);
+        }
+      }
+      query.refetch();
+    } finally {
+      setPushingBacklog(false);
+    }
+  }
+
   function exportJson() {
     const blob = new Blob([JSON.stringify(apps, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -113,6 +148,22 @@ export default function AppRegistrationPage() {
     try {
       const parsed = JSON.parse(await file.text());
       if (!Array.isArray(parsed)) throw new Error("not an array");
+      // Import replaces the WHOLE registry. Against localStorage that only ever cost this browser,
+      // so the button never needed a guard. Against the shared registry the same click deletes
+      // every app the team has — including the archived ones, which Export deliberately leaves out
+      // of the very file being imported, so an export/import round trip destroys them.
+      if (
+        STORAGE_MODE === "remote" &&
+        !window.confirm(
+          `Replace the ENTIRE shared registry with this file?\n\n` +
+            `All ${apps.length} app${apps.length === 1 ? "" : "s"} currently listed — plus any archived ones, ` +
+            `which Export does not include — will be deleted and replaced by the ${parsed.length} in this file.\n\n` +
+            `This affects everyone, not just this browser, and cannot be undone.`
+        )
+      ) {
+        if (importRef.current) importRef.current.value = "";
+        return;
+      }
       importApps.mutate(parsed as AppRecord[], {
         onSuccess: () => push("success", `Imported ${parsed.length} apps.`),
         onError: () => push("error", "Import failed."),
@@ -154,15 +205,54 @@ export default function AppRegistrationPage() {
       />
 
       {STORAGE_MODE === "local" && (
-        <p className="mb-4 flex items-start gap-2 rounded-md border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
+        <p className="mb-4 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs leading-relaxed text-muted-foreground">
           <HardDriveDownload className="mt-px h-3.5 w-3.5 shrink-0" />
           <span>
-            App records are stored in this browser until the server-side registry is deployed. Artwork already lives in
-            media-service and is shared, but the metadata isn't — use Export/Import to hand the registry to a
-            teammate, or set <code className="rounded bg-background px-1">VITE_APP_REGISTRY_REMOTE=true</code> once the
-            backend is up.
+            <strong className="text-foreground">The shared registry is switched off here</strong> (
+            <code className="rounded bg-background px-1">VITE_APP_REGISTRY_REMOTE=false</code>), so app records stay in
+            this browser. Nobody else sees them, and neither does the institute's own dashboard — Settings &rarr; App
+            Status reads the shared registry. Artwork is unaffected; it already lives in media-service.
           </span>
         </p>
+      )}
+
+      {STORAGE_MODE === "remote" && backlog.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+          <p className="flex items-start gap-2 leading-relaxed text-muted-foreground">
+            <HardDriveDownload className="mt-px h-3.5 w-3.5 shrink-0" />
+            <span>
+              <strong className="text-foreground">
+                {backlog.length} app{backlog.length === 1 ? "" : "s"} still only exist in this browser
+              </strong>{" "}
+              — registered before the shared registry. No teammate and no institute can see them until they move
+              across. Nothing is deleted here: records are copied one by one and only cleared once every one lands.
+            </span>
+          </p>
+          <Button size="sm" variant="outline" disabled={pushingBacklog} onClick={pushBacklog}>
+            {pushingBacklog ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <UploadCloud className="mr-1 h-3.5 w-3.5" />
+            )}
+            Push to shared registry
+          </Button>
+        </div>
+      )}
+
+      {query.isError && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs">
+          <p className="flex items-start gap-2 leading-relaxed text-muted-foreground">
+            <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-destructive" />
+            <span>
+              <strong className="text-foreground">The shared registry didn't answer.</strong> Everything below is empty
+              because the request failed, not because nothing is registered. Don't re-register anything from here until
+              this loads — the records are still there.
+            </span>
+          </p>
+          <Button size="sm" variant="outline" onClick={() => query.refetch()}>
+            Retry
+          </Button>
+        </div>
       )}
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
