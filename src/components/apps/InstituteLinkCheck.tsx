@@ -31,7 +31,11 @@ export function InstituteLinkCheck({ instituteId }: { instituteId: string | unde
   }, [id]);
 
   const query = useInstituteDetail(settled);
-  const pending = Boolean(settled) && (id !== settled || query.isPending || query.isFetching);
+  // `settled` is still the OLD value (often "") for the first 500ms of typing, and a disabled query
+  // reports no data — so gating this on `settled` flashed a red "No institute with this id" at the
+  // operator on their very first keystroke, before any lookup had run. What matters is only whether
+  // the id in the box has been looked up yet.
+  const pending = id !== settled || query.isPending || query.isFetching;
 
   if (!id) {
     return (
