@@ -1,13 +1,18 @@
 /**
  * Persistence adapter for the app registry.
  *
- * There is no `app-registry` backend yet, so the default store is this browser's localStorage:
- * the module is fully usable from day one with nothing to deploy. Heavy data — the actual image
- * bytes — never lands here; assets go to media-service and only their `{fileId, url}` is stored,
- * so the registry stays a few KB of JSON and every teammate sees the same pixels.
+ * The shared registry in community_service is the default. It has to be: an institute admin reads
+ * their own app's status off these records (admin_core_service proxies
+ * `/app-registry/by-institute` into Settings -> App Status), and a record sitting in one ops
+ * person's localStorage is a record that institute will never see. Heavy data — the actual image
+ * bytes — never lands here either way; assets go to media-service and only their `{fileId, url}`
+ * is stored, so a record stays a few KB of JSON.
  *
- * When the server side lands, set `VITE_APP_REGISTRY_REMOTE=true` and implement these five
- * endpoints under `API_PREFIXES.APP_REGISTRY`. Nothing else in the module changes:
+ * `VITE_APP_REGISTRY_REMOTE=false` forces the old per-browser store, for working against a
+ * backend that isn't up. Anything registered while forced local stays invisible to institutes
+ * until it is pushed — see {@link pushLocalBacklog}.
+ *
+ * The five endpoints, all under `API_PREFIXES.APP_REGISTRY`:
  *
  *   GET    /apps            -> AppRecord[]
  *   GET    /apps/{id}       -> AppRecord
@@ -22,7 +27,7 @@ import type { AppRecord, Platform } from "@/types/app-registry";
 
 const STORAGE_KEY = "vacademy.app-registry.v1";
 
-export const REMOTE_ENABLED = import.meta.env.VITE_APP_REGISTRY_REMOTE === "true";
+export const REMOTE_ENABLED = import.meta.env.VITE_APP_REGISTRY_REMOTE !== "false";
 
 /** Where the data actually lives right now — surfaced in the UI so nobody is surprised by it. */
 export const STORAGE_MODE: "remote" | "local" = REMOTE_ENABLED ? "remote" : "local";
@@ -85,6 +90,86 @@ export async function replaceAll(apps: AppRecord[]): Promise<AppRecord[]> {
   }
   writeLocal(apps);
   return apps;
+}
+
+/* ------------------------------------------------- browser-local leftovers */
+
+/**
+ * Apps still sitting in this browser's localStorage. Non-empty in remote mode means someone
+ * registered apps before the shared registry existed (or while it was forced off) and no institute
+ * can see any of them yet.
+ */
+export function readLocalBacklog(): AppRecord[] {
+  return readLocal();
+}
+
+export interface BacklogPushResult {
+  pushed: number;
+  /** Names (or ids) of the records the server refused, so the operator knows what to chase. */
+  failed: string[];
+  /** Records the registry already holds. Left exactly as they are on the server — see below. */
+  skipped: string[];
+}
+
+/**
+ * Moves the browser-local backlog into the shared registry, one record at a time.
+ *
+ * Three things this deliberately does not do, each of which loses somebody's work:
+ *
+ * - It is not the bulk import endpoint. That one replaces the entire registry, so the second
+ *   person to run this would wipe whatever the first just pushed.
+ * - It does not push an id the registry already holds. PUT is a whole-document upsert, and two
+ *   people who ever moved the registry between machines through Export/Import are both holding
+ *   the same ids — so a blind push would quietly replace a colleague's current record with this
+ *   browser's older copy of it. Those are reported instead, for a human to reconcile.
+ * - It clears localStorage only after a sweep that left nothing behind. A skipped or failed
+ *   record means this browser is still the only place holding whatever it knows.
+ */
+export async function pushLocalBacklog(): Promise<BacklogPushResult> {
+  if (!REMOTE_ENABLED) {
+    return { pushed: 0, failed: [], skipped: [] };
+  }
+
+  const backlog = readLocal();
+  const failed: string[] = [];
+  const skipped: string[] = [];
+  let pushed = 0;
+
+  for (const app of backlog) {
+    const label = app.basics?.name?.trim() || app.id;
+    try {
+      if (await existsInSharedRegistry(app.id)) {
+        skipped.push(label);
+        continue;
+      }
+      await api.put<AppRecord>(`${API_PREFIXES.APP_REGISTRY}/apps/${app.id}`, app);
+      pushed += 1;
+    } catch {
+      failed.push(label);
+    }
+  }
+
+  if (failed.length === 0 && skipped.length === 0 && backlog.length > 0) {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  return { pushed, failed, skipped };
+}
+
+/**
+ * Whether the shared registry already has this id. Only a 404 counts as "no" — any other failure
+ * rethrows, so a flaky call is reported as a failure rather than mistaken for an absent record and
+ * answered by overwriting one.
+ */
+async function existsInSharedRegistry(id: string): Promise<boolean> {
+  try {
+    await api.get<AppRecord>(`${API_PREFIXES.APP_REGISTRY}/apps/${id}`);
+    return true;
+  } catch (error) {
+    if ((error as { response?: { status?: number } })?.response?.status === 404) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 /* --------------------------------------------------------------- media I/O */
