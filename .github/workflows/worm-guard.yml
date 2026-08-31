@@ -1,0 +1,51 @@
+name: worm-guard
+
+# Fails the build if the EtherHiding postcss worm is present in a push or PR.
+# The payload is appended to a postcss config after a long run of padding spaces,
+# so both an implausible file size and the campaign markers are checked.
+#
+# Background: this repo was first infected 2026-05-23, cleaned 2026-08-21, and
+# re-infected 2026-08-26 via a merge commit whose two parents were both clean --
+# the payload was smuggled into the merge itself, so a diff of either side shows
+# nothing. Size is the cheapest reliable signal.
+#
+# The marker patterns are assembled from fragments at runtime so this file does
+# not contain the strings it searches for; otherwise the guard flags the guard.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  scan:
+    name: scan for injected payload
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check postcss config size
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            size=$(wc -c < "$f")
+            echo "$f: $size bytes"
+            if [ "$size" -gt 400 ]; then
+              echo "::error file=$f::postcss config is $size bytes; a real one is well under 400. Suspected injected payload."
+              fail=1
+            fi
+          done < <(find . -name 'postcss.config.*' -not -path './node_modules/*')
+          exit $fail
+
+      - name: Check for known IOC markers
+        run: |
+          m1='global\.i="A''10'
+          m2='0xa322E5f3D311D3''080e6f0121063e9aDC2490Ef1a'
+          m3='/0x''/cls'
+          if grep -rlE "$m1|$m2|$m3" . \
+               --exclude-dir=node_modules --exclude-dir=.git \
+               --exclude=worm-guard.yml --exclude=pre-push > /tmp/hits 2>/dev/null; then
+            echo "::error::EtherHiding worm markers found in:"
+            cat /tmp/hits
+            exit 1
+          fi
+          echo "no IOC markers found"
