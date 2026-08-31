@@ -48,12 +48,25 @@ import {
   STORE_STATUSES,
   activePlatforms,
   emptyPlatformConfig,
+  releaseTrackOf,
+  RELEASE_TRACK_FIELD_ID,
   type AppBasics,
   type AppRecord,
   type ChecklistOverride,
   type Platform,
   type StoreStatus,
 } from "@/types/app-registry";
+
+/**
+ * Radix Select has no value for "nothing chosen" — an empty string closes the item, so an explicit
+ * sentinel stands in for a track nobody has recorded yet.
+ */
+const NO_TRACK = "__none__";
+
+/** The track options for a store come from the catalogue, never from this component. */
+function trackOptions(platform: Platform): string[] {
+  return PLATFORM_FIELDS[platform].find((field) => field.id === RELEASE_TRACK_FIELD_ID)?.options ?? [];
+}
 
 const TABS = [
   { value: "overview", label: "Overview" },
@@ -396,6 +409,10 @@ export default function AppDetailPage() {
                             <dd className="font-medium text-foreground">{targetConfig.currentVersion || "—"}</dd>
                           </div>
                           <div className="flex justify-between">
+                            <dt>Track</dt>
+                            <dd className="font-medium text-foreground">{releaseTrackOf(targetConfig) || "—"}</dd>
+                          </div>
+                          <div className="flex justify-between">
                             <dt>Build</dt>
                             <dd className="font-medium text-foreground">{targetConfig.currentBuild || "—"}</dd>
                           </div>
@@ -589,6 +606,43 @@ export default function AppDetailPage() {
                     <CardTitle className="text-sm">{STORE_LABELS[platform]} status</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Release track</Label>
+                      <Select
+                        value={releaseTrackOf(config) || NO_TRACK}
+                        onValueChange={(value) =>
+                          update({
+                            ...app,
+                            platforms: {
+                              ...app.platforms,
+                              [platform]: {
+                                ...config,
+                                fields: {
+                                  ...config.fields,
+                                  release_track: value === NO_TRACK ? "" : value,
+                                },
+                              },
+                            },
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NO_TRACK}>Not recorded</SelectItem>
+                          {trackOptions(platform).map((option) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        Shown to the institute admin next to the status, so "Live" is never confused
+                        with a build only testers can install.
+                      </p>
+                    </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Store status</Label>
                       <Select

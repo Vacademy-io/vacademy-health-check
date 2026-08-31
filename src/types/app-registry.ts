@@ -137,6 +137,21 @@ export interface PlatformConfig {
   lastSyncedAt: string;
 }
 
+/**
+ * Which store track the current build sits on — Play's Internal/Closed/Open/Production, Apple's
+ * TestFlight vs App Store, Microsoft's package flight vs Production.
+ *
+ * Deliberately NOT a field of `PlatformConfig`: it is a catalogue field (`release_track`) like
+ * every other registration answer, so the option list per store lives in one place and moves when
+ * a store moves. Read it through here — `fields` is absent entirely on records written before a
+ * platform had any, and the institute-facing screen shows this value.
+ */
+export const RELEASE_TRACK_FIELD_ID = "release_track";
+
+export function releaseTrackOf(config: PlatformConfig | undefined): string {
+  return config?.fields?.[RELEASE_TRACK_FIELD_ID]?.trim() ?? "";
+}
+
 export function emptyPlatformConfig(): PlatformConfig {
   return {
     enabled: false,
