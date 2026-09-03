@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getToken, isTokenExpired, refreshAccessToken, clearTokens } from "./auth";
+import { isPortalDenial } from "./portal-access";
 
 const PLATFORM_INSTITUTE_ID =
   import.meta.env.VITE_PLATFORM_INSTITUTE_ID || "00000000-0000-0000-0000-000000000001";
@@ -35,7 +36,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response) {
       const status = error.response.status;
-      if (status === 401 || status === 511) {
+      // 403 is NOT a blanket logout — the backend returns it for ordinary
+      // permission errors. Only our proxy's own denial (identified by its
+      // `reason` field) means this account is off the portal allowlist.
+      if (status === 401 || status === 511 || (status === 403 && isPortalDenial(error.response.data))) {
         clearTokens();
         window.location.href = "/login";
       }

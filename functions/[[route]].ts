@@ -1,24 +1,26 @@
 /**
- * Portal access allowlist.
+ * Portal access allowlist — the ONLY place it exists.
  *
  * auth-service's /login-root authenticates any root user from any institute
  * (the institute_id we send is ignored on lookup), so a valid admin token from
- * any Vacademy workspace is a valid token here. The UI checks this list too,
- * but the UI is only a suggestion — this proxy is the choke point every
- * super-admin API call has to pass through, so it enforces the same list.
+ * any Vacademy workspace is a valid token here. This Worker is the choke point
+ * every super-admin API call passes through, so it is where access is decided.
  *
- * Override with the PORTAL_ALLOWED_USERS environment variable in the Cloudflare
- * Pages project (comma separated). Keep it in sync with
- * VITE_PORTAL_ALLOWED_USERS, which the frontend build reads.
+ * The list comes from the PORTAL_ALLOWED_USERS secret on the Cloudflare Pages
+ * project (comma separated, e.g. "alice_admin,bob_support"). It is
+ * deliberately NOT duplicated in src/ — that code ships to the browser, where
+ * nothing can stay secret, and a second copy would drift from this one.
+ *
+ * FAIL CLOSED: with the variable unset or empty, nobody gets in. A blank
+ * allowlist is a misconfiguration, and guessing a default would silently
+ * reopen the portal.
  */
-const DEFAULT_ALLOWED_USERS = "super_admin,support_vacademy";
-
 const LOGIN_PATH = "/auth-service/v1/login-root";
 const REFRESH_PATH = "/auth-service/v1/refresh-token";
 
 function allowedUsers(env) {
   return new Set(
-    String((env && env.PORTAL_ALLOWED_USERS) || DEFAULT_ALLOWED_USERS)
+    String((env && env.PORTAL_ALLOWED_USERS) || "")
       .split(",")
       .map((name) => name.trim().toLowerCase())
       .filter(Boolean)
@@ -49,14 +51,14 @@ function decodeJwtPayload(token) {
 }
 
 function denied(reason) {
-  return new Response(
-    JSON.stringify({
-      status: "error",
-      message: "Access denied. This account is not authorised for the Super Admin Portal.",
-      reason,
-    }),
-    { status: 403, headers: { "Content-Type": "application/json" } }
-  );
+  const message =
+    reason === "allowlist_not_configured"
+      ? "Portal access is not configured. Set PORTAL_ALLOWED_USERS on the Cloudflare Pages project."
+      : "Access denied. This account is not authorised for the Super Admin Portal.";
+  return new Response(JSON.stringify({ status: "error", message, reason }), {
+    status: 403,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 export async function onRequest(context) {
@@ -79,6 +81,7 @@ export async function onRequest(context) {
 
   if (isServiceRequest) {
     const allowed = allowedUsers(context.env);
+    const configured = allowed.size > 0;
 
     const method = context.request.method.toUpperCase();
     const inspectsBody =
@@ -101,12 +104,14 @@ export async function onRequest(context) {
       if (path === LOGIN_PATH) {
         // Refuse before auth-service ever sees it, so a token for a
         // non-portal account is never minted through this domain.
+        if (!configured) return denied("allowlist_not_configured");
         const username = parsed && (parsed.user_name || parsed.username);
         if (!username || !allowed.has(String(username).trim().toLowerCase())) {
           return denied("username_not_allowed");
         }
       } else {
         // The refresh token is a JWT whose subject is the username.
+        if (!configured) return denied("allowlist_not_configured");
         const claims = decodeJwtPayload(
           (parsed && (parsed.refresh_token || parsed.token)) || ""
         );
@@ -121,6 +126,7 @@ export async function onRequest(context) {
       // and the backend guards those endpoints itself.
       const auth = context.request.headers.get("Authorization") || "";
       if (auth.toLowerCase().startsWith("bearer ")) {
+        if (!configured) return denied("allowlist_not_configured");
         const claims = decodeJwtPayload(auth.slice(7).trim());
         const username = claims && claims.username;
         if (!username || !allowed.has(String(username).trim().toLowerCase())) {

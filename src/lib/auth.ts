@@ -1,7 +1,7 @@
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import { TOKEN_KEYS, AUTH_ENDPOINTS } from "./constants";
-import { isAllowedPortalUsername } from "./portal-access";
+import { portalDenialMessage } from "./portal-access";
 import type { DecodedToken } from "@/types/api";
 
 const COOKIE_OPTIONS: Cookies.CookieAttributes = {
@@ -38,29 +38,18 @@ export function isTokenExpired(token: string): boolean {
 }
 
 /**
- * Root flag *and* the portal allowlist. Every token this app trusts goes
- * through here, not just the one minted at login — a token issued by any other
- * Vacademy portal is a valid root token, and dropping it into the accessToken
- * cookie would otherwise walk straight past AuthGuard.
+ * Deliberately only checks that a session exists and is unexpired. Whether the
+ * ACCOUNT may be here is the proxy's call (PORTAL_ALLOWED_USERS), because this
+ * code is public and any list it carried would be too. A token belonging to
+ * some other account therefore renders the shell for a moment and is then
+ * signed out by the 403 handler in axios.ts on the first API call.
+ *
+ * Pure: never writes cookies, so it is safe to call during render.
  */
-export function isAllowedPortalToken(token: string): boolean {
-  const decoded = decodeToken(token);
-  if (!decoded) return false;
-  return decoded.is_root_user === true && isAllowedPortalUsername(decoded.username);
-}
-
-/** Pure: never writes cookies, so it is safe to call during render. */
 export function getCurrentUser(): DecodedToken | null {
   const token = getToken("accessToken");
   if (!token || isTokenExpired(token)) return null;
-  if (!isAllowedPortalToken(token)) return null;
   return decodeToken(token);
-}
-
-/** Drops a stored token that belongs to a non-portal account. Effect-safe. */
-export function discardDisallowedToken(): void {
-  const token = getToken("accessToken");
-  if (token && !isAllowedPortalToken(token)) clearTokens();
 }
 
 export async function login(
@@ -80,8 +69,9 @@ export async function login(
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Login failed");
+    // A rejected account is a 403 from our own proxy carrying a JSON body;
+    // surface its message rather than the raw JSON.
+    throw new Error(portalDenialMessage(await res.text()));
   }
 
   const data = await res.json();
@@ -110,8 +100,9 @@ export async function refreshAccessToken(): Promise<string | null> {
     const data = await res.json();
     const newAccess = data.accessToken || data.access_token;
     const newRefresh = data.refreshToken || data.refresh_token;
-    // A refresh mints a brand new token, so the allowlist is re-checked here too.
-    if (!newAccess || !isAllowedPortalToken(newAccess)) {
+    // The proxy validates the refresh token's subject against the allowlist, so
+    // a non-ok response above has already covered a de-listed account.
+    if (!newAccess) {
       clearTokens();
       return null;
     }
