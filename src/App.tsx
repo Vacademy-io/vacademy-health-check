@@ -9,7 +9,9 @@ const InstituteDetailPage = lazy(() => import("@/pages/InstituteDetailPage"));
 const CreditsPage = lazy(() => import("@/pages/CreditsPage"));
 const ActivityPage = lazy(() => import("@/pages/ActivityPage"));
 const PulsePage = lazy(() => import("@/pages/PulsePage"));
+const PerfPage = lazy(() => import("@/pages/PerfPage"));
 const UsagePage = lazy(() => import("@/pages/UsagePage"));
+const AiSettingsPage = lazy(() => import("@/pages/AiSettingsPage"));
 const CallsPage = lazy(() => import("@/pages/CallsPage"));
 const HealthPage = lazy(() => import("@/pages/HealthPage"));
 const StatusPage = lazy(() => import("@/pages/StatusPage"));
@@ -56,8 +58,10 @@ function App() {
           <Route path="institutes/:id" element={<InstituteDetailPage />} />
           <Route path="credits" element={<CreditsPage />} />
           <Route path="pulse" element={<PulsePage />} />
+          <Route path="performance" element={<PerfPage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="usage" element={<UsagePage />} />
+          <Route path="ai-settings" element={<AiSettingsPage />} />
           <Route path="calls" element={<CallsPage />} />
           <Route path="health" element={<HealthPage />} />
           <Route path="admin/status" element={<StatusAdminPage />} />

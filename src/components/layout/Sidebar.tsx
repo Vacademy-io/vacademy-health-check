@@ -7,6 +7,7 @@ import {
   Activity,
   Brain,
   HeartPulse,
+  Timer,
   Gauge,
   Sparkles,
   KeyRound,
@@ -22,6 +23,7 @@ import {
   BookOpen,
   Milestone,
   AppWindow,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +39,9 @@ const navSections: Array<{
       { to: "/credits", label: "Credits", icon: CreditCard },
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/usage", label: "AI Usage", icon: Brain },
+      { to: "/ai-settings", label: "AI Settings", icon: SlidersHorizontal },
       { to: "/calls", label: "Calls", icon: PhoneCall },
+      { to: "/performance", label: "Experienced Perf", icon: Timer },
       { to: "/health", label: "System Health", icon: HeartPulse },
       { to: "/admin/status", label: "Status", icon: Megaphone },
       { to: "/broadcasts", label: "Broadcasts", icon: Radio },
