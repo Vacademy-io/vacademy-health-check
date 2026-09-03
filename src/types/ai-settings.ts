@@ -13,6 +13,8 @@ export interface AiSettingEntry {
   options: string[];
   value: string | boolean | null;
   default: string | boolean | null;
+  /** What the ai-service replica that answered resolves right now (its cache). */
+  effective?: string | boolean | null;
   /** "portal" when an operator set it here; "default" when the env default applies. */
   source: "portal" | "default";
   updated_by: string | null;
@@ -36,10 +38,21 @@ export interface TtsProviderOption {
   default_voice_example: string;
 }
 
+export interface AiSettingsCacheStatus {
+  loaded: boolean;
+  load_failed: boolean;
+  last_error: string | null;
+  age_seconds: number | null;
+  loaded_at: string | null;
+  ttl_seconds: number;
+  override_keys: string[];
+}
+
 export interface AiSettingsResponse {
   settings: AiSettingEntry[];
   catalog: {
     llm_models: LlmModelOption[];
     tts_providers: TtsProviderOption[];
   };
+  cache?: AiSettingsCacheStatus;
 }

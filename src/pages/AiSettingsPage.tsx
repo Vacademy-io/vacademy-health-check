@@ -226,6 +226,13 @@ function SettingRow({
           </p>
         )}
         <p className="mt-1 font-mono text-[11px] text-muted-foreground/70">{entry.key}</p>
+        {entry.effective !== undefined && String(entry.effective ?? "") !== String(entry.value ?? "") && (
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-amber-700">
+            <AlertCircle className="h-3 w-3" />
+            ai-service is currently using <span className="font-mono">{String(entry.effective ?? "—")}</span>
+            {" "}— saved value not in effect yet
+          </p>
+        )}
       </div>
       <div className="flex flex-col items-start gap-2 sm:items-end">
         <div className="flex items-center gap-2">
@@ -303,6 +310,33 @@ export default function AiSettingsPage() {
             <AlertCircle className="h-4 w-4" />
             Could not load settings. If ai-service was deployed before the V493 migration ran, the
             table doesn't exist yet — the service keeps serving env defaults in the meantime.
+          </CardContent>
+        </Card>
+      )}
+
+      {data?.cache && (
+        <Card className={cn("mb-6", data.cache.load_failed ? "border-destructive/50" : "border-emerald-500/30")}>
+          <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
+            {data.cache.load_failed ? (
+              <>
+                <span className="inline-flex items-center gap-1 font-medium text-destructive">
+                  <AlertCircle className="h-4 w-4" /> ai-service could not read these settings
+                </span>
+                <span className="text-muted-foreground">
+                  It is serving environment defaults. Last error: <span className="font-mono">{data.cache.last_error ?? "unknown"}</span>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
+                  <Check className="h-4 w-4" /> ai-service is reading these settings
+                </span>
+                <span className="text-muted-foreground">
+                  {data.cache.override_keys.length} override{data.cache.override_keys.length === 1 ? "" : "s"} active
+                  {data.cache.age_seconds !== null && ` · refreshed ${Math.round(data.cache.age_seconds)}s ago (every ${data.cache.ttl_seconds}s)`}
+                </span>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
