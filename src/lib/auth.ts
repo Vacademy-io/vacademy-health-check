@@ -1,6 +1,7 @@
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import { TOKEN_KEYS, AUTH_ENDPOINTS } from "./constants";
+import { isAllowedPortalUsername } from "./portal-access";
 import type { DecodedToken } from "@/types/api";
 
 const COOKIE_OPTIONS: Cookies.CookieAttributes = {
@@ -36,15 +37,30 @@ export function isTokenExpired(token: string): boolean {
   return decoded.exp * 1000 < Date.now();
 }
 
-export function isSuperAdmin(token: string): boolean {
+/**
+ * Root flag *and* the portal allowlist. Every token this app trusts goes
+ * through here, not just the one minted at login — a token issued by any other
+ * Vacademy portal is a valid root token, and dropping it into the accessToken
+ * cookie would otherwise walk straight past AuthGuard.
+ */
+export function isAllowedPortalToken(token: string): boolean {
   const decoded = decodeToken(token);
-  return decoded?.is_root_user === true;
+  if (!decoded) return false;
+  return decoded.is_root_user === true && isAllowedPortalUsername(decoded.username);
 }
 
+/** Pure: never writes cookies, so it is safe to call during render. */
 export function getCurrentUser(): DecodedToken | null {
   const token = getToken("accessToken");
   if (!token || isTokenExpired(token)) return null;
+  if (!isAllowedPortalToken(token)) return null;
   return decodeToken(token);
+}
+
+/** Drops a stored token that belongs to a non-portal account. Effect-safe. */
+export function discardDisallowedToken(): void {
+  const token = getToken("accessToken");
+  if (token && !isAllowedPortalToken(token)) clearTokens();
 }
 
 export async function login(
@@ -94,6 +110,11 @@ export async function refreshAccessToken(): Promise<string | null> {
     const data = await res.json();
     const newAccess = data.accessToken || data.access_token;
     const newRefresh = data.refreshToken || data.refresh_token;
+    // A refresh mints a brand new token, so the allowlist is re-checked here too.
+    if (!newAccess || !isAllowedPortalToken(newAccess)) {
+      clearTokens();
+      return null;
+    }
     setTokens(newAccess, newRefresh || refreshToken);
     return newAccess;
   } catch {
