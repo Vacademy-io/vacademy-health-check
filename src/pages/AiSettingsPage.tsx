@@ -13,8 +13,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AlertCircle, Check, Loader2, RotateCcw } from "lucide-react";
-import { useAiSettings, useResetAiSetting, useUpdateAiSetting } from "@/services/ai-settings-api";
-import type { AiSettingEntry, AiSettingsResponse } from "@/types/ai-settings";
+import {
+  useAiSettings,
+  useResetAiSetting,
+  useUpdateAiSetting,
+  useUpdateUseCaseDefault,
+  useUseCaseDefaults,
+} from "@/services/ai-settings-api";
+import type { AiSettingEntry, AiSettingsResponse, ModelOption, UseCaseDefault } from "@/types/ai-settings";
 import { cn } from "@/lib/utils";
 
 /** Sentinel for "no override" in a Select — Radix rejects an empty-string item value. */
@@ -111,16 +117,21 @@ function SettingRow({
     });
   };
 
+  // Which slice of the registry this setting may pick from.
+  const models = useMemo(
+    () => (entry.catalog === "image" ? (catalog.image_models ?? []) : catalog.llm_models),
+    [entry.catalog, catalog.image_models, catalog.llm_models]
+  );
   // Group models by provider so a long registry stays scannable.
   const modelGroups = useMemo(() => {
-    const groups = new Map<string, typeof catalog.llm_models>();
-    for (const m of catalog.llm_models) {
+    const groups = new Map<string, typeof models>();
+    for (const m of models) {
       const list = groups.get(m.provider) ?? [];
       list.push(m);
       groups.set(m.provider, list);
     }
     return Array.from(groups.entries());
-  }, [catalog.llm_models]);
+  }, [models]);
 
   let control: ReactNode;
   const strValue = typeof entry.value === "string" ? entry.value : "";
@@ -130,7 +141,7 @@ function SettingRow({
       <Toggle checked={Boolean(entry.value)} disabled={busy} onChange={(next) => commit(next)} />
     );
   } else if (entry.type === "model") {
-    const known = catalog.llm_models.some((m) => m.model_id === strValue);
+    const known = models.some((m) => m.model_id === strValue);
     control = (
       <Select
         value={strValue ? strValue : BLANK}
@@ -141,7 +152,7 @@ function SettingRow({
           <SelectValue placeholder="Choose a model" />
         </SelectTrigger>
         <SelectContent className="max-h-80">
-          {entry.nullable && <SelectItem value={BLANK}>Same as chatbot model</SelectItem>}
+          {entry.nullable && <SelectItem value={BLANK}>{entry.blank_label ?? "Same as chatbot model"}</SelectItem>}
           {/* The current value may be an env default that isn't in the registry — keep it selectable. */}
           {strValue && !known && (
             <SelectItem value={strValue}>
@@ -167,7 +178,7 @@ function SettingRow({
       </Select>
     );
   } else if (entry.type === "enum") {
-    const isTts = entry.key === "chatbot.voice.tts_provider";
+    const isTts = entry.key === "chatbot.voice.tts_provider" || entry.key === "tutor.voice.provider";
     control = (
       <Select value={strValue} disabled={busy} onValueChange={(v) => commit(v)}>
         <SelectTrigger className="w-full sm:w-[420px]">
@@ -208,7 +219,7 @@ function SettingRow({
   }
 
   const ttsMeta =
-    entry.key === "chatbot.voice.tts_provider"
+    entry.key === "chatbot.voice.tts_provider" || entry.key === "tutor.voice.provider"
       ? catalog.tts_providers.find((p) => p.id === strValue)
       : undefined;
 
@@ -268,12 +279,113 @@ function SettingRow({
   );
 }
 
+/** Which registry category a pipeline use case draws its models from. */
+function categoryForUseCase(useCase: string): string {
+  if (useCase === "image" || useCase.endsWith("_figure")) return "image";
+  if (useCase.startsWith("video")) return "video";
+  if (useCase === "embedding") return "embedding";
+  if (useCase === "tts") return "tts";
+  return "llm";
+}
+
+function UseCaseDefaultRow({ row, allModels }: { row: UseCaseDefault; allModels: ModelOption[] }) {
+  const update = useUpdateUseCaseDefault();
+  const [status, setStatus] = useState<Status>(null);
+  const category = categoryForUseCase(row.use_case);
+  const options = useMemo(
+    () =>
+      allModels.filter((m) =>
+        category === "llm"
+          ? !["image", "video", "embedding", "tts"].includes(m.category)
+          : m.category === category
+      ),
+    [allModels, category]
+  );
+  const commit = (field: "default_model_id" | "fallback_model_id", value: string | null) => {
+    setStatus(null);
+    update.mutate(
+      { useCase: row.use_case, [field]: value },
+      {
+        onSuccess: () => setStatus({ kind: "saved", text: "Saved" }),
+        onError: (err) => {
+          const detail =
+            (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+            (err as Error).message;
+          setStatus({ kind: "error", text: detail || "Failed to save" });
+        },
+      }
+    );
+  };
+  const pick = (field: "default_model_id" | "fallback_model_id", value: string | null, allowBlank: boolean) => {
+    const known = value && options.some((m) => m.model_id === value);
+    return (
+      <Select
+        value={value ? value : BLANK}
+        disabled={update.isPending}
+        onValueChange={(v) => commit(field, v === BLANK ? null : v)}
+      >
+        <SelectTrigger className="w-full sm:w-[300px]">
+          <SelectValue placeholder="Choose a model" />
+        </SelectTrigger>
+        <SelectContent className="max-h-80">
+          {allowBlank && <SelectItem value={BLANK}>None</SelectItem>}
+          {value && !known && (
+            <SelectItem value={value}>
+              <span className="font-mono text-xs">{value}</span>
+              <span className="ml-2 text-xs text-muted-foreground">(not in registry)</span>
+            </SelectItem>
+          )}
+          {options.map((m) => (
+            <SelectItem key={m.model_id} value={m.model_id}>
+              <span>{m.name}</span>
+              <span className="ml-2 font-mono text-xs text-muted-foreground">{m.model_id}</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  };
+  return (
+    <div className="flex flex-col gap-3 border-b py-4 last:border-b-0 sm:flex-row sm:items-start sm:justify-between">
+      <div className="max-w-md">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-sm font-medium">{row.use_case}</span>
+          <Badge variant="outline">{category}</Badge>
+        </div>
+        {row.description && <p className="mt-1 text-sm text-muted-foreground">{row.description}</p>}
+        {status && (
+          <p
+            className={cn(
+              "mt-1 inline-flex items-center gap-1 text-xs",
+              status.kind === "saved" ? "text-emerald-600" : "text-destructive"
+            )}
+          >
+            {status.kind === "saved" ? <Check className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+            {status.text}
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          Default
+          {pick("default_model_id", row.default_model_id, false)}
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          Fallback
+          {pick("fallback_model_id", row.fallback_model_id, true)}
+        </label>
+      </div>
+    </div>
+  );
+}
+
 export default function AiSettingsPage() {
   const { data, isLoading, isError, refetch } = useAiSettings();
+  const defaults = useUseCaseDefaults();
 
   const groups = useMemo(() => {
     if (!data) return [];
-    const order = ["chatbot", "voice", "rollout"];
+    const order = ["chatbot", "tutor", "images", "voice", "rollout"];
     const byGroup = new Map<string, { label: string; items: AiSettingEntry[] }>();
     for (const s of data.settings) {
       const g = byGroup.get(s.group) ?? { label: s.group_label, items: [] };
@@ -289,7 +401,7 @@ export default function AiSettingsPage() {
     <div>
       <PageHeader
         title="AI Settings"
-        description="Platform-wide switches for the learner chatbot and voice call. Changes reach every ai-service replica within about 30 seconds — no deploy."
+        description="Platform-wide model choices for the learner chatbot, the Live AI Tutor, image generation and the voice call, plus the per-use-case defaults of the course pipeline. Changes reach every ai-service replica within about 30 seconds — no deploy."
         actions={
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             Refresh
@@ -359,6 +471,20 @@ export default function AiSettingsPage() {
                     than going silent.
                   </CardDescription>
                 )}
+                {key === "tutor" && (
+                  <CardDescription>
+                    Compile = turning a slide into a teaching plan (per slide, at course creation or
+                    "Prepare for teaching"). Live = every learner turn during a lesson. Institutes and
+                    courses can override the models from their Tutor Mode settings.
+                  </CardDescription>
+                )}
+                {key === "images" && (
+                  <CardDescription>
+                    Image models come from the registry ({data.catalog.image_models?.length ?? 0} active).
+                    Dedicated image models (Qwen, Seedream, FLUX) take 30–70 s per picture; Gemini
+                    image models a few seconds. Applies to new generations only.
+                  </CardDescription>
+                )}
               </CardHeader>
               <CardContent className="pt-0">
                 {group.items.map((entry) => (
@@ -367,6 +493,32 @@ export default function AiSettingsPage() {
               </CardContent>
             </Card>
           ))}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Course pipeline defaults</CardTitle>
+              <CardDescription>
+                The default and fallback model for each use case in the models registry
+                (ai_model_defaults): course outline and content, questions, evaluation, knowledge
+                base, video, embeddings. The fallback is tried when the default errors. Root admin
+                only; applies to new requests at once.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {defaults.isLoading && <Skeleton className="h-24 w-full" />}
+              {defaults.isError && (
+                <p className="flex items-center gap-2 py-4 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" /> Could not load the use-case defaults.
+                </p>
+              )}
+              {defaults.data?.defaults
+                .slice()
+                .sort((a, b) => a.use_case.localeCompare(b.use_case))
+                .map((row) => (
+                  <UseCaseDefaultRow key={row.use_case} row={row} allModels={data.catalog.all_models ?? []} />
+                ))}
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

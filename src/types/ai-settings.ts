@@ -10,6 +10,10 @@ export interface AiSettingEntry {
   description: string;
   type: AiSettingType;
   nullable: boolean;
+  /** For "model" settings: which slice of the registry to offer. */
+  catalog?: "llm" | "image";
+  /** What a blank value means for nullable settings. */
+  blank_label?: string;
   options: string[];
   value: string | boolean | null;
   default: string | boolean | null;
@@ -48,11 +52,37 @@ export interface AiSettingsCacheStatus {
   override_keys: string[];
 }
 
+export interface ModelOption {
+  model_id: string;
+  name: string;
+  provider: string;
+  category: string;
+  tier?: string | null;
+  is_free: boolean;
+}
+
 export interface AiSettingsResponse {
   settings: AiSettingEntry[];
   catalog: {
     llm_models: LlmModelOption[];
+    /** ai_models rows with category = image. */
+    image_models?: LlmModelOption[];
+    /** Every active model with its category (for the use-case defaults editor). */
+    all_models?: ModelOption[];
     tts_providers: TtsProviderOption[];
   };
   cache?: AiSettingsCacheStatus;
+}
+
+/** One row of ai_model_defaults: the model each pipeline stage uses by default. */
+export interface UseCaseDefault {
+  use_case: string;
+  default_model_id: string;
+  fallback_model_id: string | null;
+  free_tier_model_id: string | null;
+  description: string | null;
+}
+
+export interface UseCaseDefaultsResponse {
+  defaults: UseCaseDefault[];
 }
