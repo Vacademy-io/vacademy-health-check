@@ -97,6 +97,10 @@ function SettingRow({
     entry.type === "model" && typeof entry.value === "string" && entry.value
       ? cache?.model_health?.[entry.value]
       : undefined;
+  const note =
+    entry.type === "model" && typeof entry.value === "string" && entry.value
+      ? cache?.model_notes?.[entry.value]
+      : undefined;
   const update = useUpdateAiSetting();
   const reset = useResetAiSetting();
   const [status, setStatus] = useState<Status>(null);
@@ -272,6 +276,12 @@ function SettingRow({
           </p>
         )}
         <p className="mt-1 font-mono text-[11px] text-muted-foreground/70">{entry.key}</p>
+        {note && !health && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            <Check className="mr-1 inline h-3 w-3 text-emerald-600" />
+            <span className="font-mono">{entry.value}</span> — {note}
+          </p>
+        )}
         {health && (
           <p className="mt-1 text-xs text-destructive">
             <AlertCircle className="mr-1 inline h-3 w-3" />

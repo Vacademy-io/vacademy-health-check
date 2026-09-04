@@ -56,6 +56,8 @@ export interface ModelHealthEntry {
 export interface AiSettingsCacheStatus {
   /** Per model id: why recent calls failed on this replica (cleared on success). */
   model_health?: Record<string, ModelHealthEntry>;
+  /** Per model id: informational notes, e.g. "runs with reasoning on". */
+  model_notes?: Record<string, string>;
   loaded: boolean;
   load_failed: boolean;
   last_error: string | null;
