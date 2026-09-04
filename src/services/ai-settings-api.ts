@@ -4,12 +4,48 @@ import { API_PREFIXES } from "@/lib/constants";
 import type {
   AiSettingEntry,
   AiSettingsResponse,
+  ToolPricingEntry,
+  ToolPricingResponse,
   UseCaseDefault,
   UseCaseDefaultsResponse,
 } from "@/types/ai-settings";
 
 const QUERY_KEY = ["super-admin", "ai-settings"] as const;
 const DEFAULTS_KEY = ["super-admin", "ai-model-defaults"] as const;
+const PRICING_KEY = ["super-admin", "tool-pricing"] as const;
+
+/** ai_tool_pricing: what every metered tool charges, in credits. */
+export function useToolPricing() {
+  return useQuery({
+    queryKey: PRICING_KEY,
+    queryFn: async () => {
+      const { data } = await api.get<ToolPricingResponse>(`${API_PREFIXES.AI}/tool-pricing`);
+      return data;
+    },
+  });
+}
+
+export function useUpdateToolPricing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      toolKey,
+      ...body
+    }: {
+      toolKey: string;
+      flat_base_credits?: number;
+      per_unit_credits?: number;
+      is_active?: boolean;
+    }) => {
+      const { data } = await api.put<ToolPricingEntry>(
+        `${API_PREFIXES.AI}/tool-pricing/${encodeURIComponent(toolKey)}`,
+        body
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: PRICING_KEY }),
+  });
+}
 /** The models registry router (ai-service /models/v2) — root admin for writes. */
 const MODELS_PREFIX = "/ai-service/models/v2";
 
@@ -59,7 +95,7 @@ export function useAiSettings() {
 export function useUpdateAiSetting() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: string | boolean | null }) => {
+    mutationFn: async ({ key, value }: { key: string; value: string | boolean | number | null }) => {
       const { data } = await api.put<AiSettingEntry>(
         `${API_PREFIXES.AI}/ai-settings/${encodeURIComponent(key)}`,
         { value }

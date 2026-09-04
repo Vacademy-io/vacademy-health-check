@@ -1,6 +1,6 @@
 // Platform AI runtime settings (ai-service super-admin)
 
-export type AiSettingType = "model" | "enum" | "bool" | "string";
+export type AiSettingType = "model" | "enum" | "bool" | "string" | "number";
 
 export interface AiSettingEntry {
   key: string;
@@ -14,11 +14,14 @@ export interface AiSettingEntry {
   catalog?: "llm" | "image";
   /** What a blank value means for nullable settings. */
   blank_label?: string;
+  /** Bounds for "number" settings. */
+  min_value?: number | null;
+  max_value?: number | null;
   options: string[];
-  value: string | boolean | null;
-  default: string | boolean | null;
+  value: string | boolean | number | null;
+  default: string | boolean | number | null;
   /** What the ai-service replica that answered resolves right now (its cache). */
-  effective?: string | boolean | null;
+  effective?: string | boolean | number | null;
   /** "portal" when an operator set it here; "default" when the env default applies. */
   source: "portal" | "default";
   updated_by: string | null;
@@ -72,6 +75,25 @@ export interface AiSettingsResponse {
     tts_providers: TtsProviderOption[];
   };
   cache?: AiSettingsCacheStatus;
+}
+
+/** One row of ai_tool_pricing (merged with code defaults): what a tool charges. */
+export interface ToolPricingEntry {
+  tool_key: string;
+  label: string;
+  request_type: string;
+  flat_base_credits: number;
+  per_unit_credits: number;
+  unit_field: "questions" | "audio_minutes" | "chars" | "flat" | "pages" | string;
+  params: Record<string, unknown>;
+  source: "db" | "default";
+  is_active: boolean;
+  updated_at: string | null;
+  has_default: boolean;
+}
+
+export interface ToolPricingResponse {
+  tools: ToolPricingEntry[];
 }
 
 /** One row of ai_model_defaults: the model each pipeline stage uses by default. */

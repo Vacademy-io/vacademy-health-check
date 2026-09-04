@@ -16,11 +16,19 @@ import { AlertCircle, Check, Loader2, RotateCcw } from "lucide-react";
 import {
   useAiSettings,
   useResetAiSetting,
+  useToolPricing,
   useUpdateAiSetting,
+  useUpdateToolPricing,
   useUpdateUseCaseDefault,
   useUseCaseDefaults,
 } from "@/services/ai-settings-api";
-import type { AiSettingEntry, AiSettingsResponse, ModelOption, UseCaseDefault } from "@/types/ai-settings";
+import type {
+  AiSettingEntry,
+  AiSettingsResponse,
+  ModelOption,
+  ToolPricingEntry,
+  UseCaseDefault,
+} from "@/types/ai-settings";
 import { cn } from "@/lib/utils";
 
 /** Sentinel for "no override" in a Select — Radix rejects an empty-string item value. */
@@ -90,7 +98,7 @@ function SettingRow({
 
   const busy = update.isPending || reset.isPending;
 
-  const commit = (value: string | boolean | null) => {
+  const commit = (value: string | boolean | number | null) => {
     setStatus(null);
     update.mutate(
       { key: entry.key, value },
@@ -198,6 +206,27 @@ function SettingRow({
           })}
         </SelectContent>
       </Select>
+    );
+  } else if (entry.type === "number") {
+    const current = entry.value === null || entry.value === undefined ? "" : String(entry.value);
+    control = (
+      <div className="flex w-full items-center gap-2 sm:w-[420px]">
+        <Input
+          type="number"
+          value={draft || current}
+          disabled={busy}
+          min={entry.min_value ?? undefined}
+          max={entry.max_value ?? undefined}
+          step="any"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit(Number(draft || current));
+          }}
+        />
+        <Button size="sm" onClick={() => commit(Number(draft || current))} disabled={busy || !draft || draft === current}>
+          Save
+        </Button>
+      </div>
     );
   } else {
     control = (
@@ -379,9 +408,76 @@ function UseCaseDefaultRow({ row, allModels }: { row: UseCaseDefault; allModels:
   );
 }
 
+const UNIT_LABEL: Record<string, string> = {
+  flat: "per call",
+  audio_minutes: "per minute",
+  questions: "per question",
+  chars: "per unit of characters",
+  pages: "per page",
+};
+
+function ToolPricingRow({ row }: { row: ToolPricingEntry }) {
+  const update = useUpdateToolPricing();
+  const [flat, setFlat] = useState(String(row.flat_base_credits));
+  const [perUnit, setPerUnit] = useState(String(row.per_unit_credits));
+  const [status, setStatus] = useState<Status>(null);
+  const dirty = Number(flat) !== row.flat_base_credits || Number(perUnit) !== row.per_unit_credits;
+  const save = () => {
+    setStatus(null);
+    update.mutate(
+      { toolKey: row.tool_key, flat_base_credits: Number(flat), per_unit_credits: Number(perUnit) },
+      {
+        onSuccess: () => setStatus({ kind: "saved", text: "Saved — applies to the next request" }),
+        onError: (err) => {
+          const detail =
+            (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+            (err as Error).message;
+          setStatus({ kind: "error", text: detail || "Failed to save" });
+        },
+      }
+    );
+  };
+  return (
+    <div className="flex flex-col gap-3 border-b py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+      <div className="max-w-md">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium">{row.label}</span>
+          <Badge variant={row.source === "db" ? "secondary" : "outline"}>
+            {row.source === "db" ? "Set in DB" : "Code default"}
+          </Badge>
+        </div>
+        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground/70">
+          {row.tool_key} · {row.unit_field === "flat" ? "flat" : `base + rate ${UNIT_LABEL[row.unit_field] ?? row.unit_field}`}
+        </p>
+        {status && (
+          <p className={cn("mt-1 text-xs", status.kind === "saved" ? "text-emerald-600" : "text-destructive")}>
+            {status.text}
+          </p>
+        )}
+      </div>
+      <div className="flex items-end gap-2">
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          {row.unit_field === "flat" ? "Credits per call" : "Base credits"}
+          <Input type="number" min={0} step="any" value={flat} onChange={(e) => setFlat(e.target.value)} className="w-28" />
+        </label>
+        {row.unit_field !== "flat" && (
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Credits {UNIT_LABEL[row.unit_field] ?? "per unit"}
+            <Input type="number" min={0} step="any" value={perUnit} onChange={(e) => setPerUnit(e.target.value)} className="w-28" />
+          </label>
+        )}
+        <Button size="sm" onClick={save} disabled={!dirty || update.isPending}>
+          {update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function AiSettingsPage() {
   const { data, isLoading, isError, refetch } = useAiSettings();
   const defaults = useUseCaseDefaults();
+  const pricing = useToolPricing();
 
   const groups = useMemo(() => {
     if (!data) return [];
@@ -493,6 +589,32 @@ export default function AiSettingsPage() {
               </CardContent>
             </Card>
           ))}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Credits &amp; pricing</CardTitle>
+              <CardDescription>
+                What every metered tool charges, in credits (ai_tool_pricing). Charges are
+                max(this rate, the model's actual token cost), so a rate is a floor. Live AI Tutor
+                rows first: compile per slide, image per picture, voice lesson per started minute.
+                Applies to the next request — no deploy.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {pricing.isLoading && <Skeleton className="h-24 w-full" />}
+              {pricing.isError && (
+                <p className="flex items-center gap-2 py-4 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" /> Could not load tool pricing.
+                </p>
+              )}
+              {pricing.data?.tools
+                .slice()
+                .sort((a, b) => Number(b.tool_key.startsWith("tutor_")) - Number(a.tool_key.startsWith("tutor_")) || a.tool_key.localeCompare(b.tool_key))
+                .map((row) => (
+                  <ToolPricingRow key={row.tool_key} row={row} />
+                ))}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
