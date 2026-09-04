@@ -87,10 +87,16 @@ function Toggle({
 function SettingRow({
   entry,
   catalog,
+  cache,
 }: {
   entry: AiSettingEntry;
   catalog: AiSettingsResponse["catalog"];
+  cache?: AiSettingsResponse["cache"];
 }) {
+  const health =
+    entry.type === "model" && typeof entry.value === "string" && entry.value
+      ? cache?.model_health?.[entry.value]
+      : undefined;
   const update = useUpdateAiSetting();
   const reset = useResetAiSetting();
   const [status, setStatus] = useState<Status>(null);
@@ -266,6 +272,23 @@ function SettingRow({
           </p>
         )}
         <p className="mt-1 font-mono text-[11px] text-muted-foreground/70">{entry.key}</p>
+        {health && (
+          <p className="mt-1 text-xs text-destructive">
+            <AlertCircle className="mr-1 inline h-3 w-3" />
+            {health.failures} recent call{health.failures === 1 ? "" : "s"} to{" "}
+            <span className="font-mono">{entry.value}</span> failed
+            {health.fallback_model && (
+              <>
+                {" "}— ai-service is answering with <span className="font-mono">{health.fallback_model}</span> instead
+              </>
+            )}
+            {health.last_error && (
+              <>
+                . Last error: <span className="font-mono">{health.last_error}</span>
+              </>
+            )}
+          </p>
+        )}
         {entry.effective !== undefined && String(entry.effective ?? "") !== String(entry.value ?? "") && (
           <p className="mt-1 inline-flex items-center gap-1 text-xs text-amber-700">
             <AlertCircle className="h-3 w-3" />
@@ -584,7 +607,7 @@ export default function AiSettingsPage() {
               </CardHeader>
               <CardContent className="pt-0">
                 {group.items.map((entry) => (
-                  <SettingRow key={entry.key} entry={entry} catalog={data.catalog} />
+                  <SettingRow key={entry.key} entry={entry} catalog={data.catalog} cache={data.cache} />
                 ))}
               </CardContent>
             </Card>

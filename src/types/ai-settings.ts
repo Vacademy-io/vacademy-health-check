@@ -45,7 +45,17 @@ export interface TtsProviderOption {
   default_voice_example: string;
 }
 
+export interface ModelHealthEntry {
+  failures: number;
+  last_error?: string;
+  last_failed_at?: string;
+  /** Model ai-service answered with instead, when it fell back. */
+  fallback_model?: string;
+}
+
 export interface AiSettingsCacheStatus {
+  /** Per model id: why recent calls failed on this replica (cleared on success). */
+  model_health?: Record<string, ModelHealthEntry>;
   loaded: boolean;
   load_failed: boolean;
   last_error: string | null;
