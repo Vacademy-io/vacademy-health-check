@@ -24,6 +24,7 @@ import {
   Milestone,
   AppWindow,
   SlidersHorizontal,
+  UserSquare2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +41,7 @@ const navSections: Array<{
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/usage", label: "AI Usage", icon: Brain },
       { to: "/ai-settings", label: "AI Settings", icon: SlidersHorizontal },
+      { to: "/tutor-assets", label: "Tutor Avatars & Voices", icon: UserSquare2 },
       { to: "/calls", label: "Calls", icon: PhoneCall },
       { to: "/performance", label: "Experienced Perf", icon: Timer },
       { to: "/health", label: "System Health", icon: HeartPulse },
