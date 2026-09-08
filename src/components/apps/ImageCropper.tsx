@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { paintPreview, type CropTransform, type LoadedImage } from "@/lib/image-processing";
 import type { AssetSpec } from "@/lib/platform-requirements";
+import { DeviceFrame } from "@/components/apps/DeviceFrame";
+import { CHECKER, frameWidthForHeight, type DeviceKind } from "@/lib/device-frames";
 
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 8;
+const MAX_PREVIEW_HEIGHT = 460;
 
 interface CropCanvasProps {
   image: LoadedImage | null;
@@ -14,20 +17,23 @@ interface CropCanvasProps {
   transform: CropTransform;
   onTransform: (next: CropTransform) => void;
   className?: string;
+  /** Draw the crop inside the hardware it ships to. "plain" keeps the bare checkerboard. */
+  frame?: DeviceKind;
 }
 
 /**
  * The crop canvas (§8). Drag to pan, wheel to zoom, and what you see is exactly the file that
  * gets generated — the preview runs the same painter as the exporter, only scaled down.
  */
-export function CropCanvas({ image, spec, transform, onTransform, className }: CropCanvasProps) {
+export function CropCanvas({ image, spec, transform, onTransform, className, frame = "plain" }: CropCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scaleRef = useRef(1);
   const dragRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [displayWidth, setDisplayWidth] = useState(0);
 
-  // Track the available width so the canvas fills the panel without ever overflowing it.
+  // Measured on the element that actually holds the canvas — inside any bezel and padding — so the
+  // canvas fills the screen area exactly instead of overflowing it by the chrome's width.
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -40,12 +46,12 @@ export function CropCanvas({ image, spec, transform, onTransform, className }: C
   const repaint = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !image || displayWidth <= 0) return;
-    // Tall portrait targets would run off the screen at full panel width — cap by height instead.
-    const maxHeight = 460;
-    const widthByHeight = (maxHeight / spec.height) * spec.width;
-    const width = Math.min(displayWidth, widthByHeight);
-    scaleRef.current = paintPreview(canvas, image, spec, transform, width);
+    scaleRef.current = paintPreview(canvas, image, spec, transform, displayWidth);
   }, [image, spec, transform, displayWidth]);
+
+  // Tall portrait targets would run off the panel at full width, so cap the whole mock-up — chrome
+  // included — by height. The wrapper carries the cap; the measured screen inherits it.
+  const maxWidth = Math.round(frameWidthForHeight(frame, spec, MAX_PREVIEW_HEIGHT));
 
   useEffect(() => {
     repaint();
@@ -82,23 +88,41 @@ export function CropCanvas({ image, spec, transform, onTransform, className }: C
     onTransform({ ...transform, zoom: clampZoom(transform.zoom * factor) });
   }
 
+  const surface = (
+    <div ref={wrapRef} className="w-full">
+      {image ? (
+        <canvas
+          ref={canvasRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onWheel={onWheel}
+          className="block cursor-grab touch-none active:cursor-grabbing"
+        />
+      ) : (
+        // Keep the slot's own aspect ratio while it's empty, so the frame is already the right
+        // shape and the panel doesn't jump the moment a source is picked.
+        <div
+          className={cn(
+            "flex items-center justify-center px-4 text-center text-sm",
+            frame === "plain" ? "text-muted-foreground" : "text-white/60"
+          )}
+          style={{ aspectRatio: `${spec.width} / ${spec.height}` }}
+        >
+          Select a source image to start cropping
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div ref={wrapRef} className={cn("flex flex-col items-center gap-3", className)}>
-      <div className="flex w-full justify-center rounded-lg border bg-[repeating-conic-gradient(hsl(var(--muted))_0%_25%,transparent_0%_50%)] bg-[length:16px_16px] p-3">
-        {image ? (
-          <canvas
-            ref={canvasRef}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
-            onWheel={onWheel}
-            className="cursor-grab touch-none rounded shadow-sm active:cursor-grabbing"
-          />
+    <div className={cn("flex flex-col items-center gap-3", className)}>
+      <div className="w-full" style={{ maxWidth: `${maxWidth}px` }}>
+        {frame === "plain" ? (
+          <div className={cn("flex w-full justify-center rounded-lg border p-3", CHECKER)}>{surface}</div>
         ) : (
-          <div className="flex h-64 w-full items-center justify-center text-sm text-muted-foreground">
-            Select a source image to start cropping
-          </div>
+          <DeviceFrame kind={frame}>{surface}</DeviceFrame>
         )}
       </div>
       <p className="text-[11px] text-muted-foreground">Drag to reposition · Scroll to zoom</p>
