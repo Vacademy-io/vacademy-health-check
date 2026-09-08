@@ -13,6 +13,7 @@ const PerfPage = lazy(() => import("@/pages/PerfPage"));
 const UsagePage = lazy(() => import("@/pages/UsagePage"));
 const AiSettingsPage = lazy(() => import("@/pages/AiSettingsPage"));
 const TutorAssetsPage = lazy(() => import("@/pages/TutorAssetsPage"));
+const DemoTopicsPage = lazy(() => import("@/pages/DemoTopicsPage"));
 const CallsPage = lazy(() => import("@/pages/CallsPage"));
 const HealthPage = lazy(() => import("@/pages/HealthPage"));
 const StatusPage = lazy(() => import("@/pages/StatusPage"));
@@ -64,6 +65,7 @@ function App() {
           <Route path="usage" element={<UsagePage />} />
           <Route path="ai-settings" element={<AiSettingsPage />} />
           <Route path="tutor-assets" element={<TutorAssetsPage />} />
+          <Route path="demo-topics" element={<DemoTopicsPage />} />
           <Route path="calls" element={<CallsPage />} />
           <Route path="health" element={<HealthPage />} />
           <Route path="admin/status" element={<StatusAdminPage />} />
