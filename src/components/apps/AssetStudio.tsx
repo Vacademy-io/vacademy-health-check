@@ -5,9 +5,11 @@ import {
   CloudOff,
   Download,
   ImagePlus,
+  Layers,
   Loader2,
   Package,
   Save,
+  Smartphone,
   Sparkles,
   Trash2,
   Wand2,
@@ -19,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { DeviceFrame } from "@/components/apps/DeviceFrame";
 import { CropCanvas, CropControls } from "@/components/apps/ImageCropper";
 import { PLATFORM_ICONS } from "@/components/apps/StatusBadge";
 import {
@@ -38,6 +41,12 @@ import {
   type CropTransform,
   type LoadedImage,
 } from "@/lib/image-processing";
+import {
+  DEVICE_LABELS,
+  deviceForSpec,
+  frameWidthForHeight,
+  type DeviceKind,
+} from "@/lib/device-frames";
 import { assetSpecById, assetSpecsFor, type AssetSpec } from "@/lib/platform-requirements";
 import { newId } from "@/services/app-registry-api";
 import { uploadImage } from "@/services/app-registry-store";
@@ -52,7 +61,11 @@ import {
   type SourceImage,
 } from "@/types/app-registry";
 
-const MAX_SOURCES = 3;
+/**
+ * A guard against someone dropping a photo library in, not a store rule — every decoded source
+ * stays in memory. Store listings never need anywhere near this many.
+ */
+const MAX_SOURCES = 60;
 
 interface AssetStudioProps {
   app: AppRecord;
@@ -75,7 +88,7 @@ interface PendingResult {
 /**
  * Images & App Assets (§7) plus the professional cropper (§8) and validation (§9).
  *
- * Up to three source images go in; every store size comes out. Cropping is local canvas work —
+ * Source images go in; every store size comes out. Cropping is local canvas work —
  * instant, no round-trip — and only the finished asset is uploaded to media-service, so the whole
  * team sees the same artwork instead of a file on somebody's laptop.
  */
@@ -102,8 +115,11 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
   const [images, setImages] = useState<Record<string, LoadedImage | "error">>({});
   const [transforms, setTransforms] = useState<Record<string, CropTransform>>({});
   const [pending, setPending] = useState<PendingResult | null>(null);
-  const [busy, setBusy] = useState<null | "upload" | "generate" | "bulk" | "zip">(null);
+  const [busy, setBusy] = useState<null | "upload" | "generate" | "bulk" | "sources" | "zip">(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [preview, setPreview] = useState<GeneratedAsset | null>(null);
+  /** Mock-ups are decoration only — they are never painted into the generated file. */
+  const [framed, setFramed] = useState(true);
 
   /** Blobs produced this session, so bulk download never has to re-fetch from media-service. */
   const blobCache = useRef<Map<string, Blob>>(new Map());
@@ -111,23 +127,24 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
   const [localPreviews, setLocalPreviews] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Pull each source into an editable (untainted) image the canvas can export from.
+  // Only the selected source is pulled into an editable (untainted) image. With a dozen or more
+  // sources loaded, decoding every one up front would cost a dozen round-trips and hold every
+  // bitmap in memory for nothing — the thumbnails render straight from their URLs.
   useEffect(() => {
+    const item = app.sourceImages.find((s) => s.id === selectedSourceId);
+    if (!item || !item.url || images[item.id]) return;
     let cancelled = false;
-    for (const item of app.sourceImages) {
-      if (images[item.id] || !item.url) continue;
-      loadEditableImage(item.url)
-        .then((loaded) => {
-          if (!cancelled) setImages((m) => ({ ...m, [item.id]: loaded }));
-        })
-        .catch(() => {
-          if (!cancelled) setImages((m) => ({ ...m, [item.id]: "error" }));
-        });
-    }
+    loadEditableImage(item.url)
+      .then((loaded) => {
+        if (!cancelled) setImages((m) => ({ ...m, [item.id]: loaded }));
+      })
+      .catch(() => {
+        if (!cancelled) setImages((m) => ({ ...m, [item.id]: "error" }));
+      });
     return () => {
       cancelled = true;
     };
-  }, [app.sourceImages, images]);
+  }, [app.sourceImages, images, selectedSourceId]);
 
   const activeImage = images[selectedSourceId];
   const loadedImage = activeImage && activeImage !== "error" ? activeImage : null;
@@ -150,15 +167,21 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
     if (!files || files.length === 0 || !spec) return;
     const room = MAX_SOURCES - app.sourceImages.length;
     if (room <= 0) {
-      notify("error", `You already have ${MAX_SOURCES} source images. Remove one first.`);
+      notify("error", `That's ${MAX_SOURCES} source images already — remove a few before adding more.`);
       return;
     }
 
+    const queue = Array.from(files).slice(0, room);
+    if (queue.length < files.length) {
+      notify("info", `Taking the first ${queue.length} — that fills the ${MAX_SOURCES}-image limit.`);
+    }
+
     setBusy("upload");
+    setProgress({ done: 0, total: queue.length });
     const added: SourceImage[] = [];
     const loadedById: Record<string, LoadedImage> = {};
 
-    for (const file of Array.from(files).slice(0, room)) {
+    for (const file of queue) {
       try {
         const dataUrl = await readFileAsDataUrl(file);
         const loaded = await loadImage(dataUrl);
@@ -190,6 +213,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
       } catch {
         notify("error", `Could not read ${file.name}.`);
       }
+      setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
     }
 
     if (added.length > 0) {
@@ -199,6 +223,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
       notify("success", `Added ${added.length} source image${added.length > 1 ? "s" : ""}.`);
     }
     setBusy(null);
+    setProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -241,8 +266,11 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
     }
   }
 
-  async function saveAsset(result: PendingResult, silent = false): Promise<GeneratedAsset | null> {
-    const index = app.assets.filter((a) => a.platform === platform && a.specId === result.spec.id).length;
+  async function saveAsset(result: PendingResult, silent = false, indexHint?: number): Promise<GeneratedAsset | null> {
+    // A batch generates several files against the same slot before `app.assets` is updated, so the
+    // caller passes the running index — otherwise every file in the batch is named "…-1".
+    const index =
+      indexHint ?? app.assets.filter((a) => a.platform === platform && a.specId === result.spec.id).length;
     const filename = assetFileName(app.basics.name || app.basics.displayName, result.spec, index, result.format);
 
     let url = "";
@@ -293,6 +321,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
     if (!loadedImage) return;
     setBusy("bulk");
     const required = specs.filter((s) => s.required);
+    setProgress({ done: 0, total: required.length });
     const created: GeneratedAsset[] = [];
     let failures = 0;
 
@@ -316,14 +345,104 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
       } catch {
         failures++;
       }
+      setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
     }
 
     if (created.length > 0) onChange({ ...app, assets: [...app.assets, ...created] });
     setBusy(null);
+    setProgress(null);
+    const unsaved = created.filter((a) => !a.fileId).length;
     notify(
       failures === 0 ? "success" : "error",
       `Generated ${created.length} of ${required.length} required ${PLATFORM_LABELS[platform]} assets` +
-        (failures ? ` — ${failures} failed.` : ".")
+        (failures ? ` — ${failures} failed.` : ".") +
+        (unsaved ? ` ${unsaved} couldn't be saved to media-service — downloadable here, but not shared.` : "")
+    );
+  }
+
+  /** The editable form of a source, decoded on demand — only the selected one is preloaded. */
+  async function editableFor(item: SourceImage, cache: Map<string, LoadedImage>): Promise<LoadedImage | null> {
+    const known = images[item.id];
+    if (known && known !== "error") return known;
+    const cached = cache.get(item.id);
+    if (cached) return cached;
+    if (!item.url) return null;
+    try {
+      const loaded = await loadEditableImage(item.url);
+      cache.set(item.id, loaded);
+      return loaded;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Every source cropped into the *current* slot in one pass.
+   *
+   * Store listings want several screenshots at the same size — Play refuses to publish with fewer
+   * than two — so the real job is "turn these eight captures into eight phone screenshots", not
+   * "crop one image eight times". Stops at the store's own per-slot maximum.
+   */
+  async function generateFromAllSources() {
+    if (!spec || app.sourceImages.length === 0) return;
+    const have = app.assets.filter((a) => a.platform === platform && a.specId === spec.id).length;
+    const room = Math.max(0, spec.maxCount - have);
+    if (room === 0) {
+      notify("error", `${spec.label} already holds the ${spec.maxCount} the store accepts. Remove one first.`);
+      return;
+    }
+
+    const queue = app.sourceImages.slice(0, room);
+    setBusy("sources");
+    setProgress({ done: 0, total: queue.length });
+    const cache = new Map<string, LoadedImage>();
+    const created: GeneratedAsset[] = [];
+    let failures = 0;
+
+    for (const item of queue) {
+      try {
+        const image = await editableFor(item, cache);
+        if (!image) {
+          failures++;
+        } else {
+          const t = autoFixTransform(spec, transforms[spec.id] ?? defaultTransform());
+          const canvas = renderToCanvas(image, spec, t);
+          const encoded = await encodeWithinBudget(canvas, spec);
+          const asset = await saveAsset(
+            {
+              spec,
+              sourceId: item.id,
+              blob: encoded.blob,
+              format: encoded.format,
+              bytes: encoded.bytes,
+              previewUrl: "",
+            },
+            true,
+            have + created.length
+          );
+          if (asset) created.push(asset);
+          else failures++;
+        }
+      } catch {
+        failures++;
+      }
+      setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+    }
+
+    if (created.length > 0) onChange({ ...app, assets: [...app.assets, ...created] });
+    if (cache.size > 0) setImages((m) => ({ ...m, ...Object.fromEntries(cache) }));
+    setBusy(null);
+    setProgress(null);
+
+    const skipped = app.sourceImages.length - queue.length;
+    const unsaved = created.filter((a) => !a.fileId).length;
+    notify(
+      failures === 0 ? "success" : "error",
+      `Generated ${created.length} × ${spec.label} from your sources` +
+        (failures ? ` — ${failures} failed.` : skipped ? ` — ${skipped} skipped, the store allows ${spec.maxCount}.` : ".") +
+        // A silent batch upload must still own up to a media-service outage, or the assets look
+        // saved and quietly vanish for everyone but this browser.
+        (unsaved ? ` ${unsaved} couldn't be saved to media-service — downloadable here, but not shared.` : "")
     );
   }
 
@@ -415,6 +534,12 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
   /* ---------------------------------------------------------------- render */
 
   const platformAssets = app.assets.filter((a) => a.platform === platform);
+  const slotHave = spec ? platformAssets.filter((a) => a.specId === spec.id).length : 0;
+  /** How many more the store will accept in this slot — Play stops at 8 screenshots, Apple at 10. */
+  const slotRoom = spec ? Math.max(0, spec.maxCount - slotHave) : 0;
+  const frameOf = (target: AssetSpec): DeviceKind => (framed ? deviceForSpec(target) : "plain");
+  const cropFrame = spec ? frameOf(spec) : "plain";
+  const previewSpec = preview ? assetSpecById(preview.specId) : undefined;
 
   return (
     <div className="space-y-4">
@@ -422,82 +547,97 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
         {/* ---------------------------------------------------- left: sources */}
         <Card className="xl:sticky xl:top-0 xl:self-start">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Source Images</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm">Source Images</CardTitle>
+              {app.sourceImages.length > 0 && <Badge variant="secondary">{app.sourceImages.length}</Badge>}
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            {app.sourceImages.map((item, index) => {
-              const state = images[item.id];
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setPreferredSourceId(item.id)}
-                  className={cn(
-                    "group relative flex w-full items-center gap-2 rounded-md border p-2 text-left transition-colors",
-                    selectedSourceId === item.id ? "border-primary bg-primary/5" : "hover:bg-accent"
-                  )}
-                >
-                  <img src={item.url} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium">Image {index + 1}</span>
-                    <span className="block truncate text-[11px] text-muted-foreground">
-                      {item.width} × {item.height}
-                    </span>
-                    {state === "error" && (
-                      <span className="mt-0.5 flex items-center gap-1 text-[11px] text-amber-600">
-                        <AlertTriangle className="h-3 w-3" /> re-upload to edit
+            {app.sourceImages.length > 0 && (
+              // A grid rather than a list: a dozen sources is normal, and every one of them has to
+              // stay one click away while you work through the slots.
+              <div className="grid max-h-[420px] grid-cols-2 gap-2 overflow-y-auto pr-1">
+                {app.sourceImages.map((item, index) => {
+                  const state = images[item.id];
+                  const selected = selectedSourceId === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      title={item.name}
+                      onClick={() => setPreferredSourceId(item.id)}
+                      className={cn(
+                        "group relative rounded-md border p-1 text-left transition-colors",
+                        selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-accent"
+                      )}
+                    >
+                      <img src={item.url} alt="" className="h-16 w-full rounded bg-muted/40 object-cover" />
+                      <span className="mt-1 flex items-baseline justify-between gap-1">
+                        <span className="text-[10px] font-medium">{index + 1}</span>
+                        <span className="truncate text-[10px] text-muted-foreground">
+                          {item.width}×{item.height}
+                        </span>
                       </span>
-                    )}
-                    {!item.fileId && (
-                      <span className="mt-0.5 flex items-center gap-1 text-[11px] text-amber-600">
-                        <CloudOff className="h-3 w-3" /> not saved
+                      <span className="absolute left-1.5 top-1.5 flex gap-1">
+                        {state === "error" && (
+                          <span title="Re-upload this one to edit it" className="rounded bg-background/90 p-0.5 text-amber-600">
+                            <AlertTriangle className="h-3 w-3" />
+                          </span>
+                        )}
+                        {!item.fileId && (
+                          <span title="Not saved to media-service" className="rounded bg-background/90 p-0.5 text-amber-600">
+                            <CloudOff className="h-3 w-3" />
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  <span
-                    role="button"
-                    tabIndex={-1}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      removeSource(item.id);
-                    }}
-                    className="rounded p-1 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </span>
-                </button>
-              );
-            })}
+                      <span
+                        role="button"
+                        tabIndex={-1}
+                        title="Remove"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          removeSource(item.id);
+                        }}
+                        className="absolute right-1 top-1 rounded bg-background/90 p-0.5 opacity-0 shadow-sm transition-opacity hover:text-destructive group-hover:opacity-100"
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-            {app.sourceImages.length < MAX_SOURCES && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(event) => addSources(event.target.files)}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  disabled={busy === "upload"}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {busy === "upload" ? (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <ImagePlus className="mr-1 h-4 w-4" />
-                  )}
-                  Upload image
-                </Button>
-              </>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(event) => addSources(event.target.files)}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              disabled={busy === "upload"}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {busy === "upload" ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <ImagePlus className="mr-1 h-4 w-4" />
+              )}
+              {app.sourceImages.length > 0 ? "Add more images" : "Upload images"}
+            </Button>
+            {busy === "upload" && progress && (
+              <p className="text-center text-[11px] text-muted-foreground">
+                Uploading {progress.done} of {progress.total}…
+              </p>
             )}
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Up to {MAX_SOURCES} sources. Every store size is generated from these, so upload the largest, cleanest
-              screenshots you have.
+              Upload as many screenshots as you need — pick as many files as you like at once. Every store size is
+              generated from these, so use the largest, cleanest captures you have. Click one to crop it.
             </p>
           </CardContent>
         </Card>
@@ -505,17 +645,37 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
         {/* --------------------------------------------------- centre: canvas */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">
-              {spec ? spec.label : "Crop"}
-              {spec && (
-                <span className="ml-2 font-normal text-muted-foreground">
-                  {spec.width} × {spec.height}
-                </span>
-              )}
-            </CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-sm">
+                {spec ? spec.label : "Crop"}
+                {spec && (
+                  <span className="ml-2 font-normal text-muted-foreground">
+                    {spec.width} × {spec.height}
+                  </span>
+                )}
+              </CardTitle>
+              <Button
+                size="sm"
+                variant={framed ? "default" : "outline"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setFramed((on) => !on)}
+                title="Preview the asset inside the device it ships to. Decoration only — the generated file is unaffected."
+              >
+                <Smartphone className="mr-1 h-3.5 w-3.5" />
+                {framed ? DEVICE_LABELS[cropFrame] : "Device frame"}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {spec && <CropCanvas image={loadedImage} spec={spec} transform={transform} onTransform={setTransform} />}
+            {spec && (
+              <CropCanvas
+                image={loadedImage}
+                spec={spec}
+                transform={transform}
+                onTransform={setTransform}
+                frame={cropFrame}
+              />
+            )}
             {spec && <CropControls spec={spec} transform={transform} onTransform={setTransform} disabled={!loadedImage} />}
           </CardContent>
         </Card>
@@ -628,6 +788,28 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                 {busy === "generate" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
                 Generate Asset
               </Button>
+              {/* Only slots the store lets you fill more than once — one icon from nine sources is
+                  nonsense — and only while there is room left in the slot. */}
+              {app.sourceImages.length > 1 && spec && spec.maxCount > 1 && slotRoom > 0 && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={busy != null}
+                  onClick={generateFromAllSources}
+                  title={`Crop every source image into a ${spec.label} in one pass`}
+                >
+                  {busy === "sources" ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Layers className="mr-1 h-4 w-4" />
+                  )}
+                  {slotHave > 0
+                    ? `Generate ${Math.min(app.sourceImages.length, slotRoom)} more from your sources`
+                    : slotRoom < app.sourceImages.length
+                      ? `Generate ${slotRoom} from your sources`
+                      : `Generate from all ${app.sourceImages.length} sources`}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 className="w-full"
@@ -637,12 +819,24 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                 {busy === "bulk" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Package className="mr-1 h-4 w-4" />}
                 Generate All Required Sizes
               </Button>
+              {(busy === "sources" || busy === "bulk") && progress && (
+                <p className="text-center text-[11px] text-muted-foreground">
+                  Rendering {progress.done} of {progress.total}…
+                </p>
+              )}
             </div>
 
             {pending && (
               <div className="space-y-2 rounded-md border p-3">
                 <p className="text-xs font-medium">{pending.spec.label} — preview</p>
-                <img src={pending.previewUrl} alt="" className="max-h-40 w-full rounded object-contain" />
+                <div
+                  className="mx-auto"
+                  style={{ maxWidth: `${Math.round(frameWidthForHeight(frameOf(pending.spec), pending.spec, 240))}px` }}
+                >
+                  <DeviceFrame kind={frameOf(pending.spec)}>
+                    <img src={pending.previewUrl} alt="" className="block w-full" />
+                  </DeviceFrame>
+                </div>
                 <p className="text-[11px] text-muted-foreground">
                   {pending.spec.width} × {pending.spec.height} · {pending.format.toUpperCase()} ·{" "}
                   {formatBytes(pending.bytes)}
@@ -714,19 +908,26 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                           {target.minCount > 0 ? ` / ${target.minCount}` : ""}
                         </Badge>
                       </div>
-                      <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-wrap items-end gap-3">
                         {rows.map((asset) => (
-                          <div key={asset.id} className="group relative w-32">
+                          <div
+                            key={asset.id}
+                            className={cn(
+                              "group relative",
+                              target.group === "icon" ? "w-24" : target.height > target.width ? "w-28" : "w-44"
+                            )}
+                          >
                             <button
                               type="button"
                               onClick={() => setPreview(asset)}
-                              className="block w-full overflow-hidden rounded-md border bg-muted/30"
+                              className={cn(
+                                "block w-full",
+                                !framed && "overflow-hidden rounded-md border bg-muted/30"
+                              )}
                             >
-                              <img
-                                src={asset.url || localPreviews[asset.id] || ""}
-                                alt=""
-                                className="h-24 w-full object-contain"
-                              />
+                              <DeviceFrame kind={frameOf(target)}>
+                                <img src={asset.url || localPreviews[asset.id] || ""} alt="" className="block w-full" />
+                              </DeviceFrame>
                             </button>
                             <p className="mt-1 truncate text-[11px] text-muted-foreground">
                               {asset.width}×{asset.height} · {formatBytes(asset.bytes)}
@@ -769,7 +970,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              {specs.find((s) => s.id === preview?.specId)?.label ?? "Asset"}
+              {previewSpec?.label ?? "Asset"}
               {preview && (
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
                   {preview.width} × {preview.height} · {formatBytes(preview.bytes)}
@@ -778,11 +979,18 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
             </DialogTitle>
           </DialogHeader>
           {preview && (
-            <img
-              src={preview.url || localPreviews[preview.id] || ""}
-              alt=""
-              className="max-h-[70vh] w-full rounded border object-contain"
-            />
+            <div
+              className="mx-auto"
+              style={{
+                maxWidth: previewSpec
+                  ? `${Math.round(frameWidthForHeight(frameOf(previewSpec), previewSpec, Math.round(window.innerHeight * 0.68)))}px`
+                  : undefined,
+              }}
+            >
+              <DeviceFrame kind={previewSpec ? frameOf(previewSpec) : "plain"}>
+                <img src={preview.url || localPreviews[preview.id] || ""} alt="" className="block w-full" />
+              </DeviceFrame>
+            </div>
           )}
         </DialogContent>
       </Dialog>
