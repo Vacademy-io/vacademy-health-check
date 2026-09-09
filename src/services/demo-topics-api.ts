@@ -10,6 +10,8 @@ export interface DemoTopic {
   language: "en" | "hi";
   sort_order: number;
   is_active: boolean;
+  /** How the session runs: a lesson, a mock interview, or a practice drill. */
+  style?: "lesson" | "interview" | "practice";
   updated_at?: string;
   /** Latest compiled plan for this topic, if any. */
   plan_status?: string | null;
@@ -52,6 +54,7 @@ export interface DemoTopicUpsert {
   language?: "en" | "hi";
   sort_order?: number;
   is_active?: boolean;
+  style?: "lesson" | "interview" | "practice";
   compile?: boolean;
 }
 

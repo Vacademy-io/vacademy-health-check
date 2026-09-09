@@ -34,6 +34,7 @@ function TopicEditor({ topic, onDone }: { topic: DemoTopic | null; onDone: () =>
   const [title, setTitle] = useState(topic?.title ?? "");
   const [emoji, setEmoji] = useState(topic?.emoji ?? "");
   const [language, setLanguage] = useState<"en" | "hi">(topic?.language ?? "en");
+  const [style, setStyle] = useState<"lesson" | "interview" | "practice">(topic?.style ?? "lesson");
   const [sort, setSort] = useState(String(topic?.sort_order ?? 100));
   const [active, setActive] = useState(topic?.is_active ?? true);
   const [text, setText] = useState(topic?.source_text ?? "");
@@ -43,7 +44,7 @@ function TopicEditor({ topic, onDone }: { topic: DemoTopic | null; onDone: () =>
   }, [title, topic, key]);
   const save = () =>
     upsert.mutate(
-      { key: key || slug(title), title, emoji: emoji || null, language, sort_order: Number(sort) || 100, is_active: active, source_text: text, compile },
+      { key: key || slug(title), title, emoji: emoji || null, language, style, sort_order: Number(sort) || 100, is_active: active, source_text: text, compile },
       { onSuccess: onDone }
     );
   return (
@@ -66,6 +67,14 @@ function TopicEditor({ topic, onDone }: { topic: DemoTopic | null; onDone: () =>
           <select value={language} onChange={(e) => setLanguage(e.target.value as "en" | "hi")} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
             <option value="en">English</option>
             <option value="hi">Hindi</option>
+          </select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Session style</Label>
+          <select value={style} onChange={(e) => setStyle(e.target.value as typeof style)} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+            <option value="lesson">Lesson (teach, then check)</option>
+            <option value="interview">Interview (ask, then feedback)</option>
+            <option value="practice">Practice (set up, attempt, improve)</option>
           </select>
         </div>
         <div className="space-y-1">
@@ -156,7 +165,7 @@ export default function DemoTopicsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">{t.title} <span className="font-mono text-xs text-muted-foreground">{t.key}</span></p>
                       <p className="text-xs text-muted-foreground">
-                        {t.language.toUpperCase()} · order {t.sort_order} · {t.source_chars.toLocaleString("en-IN")} chars · {t.is_active ? "offered" : "hidden"}
+                        {t.language.toUpperCase()} · {t.style || "lesson"} · order {t.sort_order} · {t.source_chars.toLocaleString("en-IN")} chars · {t.is_active ? "offered" : "hidden"}
                         {t.plan_error ? ` · ${t.plan_error}` : ""}
                       </p>
                     </div>
