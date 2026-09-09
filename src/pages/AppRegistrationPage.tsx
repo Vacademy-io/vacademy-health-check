@@ -14,6 +14,7 @@ import {
   Loader2,
   Package,
   Plus,
+  RefreshCw,
   Upload,
   UploadCloud,
   XCircle,
@@ -39,6 +40,7 @@ import { computeAlerts, type AlertLevel } from "@/lib/app-notifications";
 import { PROVIDER_CAPABILITIES, assetSpecsFor } from "@/lib/platform-requirements";
 import { cn } from "@/lib/utils";
 import { useApps, useImportApps, useSaveApp } from "@/services/app-registry-api";
+import { sweepStoreStatuses } from "@/services/store-providers";
 import { STORAGE_MODE, pushLocalBacklog, readLocalBacklog } from "@/services/app-registry-store";
 import { CONSOLE_URLS } from "@/services/store-providers";
 import {
@@ -75,6 +77,7 @@ export default function AppRegistrationPage() {
     STORAGE_MODE === "remote" ? readLocalBacklog() : []
   );
   const [pushingBacklog, setPushingBacklog] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ done: number; total: number } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
   const apps = useMemo(() => (query.data ?? []).filter((a) => !a.archived), [query.data]);
@@ -129,6 +132,44 @@ export default function AppRegistrationPage() {
       query.refetch();
     } finally {
       setPushingBacklog(false);
+    }
+  }
+
+  /**
+   * Pull every app's live status from the stores.
+   *
+   * The server writes each platform back as it answers, so this only has to refetch afterwards —
+   * saving from here would push a record this browser read *before* the sync and undo it.
+   */
+  async function syncFromStores() {
+    setSyncProgress({ done: 0, total: 0 });
+    try {
+      const result = await sweepStoreStatuses(apps, (done, total) => setSyncProgress({ done, total }));
+      await query.refetch();
+
+      if (result.synced === 0) {
+        push(
+          "info",
+          "No store could answer for any app. Check the package names and bundle ids are filled in — " +
+            "a status nobody can verify stays exactly as it was."
+        );
+      } else {
+        const moved = result.changed
+          .slice(0, 4)
+          .map((c) => `${c.app} ${c.platform} → ${c.status}${c.version ? ` ${c.version}` : ""}`)
+          .join(", ");
+        push(
+          result.failed > 0 ? "error" : "success",
+          `Synced ${result.synced} platform${result.synced === 1 ? "" : "s"}. ` +
+            (result.changed.length > 0
+              ? `Changed: ${moved}${result.changed.length > 4 ? ` and ${result.changed.length - 4} more.` : "."}`
+              : "Nothing changed.") +
+            (result.manual > 0 ? ` ${result.manual} need checking by hand.` : "") +
+            (result.failed > 0 ? ` ${result.failed} failed.` : "")
+        );
+      }
+    } finally {
+      setSyncProgress(null);
     }
   }
 
@@ -195,6 +236,22 @@ export default function AppRegistrationPage() {
             <Button size="sm" variant="outline" disabled={apps.length === 0} onClick={exportJson}>
               <Download className="mr-1 h-4 w-4" />
               Export
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={apps.length === 0 || syncProgress != null}
+              onClick={syncFromStores}
+              title="Ask the App Store and Google Play what each app's published version and status actually are."
+            >
+              {syncProgress ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1 h-4 w-4" />
+              )}
+              {syncProgress
+                ? `Syncing ${syncProgress.done}/${syncProgress.total || "…"}`
+                : "Sync from stores"}
             </Button>
             <Button size="sm" onClick={() => setWizardOpen(true)}>
               <Plus className="mr-1 h-4 w-4" />
