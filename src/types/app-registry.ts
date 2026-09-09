@@ -135,6 +135,12 @@ export interface PlatformConfig {
   checklistOverrides: Record<string, ChecklistOverride>;
   /** Last time a StoreProvider successfully refreshed this platform, ISO string. */
   lastSyncedAt: string;
+  /**
+   * Which tier answered: STORE_API (a developer credential) or PUBLIC_LISTING (the public store
+   * page, which knows the published version but nothing about review state). Absent on records
+   * synced before the public tier existed, and on hand-typed ones.
+   */
+  lastSyncedSource?: string;
 }
 
 /**

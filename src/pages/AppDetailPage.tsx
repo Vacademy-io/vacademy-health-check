@@ -40,7 +40,7 @@ import { appProgress, overallStatus, platformProgress } from "@/lib/app-checklis
 import { BASIC_FIELDS, PLATFORM_FIELDS, assetSpecsFor } from "@/lib/platform-requirements";
 import { generateStoreContent } from "@/lib/store-content";
 import { useApp, useDeleteApp, useSaveApp } from "@/services/app-registry-api";
-import { CONSOLE_URLS, providerFor } from "@/services/store-providers";
+import { CONSOLE_URLS, SOURCE_LABELS, providerFor } from "@/services/store-providers";
 import {
   PLATFORMS,
   PLATFORM_LABELS,
@@ -198,11 +198,20 @@ export default function AppDetailPage() {
             currentVersion: result.data.version,
             currentBuild: result.data.build,
             releasedAt: result.data.releasedAt,
+            // The server already persisted these; carrying them here stops this write — which is a
+            // whole-document upsert built from a record read before the sync — from undoing them.
+            storeUrl: result.data.storeUrl || app.platforms[platform]?.storeUrl || "",
+            lastSyncedSource: result.data.source,
             lastSyncedAt: new Date().toISOString(),
           },
         },
       });
-      push("success", `${PLATFORM_LABELS[platform]} synced from the store.`);
+      const via = result.data.source ? SOURCE_LABELS[result.data.source] : "the store";
+      push(
+        "success",
+        `${PLATFORM_LABELS[platform]} synced from ${via}` +
+          (result.data.version ? ` — ${result.data.status} ${result.data.version}.` : ".")
+      );
     } else {
       push(result.manual ? "info" : "error", result.message);
     }
@@ -723,7 +732,12 @@ export default function AppDetailPage() {
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-xs text-muted-foreground">
                         {config.lastSyncedAt
-                          ? `Synced ${new Date(config.lastSyncedAt).toLocaleString()}`
+                          ? `Synced ${new Date(config.lastSyncedAt).toLocaleString()}` +
+                            // Where it came from decides how much it can be trusted: a public
+                            // listing knows the published version but nothing about review state.
+                            (config.lastSyncedSource
+                              ? ` from ${SOURCE_LABELS[config.lastSyncedSource] ?? config.lastSyncedSource}`
+                              : "")
                           : "Never synced from the store"}
                       </span>
                       <Button size="sm" variant="outline" asChild>
