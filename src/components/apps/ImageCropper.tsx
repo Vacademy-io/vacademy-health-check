@@ -19,13 +19,26 @@ interface CropCanvasProps {
   className?: string;
   /** Draw the crop inside the hardware it ships to. "plain" keeps the bare checkerboard. */
   frame?: DeviceKind;
+  /**
+   * Paint the mock-up *into* the canvas instead of around it, because the generated file will
+   * carry it. Pass this and `frame` together only if you want two frames.
+   */
+  bake?: DeviceKind;
 }
 
 /**
  * The crop canvas (§8). Drag to pan, wheel to zoom, and what you see is exactly the file that
  * gets generated — the preview runs the same painter as the exporter, only scaled down.
  */
-export function CropCanvas({ image, spec, transform, onTransform, className, frame = "plain" }: CropCanvasProps) {
+export function CropCanvas({
+  image,
+  spec,
+  transform,
+  onTransform,
+  className,
+  frame = "plain",
+  bake = "plain",
+}: CropCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scaleRef = useRef(1);
@@ -46,8 +59,8 @@ export function CropCanvas({ image, spec, transform, onTransform, className, fra
   const repaint = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !image || displayWidth <= 0) return;
-    scaleRef.current = paintPreview(canvas, image, spec, transform, displayWidth);
-  }, [image, spec, transform, displayWidth]);
+    scaleRef.current = paintPreview(canvas, image, spec, transform, displayWidth, bake);
+  }, [image, spec, transform, displayWidth, bake]);
 
   // Tall portrait targets would run off the panel at full width, so cap the whole mock-up — chrome
   // included — by height. The wrapper carries the cap; the measured screen inherits it.

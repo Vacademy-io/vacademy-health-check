@@ -194,6 +194,11 @@ export interface GeneratedAsset {
   height: number;
   bytes: number;
   format: string;
+  /**
+   * The device mock-up is painted into the file itself, so previews must not draw a second one
+   * around it. Absent on everything generated before mock-up baking existed.
+   */
+  framed?: boolean;
   createdAt: string;
 }
 

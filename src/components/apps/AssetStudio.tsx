@@ -47,6 +47,7 @@ import {
   frameWidthForHeight,
   type DeviceKind,
 } from "@/lib/device-frames";
+import { canBakeFrame } from "@/lib/device-frame-canvas";
 import { assetSpecById, assetSpecsFor, type AssetSpec } from "@/lib/platform-requirements";
 import { newId } from "@/services/app-registry-api";
 import { uploadImage } from "@/services/app-registry-store";
@@ -83,6 +84,8 @@ interface PendingResult {
   bytes: number;
   note?: string;
   previewUrl: string;
+  /** The mock-up is already in the blob, so the preview must not draw another one round it. */
+  framed?: boolean;
 }
 
 /**
@@ -118,8 +121,13 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
   const [busy, setBusy] = useState<null | "upload" | "generate" | "bulk" | "sources" | "zip">(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [preview, setPreview] = useState<GeneratedAsset | null>(null);
-  /** Mock-ups are decoration only — they are never painted into the generated file. */
   const [framed, setFramed] = useState(true);
+  /**
+   * Off by default the mock-up is decoration; on, it is painted into the file the store receives.
+   * Both stores accept framed screenshots, and the output is still the exact required pixel size —
+   * the device is fitted inside it rather than added to it.
+   */
+  const [bakeFrame, setBakeFrame] = useState(false);
 
   /** Blobs produced this session, so bulk download never has to re-fetch from media-service. */
   const blobCache = useRef<Map<string, Blob>>(new Map());
@@ -241,13 +249,25 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
     if (selectedSourceId === id) setPreferredSourceId(app.sourceImages.find((s) => s.id !== id)?.id ?? "");
   }
 
+  /**
+   * Which device — if any — gets painted into the file for a slot.
+   *
+   * Icons and feature graphics never get one whatever the toggle says: both stores apply their own
+   * mask and Apple rejects alpha outright, so pre-rounded corners are a rejection, not a style.
+   */
+  function bakeFor(target: AssetSpec): DeviceKind {
+    const kind = deviceForSpec(target);
+    return framed && bakeFrame && canBakeFrame(kind) ? kind : "plain";
+  }
+
   /* ------------------------------------------------------------ generate */
 
   async function generate() {
     if (!loadedImage || !spec) return;
     setBusy("generate");
     try {
-      const canvas = renderToCanvas(loadedImage, spec, transform);
+      const bake = bakeFor(spec);
+      const canvas = renderToCanvas(loadedImage, spec, transform, bake);
       const encoded = await encodeWithinBudget(canvas, spec);
       if (pending) URL.revokeObjectURL(pending.previewUrl);
       setPending({
@@ -258,6 +278,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
         bytes: encoded.bytes,
         note: encoded.note,
         previewUrl: URL.createObjectURL(encoded.blob),
+        framed: bake !== "plain",
       });
     } catch (error) {
       notify("error", error instanceof Error ? error.message : "Could not generate the asset.");
@@ -296,6 +317,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
       height: result.spec.height,
       bytes: result.bytes,
       format: result.format,
+      framed: result.framed,
       createdAt: new Date().toISOString(),
     };
     blobCache.current.set(asset.id, result.blob);
@@ -328,7 +350,10 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
     for (const target of required) {
       try {
         const t = autoFixTransform(target, transforms[target.id] ?? defaultTransform());
-        const canvas = renderToCanvas(loadedImage, target, t);
+        // Every slot gets its own device — and icons and feature graphics get none, whatever the
+        // toggle says, because a store mask over a pre-rounded icon is a rejection.
+        const bake = bakeFor(target);
+        const canvas = renderToCanvas(loadedImage, target, t, bake);
         const encoded = await encodeWithinBudget(canvas, target);
         const asset = await saveAsset(
           {
@@ -338,6 +363,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
             format: encoded.format,
             bytes: encoded.bytes,
             previewUrl: "",
+            framed: bake !== "plain",
           },
           true
         );
@@ -406,7 +432,8 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
           failures++;
         } else {
           const t = autoFixTransform(spec, transforms[spec.id] ?? defaultTransform());
-          const canvas = renderToCanvas(image, spec, t);
+          const bake = bakeFor(spec);
+          const canvas = renderToCanvas(image, spec, t, bake);
           const encoded = await encodeWithinBudget(canvas, spec);
           const asset = await saveAsset(
             {
@@ -416,6 +443,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
               format: encoded.format,
               bytes: encoded.bytes,
               previewUrl: "",
+              framed: bake !== "plain",
             },
             true,
             have + created.length
@@ -539,6 +567,10 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
   const slotRoom = spec ? Math.max(0, spec.maxCount - slotHave) : 0;
   const frameOf = (target: AssetSpec): DeviceKind => (framed ? deviceForSpec(target) : "plain");
   const cropFrame = spec ? frameOf(spec) : "plain";
+  const cropBake = spec ? bakeFor(spec) : "plain";
+  /** Assets that already carry a mock-up must not be wrapped in a second one. */
+  const previewFrameOf = (target: AssetSpec, baked?: boolean): DeviceKind => (baked ? "plain" : frameOf(target));
+  const bakeable = spec ? canBakeFrame(deviceForSpec(spec)) : false;
   const previewSpec = preview ? assetSpecById(preview.specId) : undefined;
 
   return (
@@ -654,16 +686,34 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                   </span>
                 )}
               </CardTitle>
-              <Button
-                size="sm"
-                variant={framed ? "default" : "outline"}
-                className="h-7 px-2 text-xs"
-                onClick={() => setFramed((on) => !on)}
-                title="Preview the asset inside the device it ships to. Decoration only — the generated file is unaffected."
-              >
-                <Smartphone className="mr-1 h-3.5 w-3.5" />
-                {framed ? DEVICE_LABELS[cropFrame] : "Device frame"}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant={framed ? "default" : "outline"}
+                  className="h-7 px-2 text-xs"
+                  onClick={() => {
+                    setFramed(!framed);
+                    // Hiding the mock-up can't leave it silently baked into the next export.
+                    if (framed) setBakeFrame(false);
+                  }}
+                  title="Preview the asset inside the device it ships to."
+                >
+                  <Smartphone className="mr-1 h-3.5 w-3.5" />
+                  {framed ? DEVICE_LABELS[cropFrame] : "Device frame"}
+                </Button>
+                {framed && bakeable && (
+                  <Button
+                    size="sm"
+                    variant={bakeFrame ? "default" : "outline"}
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setBakeFrame((on) => !on)}
+                    title="Paint the mock-up into the generated file, so the download looks like the preview. The file stays exactly the size this slot requires."
+                  >
+                    <Layers className="mr-1 h-3.5 w-3.5" />
+                    {bakeFrame ? "Frame is in the file" : "Add frame to the file"}
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -673,8 +723,16 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                 spec={spec}
                 transform={transform}
                 onTransform={setTransform}
-                frame={cropFrame}
+                // One frame at a time: baked, it belongs to the canvas, not to a wrapper round it.
+                frame={cropBake === "plain" ? cropFrame : "plain"}
+                bake={cropBake}
               />
+            )}
+            {spec && cropBake !== "plain" && (
+              <p className="text-center text-[11px] text-muted-foreground">
+                The {DEVICE_LABELS[cropBake]} frame is part of the file. Still {spec.width} × {spec.height} — the
+                device is fitted inside, and the Background colour fills around it.
+              </p>
             )}
             {spec && <CropControls spec={spec} transform={transform} onTransform={setTransform} disabled={!loadedImage} />}
           </CardContent>
@@ -831,9 +889,13 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                 <p className="text-xs font-medium">{pending.spec.label} — preview</p>
                 <div
                   className="mx-auto"
-                  style={{ maxWidth: `${Math.round(frameWidthForHeight(frameOf(pending.spec), pending.spec, 240))}px` }}
+                  style={{
+                    maxWidth: `${Math.round(
+                      frameWidthForHeight(previewFrameOf(pending.spec, pending.framed), pending.spec, 240)
+                    )}px`,
+                  }}
                 >
-                  <DeviceFrame kind={frameOf(pending.spec)}>
+                  <DeviceFrame kind={previewFrameOf(pending.spec, pending.framed)}>
                     <img src={pending.previewUrl} alt="" className="block w-full" />
                   </DeviceFrame>
                 </div>
@@ -922,10 +984,11 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                               onClick={() => setPreview(asset)}
                               className={cn(
                                 "block w-full",
-                                !framed && "overflow-hidden rounded-md border bg-muted/30"
+                                previewFrameOf(target, asset.framed) === "plain" &&
+                                  "overflow-hidden rounded-md border bg-muted/30"
                               )}
                             >
-                              <DeviceFrame kind={frameOf(target)}>
+                              <DeviceFrame kind={previewFrameOf(target, asset.framed)}>
                                 <img src={asset.url || localPreviews[asset.id] || ""} alt="" className="block w-full" />
                               </DeviceFrame>
                             </button>
@@ -983,11 +1046,17 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
               className="mx-auto"
               style={{
                 maxWidth: previewSpec
-                  ? `${Math.round(frameWidthForHeight(frameOf(previewSpec), previewSpec, Math.round(window.innerHeight * 0.68)))}px`
+                  ? `${Math.round(
+                      frameWidthForHeight(
+                        previewFrameOf(previewSpec, preview.framed),
+                        previewSpec,
+                        Math.round(window.innerHeight * 0.68)
+                      )
+                    )}px`
                   : undefined,
               }}
             >
-              <DeviceFrame kind={previewSpec ? frameOf(previewSpec) : "plain"}>
+              <DeviceFrame kind={previewSpec ? previewFrameOf(previewSpec, preview.framed) : "plain"}>
                 <img src={preview.url || localPreviews[preview.id] || ""} alt="" className="block w-full" />
               </DeviceFrame>
             </div>

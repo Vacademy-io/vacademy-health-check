@@ -7,6 +7,8 @@
  */
 
 import type { AssetSpec } from "@/lib/platform-requirements";
+import type { DeviceKind } from "@/lib/device-frames";
+import { canBakeFrame, clipScreen, mockLayout, paintChrome, paintOverlay } from "@/lib/device-frame-canvas";
 
 /* ------------------------------------------------------------------ loading */
 
@@ -100,14 +102,64 @@ export function paint(ctx: CanvasRenderingContext2D, image: LoadedImage, spec: A
   ctx.restore();
 }
 
-/** Renders the transform into a canvas at the spec's exact output size. */
-export function renderToCanvas(image: LoadedImage, spec: AssetSpec, t: CropTransform): HTMLCanvasElement {
+/**
+ * Paints the crop inside a device mock-up, at the slot's exact output size.
+ *
+ * The screen cut-out carries the slot's own aspect ratio, so the composition is the plain output
+ * scaled down — the same `paint()`, the same drag, the same zoom, just inset into the hardware.
+ * `t.background` fills the margin around the device, which is why the colour picker matters here.
+ *
+ * Falls back to the plain painter for anything that has no frame worth baking (icons, graphics),
+ * so callers can pass a kind through without branching.
+ */
+export function paintFramed(
+  ctx: CanvasRenderingContext2D,
+  image: LoadedImage,
+  spec: AssetSpec,
+  t: CropTransform,
+  kind: DeviceKind
+) {
+  const layout = canBakeFrame(kind) ? mockLayout(kind, spec) : null;
+  if (!layout) {
+    paint(ctx, image, spec, t);
+    return;
+  }
+
+  const opaque = spec.transparency === "FORBIDDEN" || t.background !== "transparent";
+  if (opaque) {
+    ctx.fillStyle = t.background === "transparent" ? "#ffffff" : t.background;
+    ctx.fillRect(0, 0, spec.width, spec.height);
+  }
+
+  paintChrome(ctx, layout);
+
+  ctx.save();
+  clipScreen(ctx, layout);
+  ctx.translate(layout.screen.x, layout.screen.y);
+  ctx.scale(layout.scale, layout.scale);
+  paint(ctx, image, spec, t);
+  ctx.restore();
+
+  paintOverlay(ctx, layout);
+}
+
+/**
+ * Renders the transform into a canvas at the spec's exact output size.
+ *
+ * `frame` bakes a device mock-up into the file itself; "plain" (the default) keeps the bare crop.
+ */
+export function renderToCanvas(
+  image: LoadedImage,
+  spec: AssetSpec,
+  t: CropTransform,
+  frame: DeviceKind = "plain"
+): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = spec.width;
   canvas.height = spec.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D context unavailable");
-  paint(ctx, image, spec, t);
+  paintFramed(ctx, image, spec, t, frame);
   return canvas;
 }
 
@@ -121,7 +173,8 @@ export function paintPreview(
   image: LoadedImage,
   spec: AssetSpec,
   t: CropTransform,
-  displayWidth: number
+  displayWidth: number,
+  frame: DeviceKind = "plain"
 ): number {
   const k = displayWidth / spec.width;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -135,8 +188,11 @@ export function paintPreview(
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.scale(k * dpr, k * dpr);
-  paint(ctx, image, spec, t);
-  return k;
+  paintFramed(ctx, image, spec, t, frame);
+  // A baked frame shrinks the content by the screen's own scale. Handing that back keeps a drag of
+  // one screen pixel worth one screen pixel — otherwise panning races ahead inside the device.
+  const layout = canBakeFrame(frame) ? mockLayout(frame, spec) : null;
+  return k * (layout?.scale ?? 1);
 }
 
 /**
