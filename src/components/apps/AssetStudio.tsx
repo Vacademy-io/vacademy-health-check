@@ -568,8 +568,16 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
   const frameOf = (target: AssetSpec): DeviceKind => (framed ? deviceForSpec(target) : "plain");
   const cropFrame = spec ? frameOf(spec) : "plain";
   const cropBake = spec ? bakeFor(spec) : "plain";
-  /** Assets that already carry a mock-up must not be wrapped in a second one. */
-  const previewFrameOf = (target: AssetSpec, baked?: boolean): DeviceKind => (baked ? "plain" : frameOf(target));
+  /**
+   * Generated assets are shown exactly as the file is — never inside a DOM device.
+   *
+   * A baked mock-up is already in the pixels; an unbaked asset genuinely has no frame. This used to
+   * wrap unbaked assets in a DOM device whenever the crop mock-up was visible, so the gallery
+   * advertised hardware the downloaded PNG did not contain and "Add frame to the file" looked like
+   * it had already been applied. The cropper keeps its DOM frame — that one is a composing aid and
+   * sits right next to the toggle that decides what actually gets painted.
+   */
+  const ASSET_PREVIEW_FRAME: DeviceKind = "plain";
   const bakeable = spec ? canBakeFrame(deviceForSpec(spec)) : false;
   const previewSpec = preview ? assetSpecById(preview.specId) : undefined;
 
@@ -715,6 +723,17 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                 )}
               </div>
             </div>
+            {/*
+              Two toggles that read as one feature: the mock-up above is a composing aid, and only
+              the second button changes the bytes. Saying so here is what stops someone generating a
+              set that looks like hardware on screen and downloads as bare screenshots.
+            */}
+            {framed && bakeable && !bakeFrame && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Preview only — the generated file will not include the device. Turn on{" "}
+                <span className="font-medium">Add frame to the file</span> before generating.
+              </p>
+            )}
           </CardHeader>
           <CardContent className="space-y-3">
             {spec && (
@@ -891,11 +910,11 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                   className="mx-auto"
                   style={{
                     maxWidth: `${Math.round(
-                      frameWidthForHeight(previewFrameOf(pending.spec, pending.framed), pending.spec, 240)
+                      frameWidthForHeight(ASSET_PREVIEW_FRAME, pending.spec, 240)
                     )}px`,
                   }}
                 >
-                  <DeviceFrame kind={previewFrameOf(pending.spec, pending.framed)}>
+                  <DeviceFrame kind={ASSET_PREVIEW_FRAME}>
                     <img src={pending.previewUrl} alt="" className="block w-full" />
                   </DeviceFrame>
                 </div>
@@ -982,13 +1001,9 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                             <button
                               type="button"
                               onClick={() => setPreview(asset)}
-                              className={cn(
-                                "block w-full",
-                                previewFrameOf(target, asset.framed) === "plain" &&
-                                  "overflow-hidden rounded-md border bg-muted/30"
-                              )}
+                              className="block w-full overflow-hidden rounded-md border bg-muted/30"
                             >
-                              <DeviceFrame kind={previewFrameOf(target, asset.framed)}>
+                              <DeviceFrame kind={ASSET_PREVIEW_FRAME}>
                                 <img src={asset.url || localPreviews[asset.id] || ""} alt="" className="block w-full" />
                               </DeviceFrame>
                             </button>
@@ -1048,7 +1063,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                 maxWidth: previewSpec
                   ? `${Math.round(
                       frameWidthForHeight(
-                        previewFrameOf(previewSpec, preview.framed),
+                        ASSET_PREVIEW_FRAME,
                         previewSpec,
                         Math.round(window.innerHeight * 0.68)
                       )
@@ -1056,7 +1071,7 @@ export function AssetStudio({ app, onChange, notify, lockPlatform }: AssetStudio
                   : undefined,
               }}
             >
-              <DeviceFrame kind={previewSpec ? previewFrameOf(previewSpec, preview.framed) : "plain"}>
+              <DeviceFrame kind={ASSET_PREVIEW_FRAME}>
                 <img src={preview.url || localPreviews[preview.id] || ""} alt="" className="block w-full" />
               </DeviceFrame>
             </div>
