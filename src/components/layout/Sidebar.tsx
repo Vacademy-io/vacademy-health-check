@@ -26,6 +26,7 @@ import {
   SlidersHorizontal,
   UserSquare2,
   GraduationCap,
+  Clapperboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +73,7 @@ const navSections: Array<{
     items: [
       { to: "/guides", label: "Guides", icon: BookOpen },
       { to: "/roadmap", label: "Roadmap", icon: Milestone },
+      { to: "/training-videos", label: "Training Videos", icon: Clapperboard },
     ],
   },
   {

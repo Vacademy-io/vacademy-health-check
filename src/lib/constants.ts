@@ -13,6 +13,7 @@ export const API_PREFIXES = {
   WIDGETS: "/community-service/super-admin/v1/dashboard-widgets",
   GUIDES: "/community-service/super-admin/v1/guides",
   ROADMAP: "/community-service/super-admin/v1/roadmap",
+  TRAINING_VIDEOS: "/community-service/super-admin/v1/training-videos",
   /** App Registration & Store Management. Only used when VITE_APP_REGISTRY_REMOTE is on — see app-registry-store.ts. */
   APP_REGISTRY: "/community-service/super-admin/v1/app-registry",
 } as const;
