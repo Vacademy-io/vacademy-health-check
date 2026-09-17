@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { fetchFileUrl, useUploadFile } from "@/services/files-api";
+import { useUploadVideoToS3 } from "@/services/presign-upload";
 import {
   useCreateTrainingVideo,
   useDeleteTrainingVideo,
@@ -141,7 +141,7 @@ function TrainingVideoForm({
   onClose: () => void;
   allVideos: TrainingVideoDto[];
 }) {
-  const upload = useUploadFile();
+  const upload = useUploadVideoToS3();
   const create = useCreateTrainingVideo();
   const update = useUpdateTrainingVideo();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -193,12 +193,10 @@ function TrainingVideoForm({
     try {
       const result = await upload.mutateAsync({
         file,
-        visibility: "PUBLIC",
         onProgress: setProgress,
       });
-      const url = result.url ?? (await fetchFileUrl(result.id).catch(() => ""));
       setFileId(result.id);
-      setFileUrl(url);
+      setFileUrl(result.url);
     } catch {
       // upload.isError surfaces it below; dialog stays open for a retry.
     } finally {
