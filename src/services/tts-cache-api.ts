@@ -206,3 +206,41 @@ export function useFlushAgent() {
     },
   });
 }
+
+
+/** Every AI agent and its speech-cache tier — including agents that never cached. */
+export interface AgentMode {
+  agent_id: string;
+  agent_name: string | null;
+  institute_id: string | null;
+  institute_name: string | null;
+  tts_model: string | null;
+  voice: string | null;
+  /** OFF | FIXED | FULL */
+  speech_cache_mode: string | null;
+  updated_at: string | null;
+}
+
+export type SpeechCacheMode = "OFF" | "FIXED" | "FULL";
+
+export function useAgentModes(instituteId?: string) {
+  return useQuery({
+    queryKey: ["super-admin", "tts-cache", "agent-modes", instituteId ?? ""],
+    queryFn: async () => {
+      const { data } = await api.get(`${BASE}/agent-modes`, { params: clean({ instituteId }) });
+      return data as AgentMode[];
+    },
+  });
+}
+
+/** Takes effect on the agent's NEXT call — the bot reads the tier at call start. */
+export function useSetAgentMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ agentId, mode }: { agentId: string; mode: SpeechCacheMode }) => {
+      const { data } = await api.put(`${BASE}/agents/${agentId}/mode`, { mode });
+      return data as { agent_id: string; previous_mode: string; speech_cache_mode: string };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["super-admin", "tts-cache"] }),
+  });
+}

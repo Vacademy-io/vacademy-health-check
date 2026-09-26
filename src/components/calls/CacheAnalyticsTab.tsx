@@ -13,6 +13,7 @@ import {
 import { useCacheAgents, useCacheSummary, type CacheAgent } from "@/services/tts-cache-api";
 import { useInstitutes } from "@/services/institutes-api";
 import CacheAgentDialog from "./CacheAgentDialog";
+import CacheModeCard from "./CacheModeCard";
 import { DASH, MODE_TONE, ago, bytes, num, pct, rupees, seconds } from "./format";
 
 function daysAgo(n: number) {
@@ -79,6 +80,9 @@ export default function CacheAnalyticsTab() {
           </span>
         </CardContent>
       </Card>
+
+      {/* The switch, per agent — every agent, not only those that have cached */}
+      <CacheModeCard instituteId={instituteId || undefined} />
 
       {/* Totals over the filtered window — these come from the calls themselves, not the mirror */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
