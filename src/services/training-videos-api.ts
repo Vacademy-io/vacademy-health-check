@@ -12,6 +12,10 @@ export interface TrainingVideoDto {
   fileUrl: string;
   /** Breadcrumb segments, e.g. ["LMS","Course creation","AI based course"]. */
   modulePath: string[];
+  /** Extra words admins might search with (synonyms, Hinglish, old names). Absent from older APIs. */
+  keywords?: string[];
+  /** Step number inside its section (1, 2, 3 …); null = unordered. Absent from older APIs. */
+  sortOrder?: number | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -24,6 +28,10 @@ export interface UpsertTrainingVideoPayload {
   fileUrl: string;
   modulePath: string[];
   active?: boolean;
+  /** Empty list clears them. */
+  keywords?: string[];
+  /** 0 clears the step (the API treats 0 or less as "unordered"). */
+  sortOrder?: number;
 }
 
 export function useTrainingVideos() {
