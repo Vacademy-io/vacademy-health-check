@@ -17,6 +17,7 @@ import { parseTitle } from "@/lib/training-search";
 import { TrainingPublishingGuide } from "@/components/training/TrainingPublishingGuide";
 import { TrainingSearchPreview } from "@/components/training/TrainingSearchPreview";
 import { TrainingVideoForm } from "@/components/training/TrainingVideoForm";
+import { CopyShareLinkButton } from "@/components/training/CopyShareLinkButton";
 import { DEFAULT_MODULES, qualityIssues, stepOf } from "@/components/training/training-quality";
 
 interface SectionGroup {
@@ -143,6 +144,7 @@ export default function TrainingVideosAdminPage() {
                           </button>
                           <div className="flex shrink-0 items-center gap-2">
                             {!v.active ? <Badge variant="outline">Inactive</Badge> : null}
+                            <CopyShareLinkButton video={v} />
                             <Button
                               variant="ghost"
                               size="sm"
