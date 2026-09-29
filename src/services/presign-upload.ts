@@ -29,8 +29,12 @@ interface UploadVideoToS3Result {
 export function useUploadVideoToS3() {
   return useMutation({
     mutationFn: async ({ file, onProgress }: UploadVideoToS3Vars): Promise<UploadVideoToS3Result> => {
-      const fileName = file.name.toLowerCase().replace(/\s+/g, "_");
-      const fileType = file.type || "application/octet-stream";
+      // A Mac screen recording (.mov) is H.264/AAC in a QuickTime box. Stored as video/quicktime,
+      // browsers download it when a share link is opened; stored as video/mp4, Chrome/Safari/iOS/
+      // Android open it in their player. Same bytes either way — only the label changes.
+      const isMov = file.type === "video/quicktime" || /\.mov$/i.test(file.name);
+      const fileName = file.name.toLowerCase().replace(/\s+/g, "_").replace(/\.mov$/, ".mp4");
+      const fileType = isMov ? "video/mp4" : file.type || "application/octet-stream";
 
       // 1) Ask media-service for a presigned PUT URL (public route).
       const { data: signed } = await api.post<SignedUrlResponse>(
