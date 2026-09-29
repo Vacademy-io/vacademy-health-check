@@ -34,6 +34,37 @@ export interface UpsertTrainingVideoPayload {
   sortOrder?: number;
 }
 
+/**
+ * Six-character code hint derived from the video id — the same hash the admin dashboard's
+ * `toShortCodeHint` uses, so a video gets the same code whichever app shortens it first.
+ */
+function shortCodeHint(id: string): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  for (let i = 0; i < id.length; i++) {
+    const c = id.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b) >>> 0;
+  }
+  const combined = h1 * 0x100000 + (h2 % 0x100000);
+  return combined.toString(36).padStart(6, "0").slice(-6);
+}
+
+/**
+ * Get-or-create the public short link (`u.vacademy.io/s/…`) for a video, to share with a client.
+ * Keyed on (TRAINING_VIDEO, video id), so asking again returns the same link.
+ */
+export async function getTrainingVideoShortLink(video: Pick<TrainingVideoDto, "id" | "fileUrl">): Promise<string> {
+  const { data } = await api.post<{ absoluteUrl?: string }>("/media-service/public/v1/short-link/get-or-create", {
+    source: "TRAINING_VIDEO",
+    sourceId: video.id,
+    destinationUrl: video.fileUrl,
+    shortCode: shortCodeHint(video.id),
+  });
+  if (!data?.absoluteUrl) throw new Error("Short link service returned no URL");
+  return data.absoluteUrl;
+}
+
 export function useTrainingVideos() {
   return useQuery({
     queryKey: ["training-videos"],
