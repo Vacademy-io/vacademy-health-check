@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useCacheEntries, useCacheMisses, useFlushLog, useDeleteEntry, useFlushAgent,
+  useCacheEntries, useCacheMisses, useCacheTrend, useCacheVariants, useFlushLog,
+  useDeleteEntry, useFlushAgent,
   type CacheAgent, type CacheCommand,
 } from "@/services/tts-cache-api";
 import { DASH, MODE_TONE, STATUS_TONE, ago, bytes, num, pct, rupees, stamp } from "./format";
@@ -95,6 +96,8 @@ export default function CacheAgentDialog({ agent, onClose }: {
   const [q, setQ] = useState("");
   const [entryPage, setEntryPage] = useState(0);
   const [missPage, setMissPage] = useState(0);
+  /** The weekly review reads the last 7 days; "all time" is the ledger's whole backlog. */
+  const [missDays, setMissDays] = useState<number | undefined>(7);
   const [preview, setPreview] = useState<CacheCommand | null>(null);
   const [queued, setQueued] = useState<CacheCommand | null>(null);
   /** What the pending confirmation would delete: the whole agent, or one sentence. */
@@ -102,7 +105,9 @@ export default function CacheAgentDialog({ agent, onClose }: {
 
   const id = agent?.agent_id ?? null;
   const entries = useCacheEntries(id, q, entryPage);
-  const misses = useCacheMisses(id, missPage);
+  const misses = useCacheMisses(id, missPage, 50, missDays);
+  const trend = useCacheTrend(id, 14);
+  const variants = useCacheVariants(id, 7);
   const log = useFlushLog(id ?? undefined);
   const delEntry = useDeleteEntry();
   const flushAgent = useFlushAgent();
@@ -164,12 +169,99 @@ export default function CacheAgentDialog({ agent, onClose }: {
               onConfirm={() => target && run(target, false)}
             />
 
-            <Tabs defaultValue="cached">
+            <Tabs defaultValue="trend">
               <TabsList>
+                <TabsTrigger value="trend">Trend</TabsTrigger>
                 <TabsTrigger value="cached">Cached ({num(agent.entries)})</TabsTrigger>
                 <TabsTrigger value="missing">Not cached ({num(agent.unrendered_entries)})</TabsTrigger>
+                <TabsTrigger value="variants">Variants ({variants.data?.length ?? 0})</TabsTrigger>
                 <TabsTrigger value="log">Flush log</TabsTrigger>
               </TabsList>
+
+              {/* ---- is it paying, day by day (a prompt edit shows as a dip) ---- */}
+              <TabsContent value="trend" className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  From what each call measured, last 14 days (IST). <b>Char share</b> is the part of
+                  the spoken audio served from cache — the money share. A dip right after a prompt
+                  edit means the new lines are still being learned; saving the agent re-warms them.
+                </p>
+                {trend.isLoading ? (
+                  <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Day</TableHead>
+                        <TableHead className="text-right">Calls</TableHead>
+                        <TableHead>Char share</TableHead>
+                        <TableHead className="text-right">Sentence hit rate</TableHead>
+                        <TableHead className="text-right">Saved</TableHead>
+                        <TableHead className="text-right">Saved / call</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {trend.data?.map((d) => (
+                        <TableRow key={d.day}>
+                          <TableCell className="font-mono text-xs">{d.day}</TableCell>
+                          <TableCell className="text-right">{num(d.calls)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-28 overflow-hidden rounded bg-muted">
+                                <div className="h-full bg-emerald-500"
+                                     style={{ width: `${Math.min(100, Math.max(0, d.char_share ?? 0))}%` }} />
+                              </div>
+                              <span className="text-xs">{pct(d.char_share)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">{pct(d.hit_rate)}</TableCell>
+                          <TableCell className="text-right">{rupees(d.inr_saved)}</TableCell>
+                          <TableCell className="text-right">{rupees(d.inr_saved_per_call)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {trend.data?.length === 0 && (
+                        <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                          No calls with measurements in the last 14 days.
+                        </TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+
+              {/* ---- one line, several cache entries ---- */}
+              <TabsContent value="variants" className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Lines said in several near-identical forms (a comma, "सर/मैम/जी") in the last 7 days.
+                  Each form is cached separately, so pin ONE wording in the prompt. Small money
+                  (~3% of speech on Shreya) — a clean-up list.
+                </p>
+                {variants.isLoading ? (
+                  <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
+                ) : variants.data?.length === 0 ? (
+                  <p className="py-6 text-center text-muted-foreground">No split lines this week.</p>
+                ) : (
+                  variants.data?.map((g) => (
+                    <div key={g.canonical} className="rounded-md border p-3">
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="font-medium">{g.canonical}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {num(g.split_sightings)} of {num(g.total_sightings)} said in another form
+                          {g.inr_lost != null ? ` · ${rupees(g.inr_lost)} not reused` : ""}
+                        </span>
+                      </div>
+                      <ul className="mt-2 space-y-1">
+                        {g.variants.map((v) => (
+                          <li key={v.cache_key} className="flex items-baseline gap-2 text-xs">
+                            <span className="w-10 shrink-0 text-right text-muted-foreground">{num(v.sightings)}×</span>
+                            <span className="min-w-0 flex-1 truncate" title={v.sentence ?? ""}>{v.sentence}</span>
+                            <span className="shrink-0 text-muted-foreground">{v.rendered ? "cached" : "not cached"}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))
+                )}
+              </TabsContent>
 
               {/* ---- what this agent has audio for ---- */}
               <TabsContent value="cached" className="space-y-3">
@@ -251,9 +343,17 @@ export default function CacheAgentDialog({ agent, onClose }: {
 
               {/* ---- what it is re-synthesising every time ---- */}
               <TabsContent value="missing" className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Sorted by what it is costing you — sightings against length — rather than by count.
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Sorted by what it is costing you — sightings against length — rather than by count.
+                  </p>
+                  <div className="ml-auto flex gap-1">
+                    <Button size="sm" variant={missDays === 7 ? "default" : "outline"}
+                            onClick={() => { setMissDays(7); setMissPage(0); }}>Last 7 days</Button>
+                    <Button size="sm" variant={missDays === undefined ? "default" : "outline"}
+                            onClick={() => { setMissDays(undefined); setMissPage(0); }}>All time</Button>
+                  </div>
+                </div>
                 {misses.isLoading ? (
                   <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
                 ) : (

@@ -32,6 +32,37 @@ export interface CacheAgent {
   inr_saved: number | null;
   last_hit_at: string | null;
   reported_at: string | null;
+  /** Last 7 days, from what each call measured (null = no calls in the window). */
+  calls_7d?: number | null;
+  hit_rate_7d?: number | null;
+  char_share_7d?: number | null;
+  inr_saved_7d?: number | null;
+  inr_saved_per_call_7d?: number | null;
+}
+
+/** One day of one agent's speech cache, from its calls' diagnostics. */
+export interface CacheTrendDay {
+  day: string;
+  calls: number;
+  cache_hits: number;
+  cache_misses: number;
+  /** % of sentences served from cache. */
+  hit_rate: number | null;
+  /** % of spoken characters served from cache — the money share. */
+  char_share: number | null;
+  chars_saved: number;
+  vendor_chars: number;
+  inr_saved: number | null;
+  inr_saved_per_call: number | null;
+}
+
+/** One line the agent says in several near-identical forms, each a separate cache entry. */
+export interface CacheVariantGroup {
+  canonical: string;
+  total_sightings: number;
+  split_sightings: number;
+  inr_lost: number | null;
+  variants: CacheEntry[];
 }
 
 /** One cached sentence. The misses list returns the same shape with fewer fields set. */
@@ -140,15 +171,37 @@ export function useCacheEntries(agentId: string | null, q: string, page: number,
   });
 }
 
-export function useCacheMisses(agentId: string | null, page: number, size = 50) {
+export function useCacheMisses(agentId: string | null, page: number, size = 50, days?: number) {
   return useQuery({
     enabled: !!agentId,
-    queryKey: ["super-admin", "tts-cache", "misses", agentId, page, size],
+    queryKey: ["super-admin", "tts-cache", "misses", agentId, page, size, days ?? 0],
     queryFn: async () => {
       const { data } = await api.get(`${BASE}/agents/${agentId}/misses`, {
-        params: clean({ page, size }),
+        params: clean({ page, size, days }),
       });
       return data as CachePage<CacheEntry>;
+    },
+  });
+}
+
+export function useCacheTrend(agentId: string | null, days = 14) {
+  return useQuery({
+    enabled: !!agentId,
+    queryKey: ["super-admin", "tts-cache", "trend", agentId, days],
+    queryFn: async () => {
+      const { data } = await api.get(`${BASE}/agents/${agentId}/trend`, { params: { days } });
+      return data as CacheTrendDay[];
+    },
+  });
+}
+
+export function useCacheVariants(agentId: string | null, days = 7) {
+  return useQuery({
+    enabled: !!agentId,
+    queryKey: ["super-admin", "tts-cache", "variants", agentId, days],
+    queryFn: async () => {
+      const { data } = await api.get(`${BASE}/agents/${agentId}/variants`, { params: { days } });
+      return data as CacheVariantGroup[];
     },
   });
 }

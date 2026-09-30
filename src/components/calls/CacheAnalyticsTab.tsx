@@ -168,6 +168,9 @@ export default function CacheAnalyticsTab() {
                   <TableHead className="text-right">Hit rate</TableHead>
                   <TableHead className="text-right">Chars saved</TableHead>
                   <TableHead className="text-right">Saved</TableHead>
+                  <TableHead className="text-right" title="Last 7 days, from what each call measured">7d calls</TableHead>
+                  <TableHead className="text-right" title="Share of spoken audio served from cache, last 7 days">7d cached</TableHead>
+                  <TableHead className="text-right" title="Rupees saved per call, last 7 days">7d saved / call</TableHead>
                   <TableHead>Last hit</TableHead>
                   <TableHead />
                 </TableRow>
@@ -204,6 +207,9 @@ export default function CacheAnalyticsTab() {
                     </TableCell>
                     <TableCell className="text-right">{num(a.chars_saved)}</TableCell>
                     <TableCell className="text-right">{rupees(a.inr_saved)}</TableCell>
+                    <TableCell className="text-right">{num(a.calls_7d)}</TableCell>
+                    <TableCell className="text-right" title={`sentence hit rate ${pct(a.hit_rate_7d)}`}>{pct(a.char_share_7d)}</TableCell>
+                    <TableCell className="text-right">{rupees(a.inr_saved_per_call_7d)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{ago(a.last_hit_at)}</TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant="outline" onClick={() => setOpenAgent(a)}>Sentences</Button>
@@ -211,7 +217,7 @@ export default function CacheAnalyticsTab() {
                   </TableRow>
                 ))}
                 {rows.length === 0 && (
-                  <TableRow><TableCell colSpan={13} className="py-10 text-center text-muted-foreground">
+                  <TableRow><TableCell colSpan={16} className="py-10 text-center text-muted-foreground">
                     No agent has reported a cache yet. These figures come from the bot's own ledger, which
                     only the newer bot build pushes — the totals above read the calls directly and work today.
                   </TableCell></TableRow>
