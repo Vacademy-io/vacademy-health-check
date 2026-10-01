@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import { API_PREFIXES } from "@/lib/constants";
+import { normalizeApiAccess } from "@/lib/eval-api-pricing";
 import type {
   BulkEnableApiAccessRequest,
-  InstituteApiAccess,
   IssueApiKeyRequest,
   IssuedApiKey,
   UpdateApiAccessRequest,
@@ -14,16 +14,6 @@ import type {
 
 const accessKey = (instituteId: string) => ["super-admin", "api-access", instituteId] as const;
 
-function normalizeAccess(raw: Partial<InstituteApiAccess> | null | undefined): InstituteApiAccess {
-  return {
-    products: raw?.products ?? [],
-    keys: raw?.keys ?? [],
-    usage_30d: raw?.usage_30d ?? null,
-    webhook_endpoints: raw?.webhook_endpoints ?? [],
-    last_error: raw?.last_error ?? null,
-  };
-}
-
 export function useInstituteApiAccess(
   instituteId: string,
   opts: { enabled?: boolean; staleTime?: number; retry?: boolean } = {}
@@ -31,10 +21,10 @@ export function useInstituteApiAccess(
   return useQuery({
     queryKey: accessKey(instituteId),
     queryFn: async () => {
-      const { data } = await api.get<Partial<InstituteApiAccess>>(
+      const { data } = await api.get<unknown>(
         `${API_PREFIXES.ADMIN_CORE}/institutes/${encodeURIComponent(instituteId)}/api-access`
       );
-      return normalizeAccess(data);
+      return normalizeApiAccess(data);
     },
     enabled: !!instituteId && (opts.enabled ?? true),
     staleTime: opts.staleTime,

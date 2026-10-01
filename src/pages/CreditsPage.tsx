@@ -23,21 +23,37 @@ import type { InstituteCreditItem } from "@/types/api";
 
 /**
  * 30-day API spend for one row. Uses the list's own `api_spend_30d` when ai-service
- * returns it; otherwise asks admin-core's api-access endpoint for that institute
- * (cached 5 minutes, no retry), which only the visible page triggers.
+ * returns it. Otherwise the figure comes from admin-core's per-institute api-access
+ * endpoint, fetched only on a click (or shown if already cached) so a page view
+ * does not fire one request per row.
  */
 function ApiSpendCell({ row }: { row: InstituteCreditItem }) {
   const inline = typeof row.api_spend_30d === "number" ? row.api_spend_30d : null;
-  const { data, isLoading, isError } = useInstituteApiAccess(row.institute_id, {
-    enabled: inline === null,
+  const [requested, setRequested] = useState(false);
+  const { data, isFetching, isError } = useInstituteApiAccess(row.institute_id, {
+    enabled: inline === null && requested,
     staleTime: 5 * 60_000,
     retry: false,
   });
-  const credits = inline ?? data?.usage_30d?.credits ?? null;
-  if (inline === null && isLoading) return <span className="text-muted-foreground">…</span>;
-  if (inline === null && isError) return <span className="text-muted-foreground" title="Could not load">—</span>;
-  if (!credits) return <span className="text-muted-foreground">—</span>;
-  return <span>{Number(credits).toFixed(2)}</span>;
+  if (inline !== null) return inline ? <span>{inline.toFixed(2)}</span> : <span className="text-muted-foreground">—</span>;
+  if (isFetching) return <span className="text-muted-foreground">…</span>;
+  if (isError) return <span className="text-muted-foreground" title="Could not load">—</span>;
+  if (data) {
+    const credits = data.usage_30d?.credits ?? null;
+    return credits ? <span>{Number(credits).toFixed(2)}</span> : <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <button
+      type="button"
+      className="text-xs text-primary underline-offset-2 hover:underline"
+      onClick={(e) => {
+        e.stopPropagation();
+        setRequested(true);
+      }}
+    >
+      Load
+    </button>
+  );
 }
 
 export default function CreditsPage() {
@@ -84,6 +100,16 @@ export default function CreditsPage() {
       key: "custom_pricing",
       header: "Pricing",
       render: (r) => {
+        if (!overrides.isSuccess) {
+          return (
+            <span
+              className="text-xs text-muted-foreground"
+              title={overrides.isError ? "Could not load contract prices" : "Loading"}
+            >
+              —
+            </span>
+          );
+        }
         const tools = customByInstitute[r.institute_id];
         if (!tools || tools.length === 0) return <span className="text-xs text-muted-foreground">Standard</span>;
         return (

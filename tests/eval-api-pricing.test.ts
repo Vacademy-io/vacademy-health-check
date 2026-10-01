@@ -1,4 +1,4 @@
-// Run: npm test  (node --test with native TypeScript stripping; no extra deps)
+// Run: npm test  (node --test with native TypeScript stripping, Node >= 22.18; no extra deps)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -9,9 +9,12 @@ import {
   computeCredits,
   draftFromRow,
   draftRate,
+  effectiveNoOverage,
   errorDetail,
+  formatCount,
   formatRate,
   isFixedPrice,
+  normalizeApiAccess,
   normalizeHistory,
   normalizeInstitutePricing,
   normalizeOverrides,
@@ -22,6 +25,7 @@ import {
   presetQuota,
   previewLine,
   sourceBadge,
+  summarizeBulkEnable,
   toolLabel,
   typedPreviewLine,
 } from "../src/lib/eval-api-pricing.ts";
@@ -114,7 +118,7 @@ test("override request: reason required, blanks inherit, typed keeps other param
   if (ok.ok) {
     assert.deepEqual(ok.body, {
       reason: "PO 1",
-      no_token_overage: false,
+      no_token_overage: true,
       per_unit_credits: 0.8,
       params: { fixed_price: true, typed_per_answer: 0.5 },
     });
@@ -204,4 +208,51 @@ test("errorDetail reads FastAPI and Spring bodies", () => {
   assert.equal(errorDetail({ response: { data: { ex: "Not allowed" } } }), "Not allowed");
   assert.equal(errorDetail({ message: "Network Error" }), "Network Error");
   assert.equal(errorDetail(null, "fallback"), "fallback");
+});
+
+test("API tool overrides always store no_token_overage; other tools follow the toggle", () => {
+  const row = apiRow();
+  const draft = draftFromRow(row);
+  assert.equal(effectiveNoOverage(row, draft), true);
+  assert.equal(draftRate(row, { ...draft, perUnit: "0.8" }).no_token_overage, true);
+  // The implied no-overage alone is not a change for the API tool.
+  assert.equal(buildOverrideRequest(row, { ...draft, noOverage: true, reason: "PO" }).ok, false);
+
+  const dash: InstituteToolPricingRow = { ...row, tool_key: "copy_check_evaluation", global: DASH_RATE, effective: DASH_RATE };
+  const d = draftFromRow(dash);
+  assert.equal(effectiveNoOverage(dash, d), false);
+  const r = buildOverrideRequest(dash, { ...d, perUnit: "0.1", reason: "PO" });
+  assert.ok(r.ok && r.body.no_token_overage === false);
+  const onlyToggle = buildOverrideRequest(dash, { ...d, noOverage: true, reason: "PO" });
+  assert.ok(onlyToggle.ok && onlyToggle.body.no_token_overage === true);
+});
+
+test("api-access normaliser keeps unknown usage as null and tolerates partial keys", () => {
+  const a = normalizeApiAccess({
+    products: [{ product: "evaluation", enabled: true }, null],
+    keys: [{ id: "k1", name: "Vendor", key_prefix: "vak_eval_ab12", scopes: null, status: "ACTIVE" }],
+    usage_30d: { copies: null, typed: null, identify_pages: null, credits: "12.5" },
+  });
+  assert.equal(a.products.length, 1);
+  assert.deepEqual(a.keys[0].scopes, []);
+  assert.equal(a.keys[0].prefix, "vak_eval_ab12");
+  assert.deepEqual(a.usage_30d, { copies: null, typed: null, identify_pages: null, credits: 12.5 });
+  assert.deepEqual(a.webhook_endpoints, []);
+  assert.equal(a.last_error, null);
+  assert.equal(normalizeApiAccess(null).usage_30d, null);
+
+  assert.equal(formatCount(null), "—");
+  assert.equal(formatCount(undefined), "—");
+  assert.equal(formatCount(0), "0");
+  assert.equal(formatCount(12.5, 2), (12.5).toLocaleString(undefined, { maximumFractionDigits: 2 }));
+});
+
+test("bulk-enable summary reads admin-core's {enabled[], not_found[], count}", () => {
+  assert.deepEqual(
+    summarizeBulkEnable({ product: "evaluation", enabled: ["a", "b"], not_found: ["zz"], count: 2 }, 3),
+    { count: 2, notFound: ["zz"] }
+  );
+  assert.deepEqual(summarizeBulkEnable({ enabled: ["a"], not_found: [] }, 1), { count: 1, notFound: [] });
+  assert.deepEqual(summarizeBulkEnable({ enabled: 4 }, 5), { count: 4, notFound: [] });
+  assert.deepEqual(summarizeBulkEnable(null, 3), { count: 3, notFound: [] });
 });

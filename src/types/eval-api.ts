@@ -111,11 +111,12 @@ export interface ApiKeySummary {
   expires_at?: string | null;
 }
 
+/** null = admin-core has no figure for it yet ("unknown", not 0). */
 export interface ApiUsage30d {
-  copies: number;
-  typed: number;
-  identify_pages: number;
-  credits: number;
+  copies: number | null;
+  typed: number | null;
+  identify_pages: number | null;
+  credits: number | null;
 }
 
 export interface WebhookEndpointHealth {

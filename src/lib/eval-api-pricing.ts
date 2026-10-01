@@ -3,12 +3,16 @@
 // them directly (see tests/eval-api-pricing.test.ts).
 import type {
   ActiveOverride,
+  ApiAccessProduct,
+  ApiKeySummary,
   ApiSegment,
+  InstituteApiAccess,
   InstituteToolPricingRow,
   PricingHistoryEntry,
   SetInstituteToolPricingRequest,
   ToolPricingOverride,
   ToolRate,
+  WebhookEndpointHealth,
 } from "../types/eval-api";
 
 /** The tool key API traffic bills under — per page, fixed price. */
@@ -220,8 +224,13 @@ export function draftRate(row: InstituteToolPricingRow, draft: OverrideDraft): T
     per_unit: per ?? g.per_unit,
     unit_field: g.unit_field ?? row.effective.unit_field,
     params,
-    no_token_overage: draft.noOverage,
+    no_token_overage: effectiveNoOverage(row, draft),
   };
+}
+
+/** The API tool is fixed-price by contract: no token overage is always on for it. */
+export function effectiveNoOverage(row: Pick<InstituteToolPricingRow, "tool_key">, draft: Pick<OverrideDraft, "noOverage">): boolean {
+  return row.tool_key === API_EVAL_TOOL_KEY || draft.noOverage;
 }
 
 function checkRate(label: string, raw: string): string | null {
@@ -247,10 +256,12 @@ export function buildOverrideRequest(
   const flat = num(draft.flat);
   const per = num(draft.perUnit);
   const typed = num(draft.typedPerAnswer);
-  if (flat === null && per === null && typed === null && !draft.noOverage) {
+  const noOverage = effectiveNoOverage(row, draft);
+  // For the API tool no-overage is implied, so it alone is not a change worth saving.
+  if (flat === null && per === null && typed === null && (row.tool_key === API_EVAL_TOOL_KEY || !draft.noOverage)) {
     return { ok: false, error: "Set at least one price, or use Revert to go back to the standard rate" };
   }
-  const body: SetInstituteToolPricingRequest = { reason, no_token_overage: draft.noOverage };
+  const body: SetInstituteToolPricingRequest = { reason, no_token_overage: noOverage };
   if (flat !== null) body.flat_base_credits = flat;
   if (per !== null) body.per_unit_credits = per;
   // params replace the global params wholesale (non-null override fields win), so
@@ -405,6 +416,61 @@ export function parseInstituteIds(text: string): { ids: string[]; invalid: strin
     }
   }
   return { ids, invalid };
+}
+
+/** Count for a usage tile: null/unknown → "—" (admin-core sends null when it has no figure yet). */
+export function formatCount(v: unknown, maxFractionDigits = 0): string {
+  const n = num(v);
+  return n === null ? "—" : n.toLocaleString(undefined, { maximumFractionDigits: maxFractionDigits });
+}
+
+/** GET /institutes/{id}/api-access → a shape the panel can render without null checks on lists. */
+export function normalizeApiAccess(raw: unknown): InstituteApiAccess {
+  const r = obj(raw) ?? {};
+  const usage = obj(r.usage_30d);
+  const keys = list(r.keys, []).map((k): ApiKeySummary => ({
+    id: str(k.id) ?? "",
+    name: str(k.name) ?? "",
+    prefix: str(k.prefix) ?? str(k.key_prefix) ?? "",
+    scopes: Array.isArray(k.scopes) ? k.scopes.filter((x): x is string => typeof x === "string") : [],
+    created_by: str(k.created_by),
+    created_at: str(k.created_at),
+    last_used_at: str(k.last_used_at),
+    status: str(k.status) ?? "",
+    expires_at: str(k.expires_at),
+  }));
+  return {
+    products: list(r.products, []).filter((p) => !!p && typeof p === "object") as unknown as ApiAccessProduct[],
+    keys,
+    usage_30d: usage
+      ? {
+          copies: num(usage.copies),
+          typed: num(usage.typed),
+          identify_pages: num(usage.identify_pages),
+          credits: num(usage.credits),
+        }
+      : null,
+    webhook_endpoints: list(r.webhook_endpoints, []).filter(
+      (w) => !!w && typeof w === "object"
+    ) as unknown as WebhookEndpointHealth[],
+    last_error: str(r.last_error),
+  };
+}
+
+/**
+ * Bulk-enable response → how many were enabled and which ids were not found.
+ * admin-core returns {product, enabled: [ids], not_found: [ids], count}; a bare
+ * numeric `enabled` is accepted too. Falls back to the number of ids sent.
+ */
+export function summarizeBulkEnable(res: unknown, sent: number): { count: number; notFound: string[] } {
+  const r = obj(res) ?? {};
+  const notFound = Array.isArray(r.not_found) ? r.not_found.map((x) => String(x)) : [];
+  const count =
+    num(r.count) ??
+    (Array.isArray(r.enabled) ? r.enabled.length : null) ??
+    num(r.enabled) ??
+    Math.max(0, sent - notFound.length);
+  return { count, notFound };
 }
 
 /** Optional integer input: blank → null, otherwise a non-negative integer or NaN. */

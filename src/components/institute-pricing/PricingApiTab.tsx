@@ -1,4 +1,5 @@
 import { ToastStack, useToasts } from "@/components/shared/Toast";
+import { SectionErrorBoundary } from "@/components/shared/SectionErrorBoundary";
 import { RateCardSection } from "./RateCardSection";
 import { EvaluationApiPanel } from "./EvaluationApiPanel";
 
@@ -8,8 +9,12 @@ export function PricingApiTab({ instituteId }: { instituteId: string }) {
   const notify = (text: string) => push("success", text);
   return (
     <div className="space-y-6">
-      <RateCardSection instituteId={instituteId} onNotify={notify} />
-      <EvaluationApiPanel instituteId={instituteId} onNotify={notify} />
+      <SectionErrorBoundary title="Rate card">
+        <RateCardSection instituteId={instituteId} onNotify={notify} />
+      </SectionErrorBoundary>
+      <SectionErrorBoundary title="Evaluation API">
+        <EvaluationApiPanel instituteId={instituteId} onNotify={notify} />
+      </SectionErrorBoundary>
       <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   );

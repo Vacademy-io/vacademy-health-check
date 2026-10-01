@@ -30,6 +30,7 @@ import {
   DEFAULT_SCOPES,
   PHASE1_SCOPES,
   errorDetail,
+  formatCount,
   parseOptionalInt,
   presetQuota,
 } from "@/lib/eval-api-pricing";
@@ -347,10 +348,10 @@ function AccessSettings({
 function UsageRow({ data }: { data: InstituteApiAccess }) {
   const u = data.usage_30d;
   const items: Array<[string, string]> = [
-    ["Copies (30d)", u ? u.copies.toLocaleString() : "—"],
-    ["Typed (30d)", u ? u.typed.toLocaleString() : "—"],
-    ["Identify pages (30d)", u ? u.identify_pages.toLocaleString() : "—"],
-    ["Credits (30d)", u ? Number(u.credits).toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"],
+    ["Copies (30d)", formatCount(u?.copies)],
+    ["Typed (30d)", formatCount(u?.typed)],
+    ["Identify pages (30d)", formatCount(u?.identify_pages)],
+    ["Credits (30d)", formatCount(u?.credits, 2)],
   ];
   return (
     <div className="space-y-2">
@@ -552,7 +553,7 @@ function IssueKeyDialog({
     if (!trimmed) return setError("Name is required");
     if (scopes.length === 0) return setError("Pick at least one scope");
     const cap = parseOptionalInt(dailyCap);
-    if (Number.isNaN(cap)) return setError("Daily copy cap must be a whole number");
+    if (Number.isNaN(cap) || (cap !== null && cap < 1)) return setError("Daily copy cap must be a whole number of at least 1");
     issue.mutate(
       {
         name: trimmed,
@@ -582,8 +583,14 @@ function IssueKeyDialog({
   };
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
+    // While the one-time key is on screen only "I have stored it" closes the dialog:
+    // no overlay click, Escape or corner X (the key cannot be shown again).
+    <Dialog open onOpenChange={(open) => !open && !issued && onClose()}>
+      <DialogContent
+        className={issued ? "max-w-lg [&>button:last-child]:hidden" : "max-w-lg"}
+        onInteractOutside={(e) => issued && e.preventDefault()}
+        onEscapeKeyDown={(e) => issued && e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{issued ? "Store this key now" : "Issue an API key"}</DialogTitle>
           <DialogDescription>
@@ -638,7 +645,7 @@ function IssueKeyDialog({
                 <Input
                   id="key-cap"
                   type="number"
-                  min={0}
+                  min={1}
                   step="1"
                   value={dailyCap}
                   placeholder="institute quota only"

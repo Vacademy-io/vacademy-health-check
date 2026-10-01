@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useBulkEnableApiAccess } from "@/services/api-access-api";
-import { errorDetail, parseInstituteIds, presetQuota } from "@/lib/eval-api-pricing";
+import { errorDetail, parseInstituteIds, presetQuota, summarizeBulkEnable } from "@/lib/eval-api-pricing";
 import type { ApiSegment } from "@/types/eval-api";
 
 const NO_SEGMENT = "__none__";
@@ -62,17 +62,27 @@ function BulkEnableForm({
   const [segment, setSegment] = useState<ApiSegment | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState<string[]>([]);
   const { ids, invalid } = parseInstituteIds(text);
   const tooMany = ids.length > MAX_IDS;
 
   const submit = () => {
     setError(null);
+    setNotFound([]);
     bulk.mutate(
       { institute_ids: ids, product: "evaluation", segment, reason: reason.trim() },
       {
         onSuccess: (res) => {
-          const n = typeof res?.enabled === "number" ? res.enabled : ids.length;
-          onDone(`Evaluation API enabled for ${n} institute${n === 1 ? "" : "s"}`);
+          const { count, notFound: missing } = summarizeBulkEnable(res, ids.length);
+          const enabledText = `Evaluation API enabled for ${count} institute${count === 1 ? "" : "s"}`;
+          if (missing.length === 0) {
+            onDone(enabledText);
+            return;
+          }
+          // Keep the dialog open with only the unknown ids left, so they can be fixed and re-sent.
+          setNotFound(missing);
+          setText(missing.join("\n"));
+          setError(`${enabledText}. ${missing.length} id${missing.length === 1 ? " was" : "s were"} not found (left in the box below).`);
         },
         onError: (err) => setError(errorDetail(err, "Bulk enable failed")),
       }
@@ -141,10 +151,13 @@ function BulkEnableForm({
           />
         </div>
         {error && <p className="text-sm text-destructive">{error}</p>}
+        {notFound.length > 0 && (
+          <p className="break-all font-mono text-xs text-muted-foreground">Not found: {notFound.join(", ")}</p>
+        )}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onCancel}>
-          Cancel
+          {notFound.length > 0 ? "Close" : "Cancel"}
         </Button>
         <Button onClick={submit} disabled={bulk.isPending || ids.length === 0 || tooMany || !reason.trim()}>
           {bulk.isPending ? "Enabling..." : `Enable for ${ids.length}`}
