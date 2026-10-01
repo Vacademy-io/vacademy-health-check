@@ -30,6 +30,11 @@ import type {
   UseCaseDefault,
 } from "@/types/ai-settings";
 import { cn } from "@/lib/utils";
+import { Toggle } from "@/components/shared/Toggle";
+import { OverridesListDialog } from "@/components/institute-pricing/OverridesListDialog";
+import { useToolPricingOverrides } from "@/services/institute-pricing-api";
+import { API_EVAL_TOOL_KEY, errorDetail, isFixedPrice, toolLabel, typedPerAnswer } from "@/lib/eval-api-pricing";
+import type { ActiveOverride } from "@/types/eval-api";
 
 /** Sentinel for "no override" in a Select — Radix rejects an empty-string item value. */
 const BLANK = "__blank__";
@@ -51,37 +56,6 @@ function SourceBadge({ entry }: { entry: AiSettingEntry }) {
     );
   }
   return <Badge variant="outline">Env default</Badge>;
-}
-
-function Toggle({
-  checked,
-  disabled,
-  onChange,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50",
-        checked ? "border-primary bg-primary" : "border-input bg-muted"
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block h-5 w-5 rounded-full bg-background shadow transition-transform",
-          checked ? "translate-x-5" : "translate-x-0.5"
-        )}
-      />
-    </button>
-  );
 }
 
 function SettingRow({
@@ -449,35 +423,69 @@ const UNIT_LABEL: Record<string, string> = {
   pages: "per page",
 };
 
-function ToolPricingRow({ row }: { row: ToolPricingEntry }) {
+function ToolPricingRow({
+  row,
+  overrides,
+}: {
+  row: ToolPricingEntry;
+  /** Institutes with a contract price for this tool (undefined while loading / on error). */
+  overrides?: ActiveOverride[];
+}) {
   const update = useUpdateToolPricing();
   const [flat, setFlat] = useState(String(row.flat_base_credits));
   const [perUnit, setPerUnit] = useState(String(row.per_unit_credits));
+  const currentTyped = typedPerAnswer(row);
+  const [typed, setTyped] = useState(currentTyped !== null ? String(currentTyped) : "");
+  const [reason, setReason] = useState("");
   const [status, setStatus] = useState<Status>(null);
-  const dirty = Number(flat) !== row.flat_base_credits || Number(perUnit) !== row.per_unit_credits;
+  const [showOverrides, setShowOverrides] = useState(false);
+  const hasTyped = currentTyped !== null || row.tool_key === API_EVAL_TOOL_KEY;
+  const typedDirty = hasTyped && typed.trim() !== "" && Number(typed) !== currentTyped;
+  const dirty = Number(flat) !== row.flat_base_credits || Number(perUnit) !== row.per_unit_credits || typedDirty;
+  const fixed = isFixedPrice({ flat: null, per_unit: null, params: row.params }, row.tool_key);
   const save = () => {
     setStatus(null);
+    if (!reason.trim()) {
+      setStatus({ kind: "error", text: "A reason is required — it goes into the price history" });
+      return;
+    }
     update.mutate(
-      { toolKey: row.tool_key, flat_base_credits: Number(flat), per_unit_credits: Number(perUnit) },
       {
-        onSuccess: () => setStatus({ kind: "saved", text: "Saved — applies to the next request" }),
-        onError: (err) => {
-          const detail =
-            (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-            (err as Error).message;
-          setStatus({ kind: "error", text: detail || "Failed to save" });
+        toolKey: row.tool_key,
+        flat_base_credits: Number(flat),
+        per_unit_credits: Number(perUnit),
+        // params are replaced wholesale, so keep the others and change only typed_per_answer.
+        ...(typedDirty ? { params: { ...row.params, typed_per_answer: Number(typed) } } : {}),
+        reason: reason.trim(),
+      },
+      {
+        onSuccess: () => {
+          setReason("");
+          setStatus({ kind: "saved", text: "Saved — applies to the next request" });
         },
+        onError: (err) => setStatus({ kind: "error", text: errorDetail(err, "Failed to save") }),
       }
     );
   };
+  const overrideCount = overrides?.length ?? 0;
   return (
     <div className="flex flex-col gap-3 border-b py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
       <div className="max-w-md">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium">{row.label}</span>
+          <span className="text-sm font-medium">{toolLabel(row.tool_key, row.label)}</span>
           <Badge variant={row.source === "db" ? "secondary" : "outline"}>
             {row.source === "db" ? "Set in DB" : "Code default"}
           </Badge>
+          {fixed && <Badge variant="outline">Fixed price</Badge>}
+          {overrideCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowOverrides(true)}
+              className="text-xs text-primary hover:underline"
+            >
+              {overrideCount} institute{overrideCount === 1 ? "" : "s"} override
+            </button>
+          )}
         </div>
         <p className="mt-0.5 font-mono text-[11px] text-muted-foreground/70">
           {row.tool_key} · {row.unit_field === "flat" ? "flat" : `base + rate ${UNIT_LABEL[row.unit_field] ?? row.unit_field}`}
@@ -488,7 +496,7 @@ function ToolPricingRow({ row }: { row: ToolPricingEntry }) {
           </p>
         )}
       </div>
-      <div className="flex items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1 text-xs text-muted-foreground">
           {row.unit_field === "flat" ? "Credits per call" : "Base credits"}
           <Input type="number" min={0} step="any" value={flat} onChange={(e) => setFlat(e.target.value)} className="w-28" />
@@ -499,10 +507,32 @@ function ToolPricingRow({ row }: { row: ToolPricingEntry }) {
             <Input type="number" min={0} step="any" value={perUnit} onChange={(e) => setPerUnit(e.target.value)} className="w-28" />
           </label>
         )}
-        <Button size="sm" onClick={save} disabled={!dirty || update.isPending}>
+        {hasTyped && (
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Per typed answer
+            <Input type="number" min={0} step="any" value={typed} onChange={(e) => setTyped(e.target.value)} className="w-28" />
+          </label>
+        )}
+        {dirty && (
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Reason (required)
+            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why this rate" className="w-48" />
+          </label>
+        )}
+        <Button size="sm" onClick={save} disabled={!dirty || !reason.trim() || update.isPending}>
           {update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
         </Button>
       </div>
+      {overrides && overrideCount > 0 && (
+        <OverridesListDialog
+          toolKey={row.tool_key}
+          label={row.label}
+          unitField={row.unit_field}
+          overrides={overrides}
+          open={showOverrides}
+          onOpenChange={setShowOverrides}
+        />
+      )}
     </div>
   );
 }
@@ -511,6 +541,12 @@ export default function AiSettingsPage() {
   const { data, isLoading, isError, refetch } = useAiSettings();
   const defaults = useUseCaseDefaults();
   const pricing = useToolPricing();
+  const overrides = useToolPricingOverrides();
+  const overridesByTool = useMemo(() => {
+    const map: Record<string, ActiveOverride[]> = {};
+    for (const o of overrides.data ?? []) (map[o.tool_key] ??= []).push(o);
+    return map;
+  }, [overrides.data]);
 
   const groups = useMemo(() => {
     if (!data) return [];
@@ -628,9 +664,13 @@ export default function AiSettingsPage() {
               <CardTitle>Credits &amp; pricing</CardTitle>
               <CardDescription>
                 What every metered tool charges, in credits (ai_tool_pricing). Charges are
-                max(this rate, the model's actual token cost), so a rate is a floor. Live AI Tutor
-                rows first: compile per slide, image per picture, voice lesson per started minute.
-                Applies to the next request — no deploy.
+                max(this rate, the model's actual token cost), so a rate is a floor — except
+                fixed-price rows, which charge exactly the rate. The API default price
+                (copy_check_evaluation_api) is per page; an institute's own contract price is set
+                on its Pricing &amp; API tab. Live AI Tutor rows first: compile per slide, image per
+                picture, voice lesson per started minute. Every save needs a reason and lands in
+                the price history. Applies to the next request — no deploy; dashboard previews
+                refresh within 10 minutes.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
@@ -644,7 +684,11 @@ export default function AiSettingsPage() {
                 .slice()
                 .sort((a, b) => Number(b.tool_key.startsWith("tutor_")) - Number(a.tool_key.startsWith("tutor_")) || a.tool_key.localeCompare(b.tool_key))
                 .map((row) => (
-                  <ToolPricingRow key={row.tool_key} row={row} />
+                  <ToolPricingRow
+                    key={row.tool_key}
+                    row={row}
+                    overrides={overrides.isSuccess ? (overridesByTool[row.tool_key] ?? []) : undefined}
+                  />
                 ))}
             </CardContent>
           </Card>

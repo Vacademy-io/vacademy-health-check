@@ -8,7 +8,8 @@
     "prebuild": "node scripts/guard-postcss.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test tests/"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",

@@ -6,6 +6,7 @@ import { useInstituteUsers, useDeactivateUser } from "@/services/users-api";
 import { useInstituteSessions } from "@/services/sessions-api";
 import { useInstituteWidgets } from "@/services/widgets-api";
 import { WidgetList } from "@/components/widgets/WidgetList";
+import { PricingApiTab } from "@/components/institute-pricing/PricingApiTab";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -118,6 +119,7 @@ export default function InstituteDetailPage() {
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="widgets">Widgets</TabsTrigger>
+          <TabsTrigger value="pricing-api">Pricing &amp; API</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -134,6 +136,9 @@ export default function InstituteDetailPage() {
         </TabsContent>
         <TabsContent value="widgets" className="mt-4">
           <WidgetsTab instituteId={id!} />
+        </TabsContent>
+        <TabsContent value="pricing-api" className="mt-4">
+          <PricingApiTab instituteId={id!} />
         </TabsContent>
       </Tabs>
     </div>

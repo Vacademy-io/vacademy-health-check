@@ -168,6 +168,8 @@ export interface InstituteCreditItem {
   is_low_balance: boolean;
   created_at: string;
   updated_at: string;
+  /** Credits charged to API keys (user_id apikey:*) in the last 30 days, when ai-service returns it. */
+  api_spend_30d?: number | null;
 }
 
 export interface GrantCreditsRequest {

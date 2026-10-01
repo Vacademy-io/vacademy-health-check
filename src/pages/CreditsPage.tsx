@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAllCredits } from "@/services/credits-api";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -12,9 +12,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, PlugZap } from "lucide-react";
 import { SearchInput } from "@/components/shared/SearchInput";
+import { ToastStack, useToasts } from "@/components/shared/Toast";
+import { BulkEnableApiDialog } from "@/components/institute-pricing/BulkEnableApiDialog";
+import { useToolPricingOverrides } from "@/services/institute-pricing-api";
+import { useInstituteApiAccess } from "@/services/api-access-api";
+import { overriddenToolsByInstitute, toolLabel } from "@/lib/eval-api-pricing";
 import type { InstituteCreditItem } from "@/types/api";
+
+/**
+ * 30-day API spend for one row. Uses the list's own `api_spend_30d` when ai-service
+ * returns it; otherwise asks admin-core's api-access endpoint for that institute
+ * (cached 5 minutes, no retry), which only the visible page triggers.
+ */
+function ApiSpendCell({ row }: { row: InstituteCreditItem }) {
+  const inline = typeof row.api_spend_30d === "number" ? row.api_spend_30d : null;
+  const { data, isLoading, isError } = useInstituteApiAccess(row.institute_id, {
+    enabled: inline === null,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const credits = inline ?? data?.usage_30d?.credits ?? null;
+  if (inline === null && isLoading) return <span className="text-muted-foreground">…</span>;
+  if (inline === null && isError) return <span className="text-muted-foreground" title="Could not load">—</span>;
+  if (!credits) return <span className="text-muted-foreground">—</span>;
+  return <span>{Number(credits).toFixed(2)}</span>;
+}
 
 export default function CreditsPage() {
   const navigate = useNavigate();
@@ -26,6 +50,11 @@ export default function CreditsPage() {
   const pageSize = 20;
 
   const { data, isLoading } = useAllCredits(page, pageSize, sortBy, sortDir, search);
+  const overrides = useToolPricingOverrides();
+  const customByInstitute = useMemo(() => overriddenToolsByInstitute(overrides.data ?? []), [overrides.data]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const { toasts, push, dismiss } = useToasts();
 
   const columns: Column<InstituteCreditItem & Record<string, unknown>>[] = [
     {
@@ -52,6 +81,25 @@ export default function CreditsPage() {
       render: (r) => Number(r.current_balance).toFixed(2),
     },
     {
+      key: "custom_pricing",
+      header: "Pricing",
+      render: (r) => {
+        const tools = customByInstitute[r.institute_id];
+        if (!tools || tools.length === 0) return <span className="text-xs text-muted-foreground">Standard</span>;
+        return (
+          <Badge variant="default" title={tools.map((t) => toolLabel(t)).join("\n")}>
+            Custom pricing
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "api_spend_30d",
+      header: "API spend 30d",
+      className: "text-right",
+      render: (r) => <ApiSpendCell row={r} />,
+    },
+    {
       key: "is_low_balance",
       header: "Status",
       render: (r) =>
@@ -69,7 +117,16 @@ export default function CreditsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Credits" description="Credit balances across all institutes" />
+      <PageHeader
+        title="Credits"
+        description="Credit balances across all institutes. Custom pricing = a contract price on at least one tool; API spend = credits charged to API keys in the last 30 days."
+        actions={
+          <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
+            <PlugZap className="mr-2 h-4 w-4" />
+            {selected.size > 0 ? `Enable API for ${selected.size} selected` : "Enable Evaluation API"}
+          </Button>
+        }
+      />
       <DataTable
         data={(data?.items as (InstituteCreditItem & Record<string, unknown>)[]) ?? []}
         columns={columns}
@@ -79,6 +136,10 @@ export default function CreditsPage() {
         onPageChange={(p) => setPage(p + 1)}
         isLoading={isLoading}
         onRowClick={(row) => navigate(`/institutes/${row.institute_id}`)}
+        selectable
+        selectedIds={selected}
+        onSelectionChange={setSelected}
+        rowId={(row) => row.institute_id}
         toolbar={
           <div className="flex items-center gap-2">
             <SearchInput
@@ -110,6 +171,16 @@ export default function CreditsPage() {
           </div>
         }
       />
+      <BulkEnableApiDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        initialIds={Array.from(selected)}
+        onDone={(text) => {
+          setSelected(new Set());
+          push("success", text);
+        }}
+      />
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

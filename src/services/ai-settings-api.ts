@@ -35,7 +35,10 @@ export function useUpdateToolPricing() {
       toolKey: string;
       flat_base_credits?: number;
       per_unit_credits?: number;
+      params?: Record<string, unknown>;
       is_active?: boolean;
+      /** Required by ai-service: written to ai_tool_pricing_history. */
+      reason: string;
     }) => {
       const { data } = await api.put<ToolPricingEntry>(
         `${API_PREFIXES.AI}/tool-pricing/${encodeURIComponent(toolKey)}`,
@@ -43,7 +46,12 @@ export function useUpdateToolPricing() {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: PRICING_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PRICING_KEY });
+      // The global column of every institute's rate card, and the history, move with it.
+      qc.invalidateQueries({ queryKey: ["super-admin", "institute-tool-pricing"] });
+      qc.invalidateQueries({ queryKey: ["super-admin", "tool-pricing-history"] });
+    },
   });
 }
 /** The models registry router (ai-service /models/v2) — root admin for writes. */
