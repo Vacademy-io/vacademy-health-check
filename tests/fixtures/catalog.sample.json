@@ -1,0 +1,204 @@
+{
+  "version": 1,
+  "modules": [
+    {
+      "key": "core",
+      "label": "Core",
+      "description": "Always on",
+      "rail": null,
+      "core": true,
+      "features": [
+        {
+          "key": "core.dashboard",
+          "label": "Dashboard",
+          "default_on": true,
+          "governs": {
+            "nav": [
+              "dashboard",
+              "manage-institute/teams",
+              "settings"
+            ]
+          },
+          "setting_keys": []
+        }
+      ]
+    },
+    {
+      "key": "lms",
+      "label": "LMS",
+      "description": "Courses and batches",
+      "rail": "LMS",
+      "core": false,
+      "features": [
+        {
+          "key": "lms.courses",
+          "label": "Courses",
+          "default_on": true,
+          "governs": {
+            "nav": [
+              "courses"
+            ]
+          },
+          "setting_keys": []
+        },
+        {
+          "key": "lms.batches",
+          "label": "Batches",
+          "default_on": true,
+          "governs": {
+            "nav": [
+              "manage-institute/batches"
+            ]
+          },
+          "setting_keys": []
+        },
+        {
+          "key": "lms.reports",
+          "label": "Reports",
+          "default_on": true,
+          "governs": {
+            "nav": []
+          },
+          "setting_keys": []
+        }
+      ]
+    },
+    {
+      "key": "assessments",
+      "label": "Assessments",
+      "description": null,
+      "rail": "LMS",
+      "core": false,
+      "features": [
+        {
+          "key": "assessments.tests",
+          "label": "Tests",
+          "default_on": true,
+          "governs": {
+            "nav": [
+              "assessments-tests"
+            ]
+          },
+          "setting_keys": []
+        }
+      ]
+    },
+    {
+      "key": "crm",
+      "label": "CRM",
+      "description": "Leads, admissions, calling",
+      "rail": "CRM",
+      "core": false,
+      "features": [
+        {
+          "key": "crm.leads",
+          "label": "Leads",
+          "default_on": true,
+          "governs": {
+            "nav": [
+              "leads"
+            ]
+          },
+          "setting_keys": [
+            "LEAD_SETTING"
+          ]
+        },
+        {
+          "key": "crm.call_intelligence",
+          "label": "Call intelligence",
+          "default_on": false,
+          "governs": {
+            "nav": [
+              "leads/ai-intelligence"
+            ]
+          },
+          "setting_keys": []
+        }
+      ]
+    },
+    {
+      "key": "communications",
+      "label": "Communications",
+      "description": null,
+      "rail": "CRM",
+      "core": false,
+      "features": [
+        {
+          "key": "comms.all",
+          "label": "Communications",
+          "default_on": true,
+          "governs": {
+            "nav": [
+              "communications/*"
+            ]
+          },
+          "setting_keys": []
+        }
+      ]
+    },
+    {
+      "key": "ai",
+      "label": "AI",
+      "description": null,
+      "rail": "AI",
+      "core": false,
+      "features": [
+        {
+          "key": "ai.tools",
+          "label": "AI tools",
+          "default_on": true,
+          "governs": {
+            "nav": [
+              "ai-*",
+              "knowledge-base-tab",
+              "instructor-copilot-tab",
+              "content-ai-studio",
+              "content-ai-api"
+            ]
+          },
+          "setting_keys": []
+        }
+      ]
+    },
+    {
+      "key": "erp",
+      "label": "ERP",
+      "description": null,
+      "rail": "ERP",
+      "core": false,
+      "features": [
+        {
+          "key": "erp.people",
+          "label": "People",
+          "default_on": true,
+          "governs": {
+            "nav": [
+              "erp-people"
+            ]
+          },
+          "setting_keys": []
+        }
+      ]
+    },
+    {
+      "key": "finance",
+      "label": "Finance",
+      "description": null,
+      "rail": "CRM",
+      "core": false,
+      "features": [
+        {
+          "key": "finance.packages",
+          "label": "Packages",
+          "default_on": true,
+          "governs": {
+            "nav": [
+              "manage-institute/manage-packages"
+            ]
+          },
+          "setting_keys": []
+        }
+      ]
+    }
+  ]
+}

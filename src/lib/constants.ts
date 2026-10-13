@@ -1,5 +1,7 @@
 export const API_PREFIXES = {
   ADMIN_CORE: "/admin-core-service/super-admin/v1",
+  /** Tenant-side capability catalogue (any signed-in user) — spec §12.2. */
+  CAPABILITIES: "/admin-core-service/capabilities/v1",
   AUTH: "/auth-service/super-admin/v1",
   AI: "/ai-service/super-admin/v1",
   MEDIA: "/media-service/super-admin/v1",
