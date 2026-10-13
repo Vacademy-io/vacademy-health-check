@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { ToastStack, useToasts } from "@/components/shared/Toast";
 import { SectionErrorBoundary } from "@/components/shared/SectionErrorBoundary";
+import { ActorName } from "@/components/shared/ActorName";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,7 +69,11 @@ export default function ModulePresetsPage() {
       render: (r) => (
         <span className="text-xs text-muted-foreground">
           {when(r.updated_at)}
-          {r.updated_by ? ` · ${r.updated_by}` : ""}
+          {r.updated_by && (
+            <>
+              {" "}· <ActorName id={r.updated_by} />
+            </>
+          )}
         </span>
       ),
     },

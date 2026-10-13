@@ -16,6 +16,7 @@ import {
 import { StatCard } from "@/components/shared/StatCard";
 import { ToastStack, useToasts } from "@/components/shared/Toast";
 import { SectionErrorBoundary } from "@/components/shared/SectionErrorBoundary";
+import { ActorName } from "@/components/shared/ActorName";
 import {
   useCapabilityCatalog,
   useDisplaySettings,
@@ -129,7 +130,11 @@ function ModulesEditor({
             <CardDescription>
               What this institute has. A module or feature that is off is hidden in the admin app once the institute
               is MANAGED. Catalogue v{catalog.version}
-              {data.mode_updated_at && ` · mode set ${when(data.mode_updated_at)} by ${data.mode_updated_by ?? "unknown"}`}
+              {data.mode_updated_at && (
+                <>
+                  {" "}· mode set {when(data.mode_updated_at)} by <ActorName id={data.mode_updated_by} />
+                </>
+              )}
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">

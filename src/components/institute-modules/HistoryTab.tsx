@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { ToastStack, useToasts } from "@/components/shared/Toast";
 import { SectionErrorBoundary } from "@/components/shared/SectionErrorBoundary";
+import { ActorName } from "@/components/shared/ActorName";
 import { useDebounced } from "@/hooks/use-debounced";
 import {
   useCapabilityCatalog,
@@ -83,7 +84,7 @@ function SettingsHistorySection({ instituteId, notify }: { instituteId: string; 
     { key: "created_at", header: "When", render: (r) => when(r.created_at) },
     { key: "setting_key", header: "Setting", render: (r) => <span className="font-mono text-xs">{r.setting_key}</span> },
     { key: "source", header: "Source", render: (r) => <SourceBadge source={r.source} /> },
-    { key: "actor_user_id", header: "By", render: (r) => <span className="text-xs">{r.actor_user_id ?? "—"}</span> },
+    { key: "actor_user_id", header: "By", render: (r) => <ActorName id={r.actor_user_id} empty="—" className="text-xs" /> },
     {
       key: "reason",
       header: "Reason",
@@ -184,7 +185,13 @@ function SettingChangeDrawer({
       onOpenChange={(o) => !o && onClose()}
       wide
       title="Setting change"
-      description={data ? `${data.setting_key} · ${when(data.created_at)} · by ${data.actor_user_id ?? "unknown"}` : undefined}
+      description={
+        data ? (
+          <>
+            {data.setting_key} · {when(data.created_at)} · by <ActorName id={data.actor_user_id} />
+          </>
+        ) : undefined
+      }
     >
       {isLoading && <Skeleton className="h-40 w-full" />}
       {error != null && <QueryState isLoading={false} error={error} what="this change" />}

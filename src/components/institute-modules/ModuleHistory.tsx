@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ActorName } from "@/components/shared/ActorName";
 import { useCapabilityCatalog, useModuleHistory } from "@/services/institute-modules-api";
 import { buildGovernance, describeHistoryValue } from "@/lib/modules-catalog";
 import { Drawer, QueryState } from "./shared";
@@ -46,7 +47,7 @@ export function ModuleHistoryList({ instituteId, enabled = true }: { instituteId
             </div>
             {e.note && <p className="mt-1 text-xs">Note: {e.note}</p>}
             {e.reason && <p className="mt-1 text-muted-foreground">“{e.reason}”</p>}
-            <p className="mt-1 text-xs text-muted-foreground">by {e.actor_user_id ?? "unknown"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">by <ActorName id={e.actor_user_id} /></p>
           </li>
         ))}
       </ol>
