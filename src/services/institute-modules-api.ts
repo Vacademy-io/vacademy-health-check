@@ -11,6 +11,7 @@ import {
   normalizeOverview,
   normalizePage,
   normalizePresets,
+  normalizeRestoreResult,
   normalizeRoles,
   normalizeSettingHistoryDetail,
   normalizeSettingHistoryEntry,
@@ -250,7 +251,10 @@ export function useRestoreSetting(instituteId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ historyId, reason }: { historyId: string; reason: string }) => {
-      await api.post(`${inst(instituteId)}/settings/history/${enc(historyId)}/restore`, { reason });
+      const { data } = await api.post<unknown>(`${inst(instituteId)}/settings/history/${enc(historyId)}/restore`, {
+        reason,
+      });
+      return normalizeRestoreResult(data, historyId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: modulesKeys.settingsHistory(instituteId) });

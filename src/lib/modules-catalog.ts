@@ -24,6 +24,7 @@ import type {
   PageResponse,
   ApplyPresetResult,
   ResolvedEntitlements,
+  RestoreSettingResult,
   RoleDisplaySettings,
   RoleDefaults,
   SettingHistoryDetail,
@@ -281,6 +282,7 @@ export function normalizeModuleHistoryEntry(v: unknown): ModuleHistoryEntry | nu
     old_value: typeof e.old_value === "string" ? e.old_value : e.old_value == null ? null : JSON.stringify(e.old_value),
     new_value: typeof e.new_value === "string" ? e.new_value : e.new_value == null ? null : JSON.stringify(e.new_value),
     reason: strOrNull(e.reason),
+    note: strOrNull(e.note),
     actor_user_id: strOrNull(e.actor_user_id),
     created_at: strOrNull(e.created_at),
   };
@@ -416,6 +418,7 @@ export function normalizeSettingHistoryEntry(v: unknown): SettingHistoryEntry | 
     actor_user_id: strOrNull(e.actor_user_id),
     source: str(e.source, "TENANT"),
     created_at: strOrNull(e.created_at),
+    reason: strOrNull(e.reason),
   };
 }
 
@@ -600,7 +603,7 @@ export function resolvedCounts(resolved: ResolvedEntitlements, catalog: Capabili
 
 /** Parse a module-history value string ({"enabled":true,"expires_at":null} or a mode). */
 export function describeHistoryValue(v: string | null): string {
-  if (v == null || v === "") return "—";
+  if (v == null || v === "") return "none";
   try {
     const parsed: unknown = JSON.parse(v);
     if (typeof parsed === "string") return parsed;
@@ -615,6 +618,26 @@ export function describeHistoryValue(v: string | null): string {
   } catch {
     return v;
   }
+}
+
+export function normalizeRestoreResult(v: unknown, historyId: string): RestoreSettingResult {
+  const o = obj(v) ?? {};
+  return {
+    restored_from: str(o.restored_from, historyId),
+    setting_key: str(o.setting_key, ""),
+    changed: bool(o.changed, true),
+  };
+}
+
+/** The server's current version from a 409 VERSION_CONFLICT body, if sent. */
+export function conflictCurrentVersion(err: unknown): string | null {
+  return strOrNull(obj((err as { response?: { data?: unknown } })?.response?.data)?.current_version);
+}
+
+/** Overview chips: core is implied, so only non-core enabled modules are listed. */
+export function overviewModules(enabled: string[], catalog: CapabilityCatalog | null): string[] {
+  const core = new Set((catalog?.modules ?? []).filter((m) => m.core).map((m) => m.key));
+  return enabled.filter((k) => !core.has(k));
 }
 
 /** Preset keys are permanent identifiers: lowercase snake case. */

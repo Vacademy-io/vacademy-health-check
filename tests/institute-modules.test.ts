@@ -34,19 +34,50 @@ const GOV = buildGovernance(CATALOG);
 
 test("catalog response: nav may be null; garbage does not throw", () => {
   const r = normalizeCatalogResponse({ catalog: fixture("catalog.sample.json"), nav: null });
-  assert.equal(r.catalog?.modules.length, 8);
+  assert.equal(r.catalog?.modules.length, 13);
+  assert.equal(r.catalog?.modules.flatMap((m) => m.features).length, 53);
   assert.equal(r.nav, null);
   assert.deepEqual(normalizeCatalogResponse("<html>"), { catalog: null, nav: null });
 });
 
-test("governance: exact, tab/sub and wildcard entries", () => {
+test("governance: tab and tab/sub entries of the real catalogue", () => {
   assert.deepEqual(GOV.featuresForTab("courses"), ["lms.courses"]);
   assert.deepEqual(GOV.featuresForSub("leads", "ai-intelligence").sort(), ["crm.call_intelligence", "crm.leads"]);
+  assert.deepEqual(GOV.featuresForSub("leads", "call-log").sort(), ["crm.calling", "crm.leads"]);
   assert.deepEqual(GOV.featuresForTab("ai-tools-tab"), ["ai.tools"]);
-  assert.deepEqual(GOV.featuresForSub("communications", "chat"), ["comms.all"]);
+  assert.deepEqual(GOV.featuresForSub("communications", "chat"), ["communications.chat"]);
   assert.deepEqual(GOV.featuresForTab("communications"), []);
-  assert.deepEqual(GOV.featuresForTab("manage-institute"), []);
-  assert.equal(GOV.moduleOfFeature.get("comms.all"), "communications");
+  assert.deepEqual(GOV.featuresForTab("manage-institute"), ["core.teams"]);
+  assert.deepEqual(GOV.featuresForSub("manage-institute", "batches").sort(), ["core.teams", "lms.batches"]);
+  assert.deepEqual(GOV.featuresForSub("automations", "blog"), ["website.blog"]);
+  assert.equal(GOV.moduleOfFeature.get("communications.email"), "communications");
+});
+
+test("governance: trailing-* wildcards still match by prefix (harmless when unused)", () => {
+  const gov = buildGovernance({
+    version: 1,
+    modules: [
+      {
+        key: "erp",
+        label: "ERP",
+        description: null,
+        rail: "ERP",
+        core: false,
+        features: [
+          {
+            key: "erp.all",
+            label: "All",
+            description: null,
+            default_on: true,
+            governs: { nav: ["erp-*"], widgets: [], quick_actions: [], assistant_groups: [], setup_steps: [], routes: [] },
+            setting_keys: [],
+          },
+        ],
+      },
+    ],
+  });
+  assert.deepEqual(gov.featuresForTab("erp-people"), ["erp.all"]);
+  assert.deepEqual(gov.featuresForTab("courses"), []);
 });
 
 test("entitlementBlock prefers MODULE_OFF and fails open on unknown features", () => {
@@ -99,7 +130,8 @@ test("expiry helpers", () => {
 test("resolvedCounts counts core modules as on", () => {
   const c = resolvedCounts({ modules: { crm: true }, features: { "crm.leads": true } }, CATALOG);
   assert.equal(c.modulesOn, 2);
-  assert.equal(c.modulesTotal, 8);
+  assert.equal(c.modulesTotal, 13);
+  assert.equal(c.featuresTotal, 53);
   assert.equal(c.featuresOn, 1);
 });
 
@@ -138,7 +170,7 @@ test("error classification", () => {
 test("module history values read as text", () => {
   assert.equal(describeHistoryValue('{"enabled":true,"expires_at":"2026-12-31T23:59:59Z"}'), "on · until 2026-12-31");
   assert.equal(describeHistoryValue('"MANAGED"'), "MANAGED");
-  assert.equal(describeHistoryValue(null), "—");
+  assert.equal(describeHistoryValue(null), "none"); // first row for a key: no old value
 });
 
 // ── role nav edits ──────────────────────────────────────────────────────────

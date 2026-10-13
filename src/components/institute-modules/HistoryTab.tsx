@@ -85,6 +85,11 @@ function SettingsHistorySection({ instituteId, notify }: { instituteId: string; 
     { key: "source", header: "Source", render: (r) => <SourceBadge source={r.source} /> },
     { key: "actor_user_id", header: "By", render: (r) => <span className="text-xs">{r.actor_user_id ?? "—"}</span> },
     {
+      key: "reason",
+      header: "Reason",
+      render: (r) => <span className="line-clamp-2 max-w-[260px] text-xs text-muted-foreground">{r.reason ?? "—"}</span>,
+    },
+    {
       key: "view",
       header: "",
       className: "text-right",
@@ -191,12 +196,15 @@ function SettingChangeDrawer({
             <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setRaw((v) => !v)}>
               {raw ? "Show diff" : "Show raw JSON"}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setConfirming(true)} disabled={data.old_value == null}>
+            <Button size="sm" variant="outline" onClick={() => setConfirming(true)}>
               <RotateCcw className="mr-2 h-4 w-4" /> Restore old value
             </Button>
           </div>
+          {data.reason && <p className="text-sm text-muted-foreground">“{data.reason}”</p>}
           {data.old_value == null && (
-            <p className="text-xs text-muted-foreground">This change created the setting; there is no older value to restore.</p>
+            <p className="text-xs text-muted-foreground">
+              This change created the setting: restoring removes it again (the app falls back to its defaults).
+            </p>
           )}
           {raw ? (
             <div className="grid gap-3 md:grid-cols-2">
@@ -216,12 +224,20 @@ function SettingChangeDrawer({
           destructive
           confirmLabel="Restore"
           pendingLabel="Restoring..."
-          description={`Writes the value ${data.setting_key} had before this change back to the institute, replacing whatever it holds now. The restore is recorded as a PLATFORM change.`}
+          description={
+            data.old_value == null
+              ? `${data.setting_key} did not exist before this change: restoring removes it, replacing whatever it holds now. Recorded as a PLATFORM change.`
+              : `Writes the value ${data.setting_key} had before this change back to the institute, replacing whatever it holds now. Recorded as a PLATFORM change.`
+          }
           onClose={() => setConfirming(false)}
           onConfirm={async (reason) => {
-            await restore.mutateAsync({ historyId: data.id, reason });
+            const r = await restore.mutateAsync({ historyId: data.id, reason });
             setConfirming(false);
-            onRestored(`Restored ${data.setting_key}.`);
+            onRestored(
+              r.changed
+                ? `Restored ${data.setting_key}.`
+                : `${data.setting_key} already had that value — nothing changed.`
+            );
           }}
         />
       )}

@@ -154,12 +154,15 @@ export interface ModuleHistoryEntry {
   old_value: string | null;
   new_value: string | null;
   reason: string | null;
+  /** Note stored with the change, when any. */
+  note: string | null;
   actor_user_id: string | null;
   created_at: string | null;
 }
 
 export interface ModulesOverviewEntry {
   mode: ModuleMode;
+  /** Includes core; computed with the MANAGED rule even while LEGACY. */
   enabled_modules: string[];
 }
 
@@ -204,8 +207,10 @@ export interface RoleDisplaySettings {
 }
 
 export interface SaveDisplaySettingsRequest {
-  data: Record<string, unknown>;
-  expected_version: string | null;
+  /** null removes the role's blob (the admin app falls back to its defaults). */
+  data: Record<string, unknown> | null;
+  /** Required by the server (400 when missing): the version from the last GET. */
+  expected_version: string;
   reason: string;
 }
 
@@ -217,9 +222,18 @@ export interface SettingHistoryEntry {
   actor_user_id: string | null;
   source: SettingSource | string;
   created_at: string | null;
+  reason: string | null;
 }
 
 export interface SettingHistoryDetail extends SettingHistoryEntry {
   old_value: string | null;
   new_value: string | null;
+}
+
+/** POST …/settings/history/{hid}/restore */
+export interface RestoreSettingResult {
+  restored_from: string;
+  setting_key: string;
+  /** false when the key already held that value (no new history row). */
+  changed: boolean;
 }

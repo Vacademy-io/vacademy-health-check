@@ -21,7 +21,7 @@ import { ApplyPresetDialog } from "@/components/institute-modules/ApplyPresetDia
 import { ModeBadge, ModuleChip } from "@/components/institute-modules/shared";
 import { ToastStack, useToasts } from "@/components/shared/Toast";
 import { useCapabilityCatalog, useModulesOverview } from "@/services/institute-modules-api";
-import { isApiUnavailable } from "@/lib/modules-catalog";
+import { isApiUnavailable, overviewModules } from "@/lib/modules-catalog";
 
 const TAG_COLORS: Record<string, string> = {
   PROD: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -103,15 +103,20 @@ export default function InstitutesPage() {
         }
         const entry = overview.data?.[row.id as string];
         if (!entry) return <span className="text-xs text-muted-foreground">—</span>;
+        // Core is implied; while LEGACY these are what MANAGED would apply (everything is on today).
+        const mods = overviewModules(entry.enabled_modules, cat?.catalog ?? null);
+        const legacy = entry.mode === "LEGACY";
+        const hint = legacy ? " (applies once MANAGED — LEGACY shows everything)" : "";
         return (
           <div className="flex max-w-[260px] flex-wrap items-center gap-1">
             <ModeBadge mode={entry.mode} />
-            {entry.enabled_modules.slice(0, 4).map((k) => (
-              <ModuleChip key={k} label={moduleLabel(k)} />
+            {mods.length === 0 && <span className="text-[11px] text-muted-foreground">core only</span>}
+            {mods.slice(0, 4).map((k) => (
+              <ModuleChip key={k} label={moduleLabel(k)} muted={legacy} title={`${moduleLabel(k)}${hint}`} />
             ))}
-            {entry.enabled_modules.length > 4 && (
-              <span className="text-[11px] text-muted-foreground" title={entry.enabled_modules.map(moduleLabel).join(", ")}>
-                +{entry.enabled_modules.length - 4}
+            {mods.length > 4 && (
+              <span className="text-[11px] text-muted-foreground" title={mods.map(moduleLabel).join(", ") + hint}>
+                +{mods.length - 4}
               </span>
             )}
           </div>

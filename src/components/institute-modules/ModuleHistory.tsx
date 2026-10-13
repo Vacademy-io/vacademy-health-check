@@ -44,6 +44,7 @@ export function ModuleHistoryList({ instituteId, enabled = true }: { instituteId
               <span className="text-muted-foreground">→</span>
               <Badge variant="secondary">{describeHistoryValue(e.new_value)}</Badge>
             </div>
+            {e.note && <p className="mt-1 text-xs">Note: {e.note}</p>}
             {e.reason && <p className="mt-1 text-muted-foreground">“{e.reason}”</p>}
             <p className="mt-1 text-xs text-muted-foreground">by {e.actor_user_id ?? "unknown"}</p>
           </li>

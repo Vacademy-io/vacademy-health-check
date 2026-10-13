@@ -1,5 +1,17 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, Eye, EyeOff, Info, Lock, RefreshCw, Save, Undo2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Info,
+  Lock,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Undo2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +29,7 @@ import {
 } from "@/services/institute-modules-api";
 import {
   buildGovernance,
+  conflictCurrentVersion,
   entitlementBlock,
   errorMessage,
   isApiUnavailable,
@@ -223,6 +236,7 @@ function RolesMatrix({
   const save = useSaveDisplaySettings(instituteId);
   const [edits, setEdits] = useState<Record<string, RoleEdits>>({});
   const [conflicts, setConflicts] = useState<string[]>([]);
+  const [conflictVersions, setConflictVersions] = useState<Record<string, string | null>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [panelRole, setPanelRole] = useState<string>("ADMIN");
@@ -273,8 +287,8 @@ function RolesMatrix({
     const failed: string[] = [];
     for (const roleKey of editedRoles) {
       const stored = settings[roleKey]?.data;
-      if (!stored) {
-        failed.push(`${roleKey}: settings not loaded`);
+      if (!stored?.version) {
+        failed.push(`${nameOf(roleKey)}: settings not loaded — reload the tab`);
         continue;
       }
       try {
@@ -284,8 +298,10 @@ function RolesMatrix({
         });
         ok.push(roleKey);
       } catch (e) {
-        if (isVersionConflict(e)) conflicted.push(roleKey);
-        else failed.push(`${roleKey}: ${errorMessage(e)}`);
+        if (isVersionConflict(e)) {
+          conflicted.push(roleKey);
+          noteConflict(roleKey, e);
+        } else failed.push(`${nameOf(roleKey)}: ${errorMessage(e)}`);
       }
     }
     setSaving(false);
@@ -298,6 +314,32 @@ function RolesMatrix({
     if (ok.length > 0) notify("success", `Saved ${plural(ok.length, "role")}: ${ok.map(nameOf).join(", ")}.`);
     if (conflicted.length > 0) notify("error", `${plural(conflicted.length, "role")} changed in the institute since you loaded — see the banner.`);
     for (const f of failed) notify("error", `Save failed — ${f}`);
+  };
+
+  function noteConflict(roleKey: string, e: unknown) {
+    const v = conflictCurrentVersion(e);
+    setConflictVersions((m) => ({ ...m, [roleKey]: v }));
+  }
+
+  /** data: null removes the role's stored blob; the admin app falls back to its defaults. */
+  const resetRole = async (roleKey: string, reason: string) => {
+    const stored = settings[roleKey]?.data;
+    if (!stored?.version) throw new Error("Settings not loaded — reload the tab.");
+    try {
+      await save.mutateAsync({ roleKey, body: { data: null, expected_version: stored.version, reason } });
+    } catch (e) {
+      if (!isVersionConflict(e)) throw e;
+      noteConflict(roleKey, e);
+      setConflicts((c) => [...new Set([...c, roleKey])]);
+      notify("error", `${nameOf(roleKey)} changed in the institute since you loaded — nothing was reset.`);
+      return;
+    }
+    setEdits((all) => {
+      const next = { ...all };
+      delete next[roleKey];
+      return next;
+    });
+    notify("success", `${nameOf(roleKey)} reset to the app defaults.`);
   };
 
   function nameOf(roleKey: string) {
@@ -315,8 +357,9 @@ function RolesMatrix({
         >
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="flex-1">
-            <strong>{nameOf(roleKey)}</strong>: changed in the institute since you loaded — nothing was saved for this
-            role. Reload to get the institute's latest settings; your edits stay pending on top of them so you can
+            <strong>{nameOf(roleKey)}</strong>: changed in the institute since you loaded
+            {conflictVersions[roleKey] ? ` (now version ${conflictVersions[roleKey]!.slice(0, 8)})` : ""} — nothing was
+            saved for this role. Reload to get the institute's latest settings; your edits stay pending on top of them so you can
             review before saving again.
           </span>
           <Button
@@ -514,6 +557,7 @@ function RolesMatrix({
                 version={settings[panelCol.roleKey]?.data?.version ?? null}
                 edits={edits[panelCol.roleKey] ?? emptyEdits()}
                 onPatch={(p) => patchRole(panelCol.roleKey, p)}
+                onReset={(reason) => resetRole(panelCol.roleKey, reason)}
               />
             )}
           </div>
@@ -571,22 +615,23 @@ function RoleSidePanel({
   version,
   edits,
   onPatch,
+  onReset,
 }: {
   column: RoleColumn;
   blob: Record<string, unknown> | null;
   version: string | null;
   edits: RoleEdits;
   onPatch: (patch: (e: RoleEdits) => RoleEdits) => void;
+  onReset: (reason: string) => Promise<void>;
 }) {
+  const [resetting, setResetting] = useState(false);
   const route = postLoginRouteOf(blob);
   const routeValue = edits.post_login_route ?? route.value;
 
   const setUi = (key: UiToggleKey, value: boolean) =>
     onPatch((e) => {
       const ui = { ...e.ui };
-      const stored = uiToggleOf(blob, key, column.roleKey);
-      if (stored.explicit && stored.value === value) delete ui[key];
-      else if (!stored.explicit && stored.value === value) delete ui[key];
+      if (uiToggleOf(blob, key, column.roleKey).value === value) delete ui[key];
       else ui[key] = value;
       return { ...e, ui };
     });
@@ -641,6 +686,25 @@ function RoleSidePanel({
       <p className="text-[11px] text-muted-foreground">
         Dashboard widgets and other options stay in the institute's own Settings for now.
       </p>
+      {blob && (
+        <Button size="sm" variant="outline" className="w-full" onClick={() => setResetting(true)}>
+          <RotateCcw className="mr-2 h-4 w-4" /> Reset role to app defaults
+        </Button>
+      )}
+      {resetting && (
+        <ReasonDialog
+          title={`Reset ${column.name} to the app defaults?`}
+          destructive
+          confirmLabel="Reset"
+          pendingLabel="Resetting..."
+          description="Removes this role's stored display settings (custom tabs, labels, widgets and every other option), so the admin app uses its built-in defaults. Pending edits for this role are dropped. The old value stays in History and can be restored."
+          onClose={() => setResetting(false)}
+          onConfirm={async (reason) => {
+            await onReset(reason);
+            setResetting(false);
+          }}
+        />
+      )}
     </div>
   );
 }

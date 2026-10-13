@@ -13,7 +13,7 @@ import {
   type PreviewResult,
   type PreviewTab,
 } from "../src/lib/nav-preview.ts";
-import type { ResolvedEntitlements } from "../src/types/modules.ts";
+import type { CapabilityCatalog, ResolvedEntitlements } from "../src/types/modules.ts";
 
 const fixture = (name: string): unknown => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8"));
 const NAV = normalizeNav(fixture("nav-manifest.json"))!;
@@ -32,6 +32,17 @@ const sub = (r: PreviewResult, tabId: string, subId: string) => {
   return s;
 };
 const cat = (r: PreviewResult, id: string) => r.categories.find((c) => c.id === id)!;
+
+/** What the server resolves in MANAGED mode: a feature of an off module is off. */
+function resolve(catalog: CapabilityCatalog, modules: Record<string, boolean>, features: Record<string, boolean> = {}): ResolvedEntitlements {
+  const out: ResolvedEntitlements = { modules: {}, features: {} };
+  for (const m of catalog.modules) {
+    const on = m.core || (modules[m.key] ?? true);
+    out.modules[m.key] = on;
+    for (const f of m.features) out.features[f.key] = on && (features[f.key] ?? f.default_on);
+  }
+  return out;
+}
 const preview = (roleKey: string, blob: Record<string, unknown> | null = null, resolved: ResolvedEntitlements | null = null) =>
   resolvePreview({ nav: NAV, catalog: CATALOG, blob, roleKey, resolved });
 
@@ -198,31 +209,28 @@ test("category hidden hides its tabs and drops it from the rail; an empty catego
   assert.equal(cat(empty, "AI").hidden_reason, "EMPTY");
 });
 
-test("module off and feature off (incl. wildcard governance and all-sub-tabs-off groups)", () => {
-  const resolved: ResolvedEntitlements = {
-    modules: { lms: false, crm: true, ai: false, communications: false },
-    features: {
-      "lms.courses": false,
-      "lms.batches": false,
-      "crm.leads": true,
-      "crm.call_intelligence": false,
-      "ai.tools": false,
-      "comms.all": false,
-    },
-  };
+test("module off and feature off (real catalogue; all-sub-tabs-off groups)", () => {
+  const resolved = resolve(CATALOG, { lms: false, ai: false, communications: false }, { "crm.call_intelligence": false });
   const r = preview("ADMIN", null, resolved);
   assert.equal(tab(r, "courses").reason, "MODULE_OFF");
   assert.deepEqual(tab(r, "courses").modules, ["lms"]);
   assert.equal(sub(r, "leads", "ai-intelligence").reason, "FEATURE_OFF");
   assert.equal(sub(r, "leads", "lead-list-leads").hidden, false);
-  assert.equal(tab(r, "ai-tools-tab").reason, "MODULE_OFF"); // via "ai-*"
+  assert.equal(tab(r, "ai-tools-tab").reason, "MODULE_OFF");
   assert.equal(tab(r, "knowledge-base-tab").reason, "MODULE_OFF");
+  // An LMS sub-tab under a core tab: the sub goes, the tab stays.
   assert.equal(sub(r, "manage-institute", "batches").reason, "MODULE_OFF");
-  assert.equal(sub(r, "manage-institute", "teams").hidden, false); // core
+  assert.equal(sub(r, "manage-institute", "teams").hidden, false);
   assert.equal(tab(r, "manage-institute").hidden, false);
-  // Every sub-tab of Communications is off ("communications/*") → the group itself is gone.
+  // An AI sub-tab under an LMS tab is gone with either module.
+  assert.equal(sub(r, "course-creation", "create-course-ai").reason, "MODULE_OFF");
+  // Every Communications sub-tab is governed and off → the group itself is gone.
   assert.equal(tab(r, "communications").reason, "MODULE_OFF");
   assert.ok(tab(r, "communications").note);
+
+  // A feature off inside an enabled module reads FEATURE_OFF.
+  const blogOff = preview("TEACHER", null, resolve(CATALOG, {}, { "website.blog": false }));
+  assert.equal(sub(blogOff, "automations", "blog").reason, "FEATURE_OFF");
 
   // resolved = null (LEGACY view) applies no entitlement at all.
   assert.equal(tab(preview("ADMIN"), "courses").hidden, false);
@@ -264,23 +272,26 @@ test("a malformed blob does not throw", () => {
 test("import from current settings: module on iff a governed item is visible and its rail category is visible", () => {
   const blob = {
     sidebar: [
-      { id: "courses", visible: false },
-      { id: "manage-institute", subTabs: [{ id: "batches", visible: false }] },
+      { id: "manage-institute", subTabs: [{ id: "inventory-management", visible: false }] },
+      { id: "automations", subTabs: [{ id: "website-builder", visible: false }, { id: "product-pages", visible: false }] },
       { id: "leads", visible: true },
     ],
     sidebarCategories: [{ id: "AI", visible: false }, { id: "ERP", visible: true }],
   };
   const r = importModulesFromSettings(CATALOG, NAV, blob);
-  assert.equal(r.modules.lms, false); // courses + batches hidden
+  assert.equal(r.modules.inventory, false); // its only item hidden
+  assert.equal(r.modules.website, false); // builder + product pages hidden, blog hidden by Admin default
+  assert.equal(r.features["website.blog"], false);
+  assert.equal(r.modules.lms, true);
   assert.equal(r.modules.assessments, true);
   assert.equal(r.modules.crm, true);
   assert.equal(r.features["crm.leads"], true);
   assert.equal(r.modules.ai, false); // rail category hidden
   assert.equal(r.modules.erp, true); // ERP category switched on
-  assert.equal(r.modules.communications, true); // "communications/*"
+  assert.equal(r.modules.communications, true);
   assert.equal("core" in r.modules, false); // core is never imported
   assert.ok(r.evidence.crm.length > 0);
-  assert.equal("lms.reports" in r.features, false); // governs no nav → left alone
+  assert.deepEqual(r.no_evidence, []);
 });
 
 test("import with no stored blob uses the admin defaults", () => {
