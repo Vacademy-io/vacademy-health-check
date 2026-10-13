@@ -7,6 +7,7 @@ import { useInstituteSessions } from "@/services/sessions-api";
 import { useInstituteWidgets } from "@/services/widgets-api";
 import { WidgetList } from "@/components/widgets/WidgetList";
 import { PricingApiTab } from "@/components/institute-pricing/PricingApiTab";
+import { AiVideoTab } from "@/components/institute-ai-video/AiVideoTab";
 import { ModulesTab } from "@/components/institute-modules/ModulesTab";
 import { RolesNavTab } from "@/components/institute-modules/RolesNavTab";
 import { PreviewTab } from "@/components/institute-modules/PreviewTab";
@@ -124,6 +125,7 @@ export default function InstituteDetailPage() {
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="widgets">Widgets</TabsTrigger>
           <TabsTrigger value="pricing-api">Pricing &amp; API</TabsTrigger>
+          <TabsTrigger value="ai-video">AI Video</TabsTrigger>
           <TabsTrigger value="modules">Modules</TabsTrigger>
           <TabsTrigger value="roles-nav">Roles &amp; navigation</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -147,6 +149,9 @@ export default function InstituteDetailPage() {
         </TabsContent>
         <TabsContent value="pricing-api" className="mt-4">
           <PricingApiTab instituteId={id!} />
+        </TabsContent>
+        <TabsContent value="ai-video" className="mt-4">
+          <AiVideoTab instituteId={id!} />
         </TabsContent>
         <TabsContent value="modules" className="mt-4">
           <ModulesTab instituteId={id!} />
