@@ -6,7 +6,6 @@ import type {
   AiSettingsResponse,
   ToolPricingEntry,
   ToolPricingResponse,
-  UseCaseDefault,
   UseCaseDefaultsResponse,
 } from "@/types/ai-settings";
 
@@ -54,10 +53,15 @@ export function useUpdateToolPricing() {
     },
   });
 }
-/** The models registry router (ai-service /models/v2) — root admin for writes. */
+/** The models registry router (ai-service /models/v2) — read-only here. */
 const MODELS_PREFIX = "/ai-service/models/v2";
 
-/** ai_model_defaults: the default / fallback model per pipeline use case. */
+/**
+ * ai_model_defaults: the default / fallback model per pipeline use case — read-only summary
+ * for the AI Settings page. Writes moved to the Model defaults page
+ * (services/model-defaults-api.ts): PATCH /ai-service/models/v2/defaults/{use_case} is
+ * shadowed server-side and always 404s.
+ */
 export function useUseCaseDefaults() {
   return useQuery({
     queryKey: DEFAULTS_KEY,
@@ -65,27 +69,6 @@ export function useUseCaseDefaults() {
       const { data } = await api.get<UseCaseDefaultsResponse>(`${MODELS_PREFIX}/defaults`);
       return data;
     },
-  });
-}
-
-export function useUpdateUseCaseDefault() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      useCase,
-      ...body
-    }: {
-      useCase: string;
-      default_model_id?: string;
-      fallback_model_id?: string | null;
-    }) => {
-      const { data } = await api.patch<UseCaseDefault>(
-        `${MODELS_PREFIX}/defaults/${encodeURIComponent(useCase)}`,
-        body
-      );
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: DEFAULTS_KEY }),
   });
 }
 

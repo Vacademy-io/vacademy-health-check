@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,22 +13,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, Check, Loader2, RotateCcw } from "lucide-react";
+import { AlertCircle, ArrowRight, Check, Loader2, RotateCcw } from "lucide-react";
 import {
   useAiSettings,
   useResetAiSetting,
   useToolPricing,
   useUpdateAiSetting,
   useUpdateToolPricing,
-  useUpdateUseCaseDefault,
   useUseCaseDefaults,
 } from "@/services/ai-settings-api";
 import type {
   AiSettingEntry,
   AiSettingsResponse,
-  ModelOption,
   ToolPricingEntry,
-  UseCaseDefault,
 } from "@/types/ai-settings";
 import { cn } from "@/lib/utils";
 import { Toggle } from "@/components/shared/Toggle";
@@ -35,6 +33,7 @@ import { OverridesListDialog } from "@/components/institute-pricing/OverridesLis
 import { useToolPricingOverrides } from "@/services/institute-pricing-api";
 import { API_EVAL_TOOL_KEY, errorDetail, isFixedPrice, toolLabel, typedPerAnswer } from "@/lib/eval-api-pricing";
 import type { ActiveOverride } from "@/types/eval-api";
+import { GLM_MODEL_ID } from "@/lib/model-defaults";
 
 /** Sentinel for "no override" in a Select — Radix rejects an empty-string item value. */
 const BLANK = "__blank__";
@@ -315,106 +314,6 @@ function SettingRow({
   );
 }
 
-/** Which registry category a pipeline use case draws its models from. */
-function categoryForUseCase(useCase: string): string {
-  if (useCase === "image" || useCase.endsWith("_figure")) return "image";
-  if (useCase.startsWith("video")) return "video";
-  if (useCase === "embedding") return "embedding";
-  if (useCase === "tts") return "tts";
-  return "llm";
-}
-
-function UseCaseDefaultRow({ row, allModels }: { row: UseCaseDefault; allModels: ModelOption[] }) {
-  const update = useUpdateUseCaseDefault();
-  const [status, setStatus] = useState<Status>(null);
-  const category = categoryForUseCase(row.use_case);
-  const options = useMemo(
-    () =>
-      allModels.filter((m) =>
-        category === "llm"
-          ? !["image", "video", "embedding", "tts"].includes(m.category)
-          : m.category === category
-      ),
-    [allModels, category]
-  );
-  const commit = (field: "default_model_id" | "fallback_model_id", value: string | null) => {
-    setStatus(null);
-    update.mutate(
-      { useCase: row.use_case, [field]: value },
-      {
-        onSuccess: () => setStatus({ kind: "saved", text: "Saved" }),
-        onError: (err) => {
-          const detail =
-            (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-            (err as Error).message;
-          setStatus({ kind: "error", text: detail || "Failed to save" });
-        },
-      }
-    );
-  };
-  const pick = (field: "default_model_id" | "fallback_model_id", value: string | null, allowBlank: boolean) => {
-    const known = value && options.some((m) => m.model_id === value);
-    return (
-      <Select
-        value={value ? value : BLANK}
-        disabled={update.isPending}
-        onValueChange={(v) => commit(field, v === BLANK ? null : v)}
-      >
-        <SelectTrigger className="w-full sm:w-[300px]">
-          <SelectValue placeholder="Choose a model" />
-        </SelectTrigger>
-        <SelectContent className="max-h-80">
-          {allowBlank && <SelectItem value={BLANK}>None</SelectItem>}
-          {value && !known && (
-            <SelectItem value={value}>
-              <span className="font-mono text-xs">{value}</span>
-              <span className="ml-2 text-xs text-muted-foreground">(not in registry)</span>
-            </SelectItem>
-          )}
-          {options.map((m) => (
-            <SelectItem key={m.model_id} value={m.model_id}>
-              <span>{m.name}</span>
-              <span className="ml-2 font-mono text-xs text-muted-foreground">{m.model_id}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  };
-  return (
-    <div className="flex flex-col gap-3 border-b py-4 last:border-b-0 sm:flex-row sm:items-start sm:justify-between">
-      <div className="max-w-md">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-medium">{row.use_case}</span>
-          <Badge variant="outline">{category}</Badge>
-        </div>
-        {row.description && <p className="mt-1 text-sm text-muted-foreground">{row.description}</p>}
-        {status && (
-          <p
-            className={cn(
-              "mt-1 inline-flex items-center gap-1 text-xs",
-              status.kind === "saved" ? "text-emerald-600" : "text-destructive"
-            )}
-          >
-            {status.kind === "saved" ? <Check className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-            {status.text}
-          </p>
-        )}
-      </div>
-      <div className="flex flex-col gap-2">
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          Default
-          {pick("default_model_id", row.default_model_id, false)}
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          Fallback
-          {pick("fallback_model_id", row.fallback_model_id, true)}
-        </label>
-      </div>
-    </div>
-  );
-}
-
 const UNIT_LABEL: Record<string, string> = {
   flat: "per call",
   audio_minutes: "per minute",
@@ -548,6 +447,13 @@ export default function AiSettingsPage() {
     return map;
   }, [overrides.data]);
 
+  const defaultsSummary = useMemo(() => {
+    const rows = defaults.data?.defaults;
+    if (!rows) return null;
+    const onGlm = rows.filter((r) => r.default_model_id === GLM_MODEL_ID).length;
+    return `${rows.length} feature${rows.length === 1 ? "" : "s"} configured · ${onGlm} on ${GLM_MODEL_ID}`;
+  }, [defaults.data]);
+
   const groups = useMemo(() => {
     if (!data) return [];
     const order = ["chatbot", "tutor", "images", "voice", "rollout"];
@@ -566,7 +472,7 @@ export default function AiSettingsPage() {
     <div>
       <PageHeader
         title="AI Settings"
-        description="Platform-wide model choices for the learner chatbot, the Live AI Tutor, image generation and the voice call, plus the per-use-case defaults of the course pipeline. Changes reach every ai-service replica within about 30 seconds — no deploy."
+        description="Platform-wide model choices for the learner chatbot, the Live AI Tutor, image generation and the voice call, with the per-feature model defaults one click away on Model defaults. Changes reach every ai-service replica within about 30 seconds — no deploy."
         actions={
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             Refresh
@@ -697,25 +603,20 @@ export default function AiSettingsPage() {
             <CardHeader>
               <CardTitle>Course pipeline defaults</CardTitle>
               <CardDescription>
-                The default and fallback model for each use case in the models registry
-                (ai_model_defaults): course outline and content, questions, evaluation, knowledge
-                base, video, embeddings. The fallback is tried when the default errors. Root admin
-                only; applies to new requests at once.
+                The default and fallback model per feature (ai_model_defaults) — course outline and content,
+                questions, evaluation, knowledge base, video — now live on the Model defaults page, with a dry-run
+                bulk switch, the video stage matrix and a change log.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-0">
-              {defaults.isLoading && <Skeleton className="h-24 w-full" />}
-              {defaults.isError && (
-                <p className="flex items-center gap-2 py-4 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4" /> Could not load the use-case defaults.
-                </p>
-              )}
-              {defaults.data?.defaults
-                .slice()
-                .sort((a, b) => a.use_case.localeCompare(b.use_case))
-                .map((row) => (
-                  <UseCaseDefaultRow key={row.use_case} row={row} allModels={data.catalog.all_models ?? []} />
-                ))}
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-0 text-sm">
+              <span className="text-muted-foreground">
+                {defaultsSummary ?? "View and change each feature's model there."}
+              </span>
+              <Button asChild size="sm">
+                <Link to="/model-defaults">
+                  Open Model defaults <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
