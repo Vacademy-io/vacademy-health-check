@@ -27,6 +27,7 @@ import {
   UserSquare2,
   GraduationCap,
   Clapperboard,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ const navSections: Array<{
       { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
       { to: "/pulse", label: "Live Pulse", icon: Gauge },
       { to: "/institutes", label: "Institutes", icon: Building2 },
+      { to: "/module-presets", label: "Module Presets", icon: Boxes },
       { to: "/credits", label: "Credits", icon: CreditCard },
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/usage", label: "AI Usage", icon: Brain },

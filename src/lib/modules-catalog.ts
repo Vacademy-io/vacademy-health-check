@@ -354,6 +354,42 @@ export function roleKeyFor(role: InstituteRole): string | null {
   return null;
 }
 
+export interface RoleColumn {
+  id: string;
+  name: string;
+  kind: InstituteRole["kind"];
+  /** Display-settings key the column reads (SYSTEM roles read TEACHER). */
+  roleKey: string;
+  readOnly: boolean;
+  userCount: number | null;
+}
+
+/** Roles → matrix columns. ADMIN and TEACHER always exist even if the roles API is missing. */
+export function roleColumns(roles: InstituteRole[] | undefined): RoleColumn[] {
+  const cols: RoleColumn[] = [];
+  const list = roles ?? [];
+  const pushBuiltIn = (kind: "ADMIN" | "TEACHER") => {
+    const r = list.find((x) => x.kind === kind);
+    cols.push({
+      id: r?.role_id ?? kind,
+      name: kind === "ADMIN" ? "Admin" : "Teacher",
+      kind,
+      roleKey: kind,
+      readOnly: false,
+      userCount: r?.user_count ?? null,
+    });
+  };
+  pushBuiltIn("ADMIN");
+  pushBuiltIn("TEACHER");
+  for (const r of list.filter((x) => x.kind === "CUSTOM")) {
+    cols.push({ id: r.role_id, name: r.role_name, kind: "CUSTOM", roleKey: roleKeyFor(r)!, readOnly: false, userCount: r.user_count });
+  }
+  for (const r of list.filter((x) => x.kind === "SYSTEM")) {
+    cols.push({ id: r.role_id, name: r.role_name, kind: "SYSTEM", roleKey: "TEACHER", readOnly: true, userCount: r.user_count });
+  }
+  return cols;
+}
+
 export function normalizeDisplaySettings(v: unknown, roleKey: string): RoleDisplaySettings {
   const o = obj(v) ?? {};
   let data: unknown = o.data;

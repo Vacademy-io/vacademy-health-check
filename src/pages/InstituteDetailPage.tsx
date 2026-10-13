@@ -7,6 +7,10 @@ import { useInstituteSessions } from "@/services/sessions-api";
 import { useInstituteWidgets } from "@/services/widgets-api";
 import { WidgetList } from "@/components/widgets/WidgetList";
 import { PricingApiTab } from "@/components/institute-pricing/PricingApiTab";
+import { ModulesTab } from "@/components/institute-modules/ModulesTab";
+import { RolesNavTab } from "@/components/institute-modules/RolesNavTab";
+import { PreviewTab } from "@/components/institute-modules/PreviewTab";
+import { HistoryTab } from "@/components/institute-modules/HistoryTab";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -113,13 +117,17 @@ export default function InstituteDetailPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="overview">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="courses">Courses</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="sessions">Sessions</TabsTrigger>
           <TabsTrigger value="widgets">Widgets</TabsTrigger>
           <TabsTrigger value="pricing-api">Pricing &amp; API</TabsTrigger>
+          <TabsTrigger value="modules">Modules</TabsTrigger>
+          <TabsTrigger value="roles-nav">Roles &amp; navigation</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -139,6 +147,18 @@ export default function InstituteDetailPage() {
         </TabsContent>
         <TabsContent value="pricing-api" className="mt-4">
           <PricingApiTab instituteId={id!} />
+        </TabsContent>
+        <TabsContent value="modules" className="mt-4">
+          <ModulesTab instituteId={id!} />
+        </TabsContent>
+        <TabsContent value="roles-nav" className="mt-4">
+          <RolesNavTab instituteId={id!} />
+        </TabsContent>
+        <TabsContent value="preview" className="mt-4">
+          <PreviewTab instituteId={id!} />
+        </TabsContent>
+        <TabsContent value="history" className="mt-4">
+          <HistoryTab instituteId={id!} />
         </TabsContent>
       </Tabs>
     </div>

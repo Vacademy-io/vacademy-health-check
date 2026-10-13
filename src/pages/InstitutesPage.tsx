@@ -15,8 +15,13 @@ import {
 } from "@/components/ui/select";
 import { LEAD_TAG_OPTIONS } from "@/types/api";
 import type { InstituteListItemDTO, LeadTag } from "@/types/api";
-import { LifeBuoy, Tag, X } from "lucide-react";
+import { LifeBuoy, Package, Tag, X } from "lucide-react";
 import { InstituteSupportDialog } from "@/components/support/InstituteSupportDialog";
+import { ApplyPresetDialog } from "@/components/institute-modules/ApplyPresetDialog";
+import { ModeBadge, ModuleChip } from "@/components/institute-modules/shared";
+import { ToastStack, useToasts } from "@/components/shared/Toast";
+import { useCapabilityCatalog, useModulesOverview } from "@/services/institute-modules-api";
+import { isApiUnavailable } from "@/lib/modules-catalog";
 
 const TAG_COLORS: Record<string, string> = {
   PROD: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -71,10 +76,49 @@ export default function InstitutesPage() {
 
   const { data, isLoading } = useInstitutes(page, pageSize, search, tagFilter, sortBy, sortDirection);
   const bulkTagMutation = useBulkUpdateLeadTag();
+  const [presetOpen, setPresetOpen] = useState(false);
+  const { toasts, push, dismiss } = useToasts();
+
+  // Modules column: one overview call for the visible page.
+  const pageIds = (data?.content ?? []).map((r) => r.id);
+  const overview = useModulesOverview(pageIds);
+  const { data: cat } = useCapabilityCatalog();
+  const moduleLabel = (key: string) => cat?.catalog?.modules.find((m) => m.key === key)?.label ?? key;
+  const nameById = new Map((data?.content ?? []).map((r) => [r.id, r.name]));
 
   // Static columns + a per-row "Support" action that opens the plan/engineer editor.
   const tableColumns: Column<InstituteListItemDTO & Record<string, unknown>>[] = [
-    ...columns,
+    ...columns.slice(0, 4),
+    {
+      key: "modules",
+      header: "Modules",
+      render: (row) => {
+        if (overview.isLoading) return <span className="text-xs text-muted-foreground">…</span>;
+        if (overview.error) {
+          return (
+            <span className="text-xs text-muted-foreground" title={isApiUnavailable(overview.error) ? "Modules API not available yet" : "Could not load modules"}>
+              —
+            </span>
+          );
+        }
+        const entry = overview.data?.[row.id as string];
+        if (!entry) return <span className="text-xs text-muted-foreground">—</span>;
+        return (
+          <div className="flex max-w-[260px] flex-wrap items-center gap-1">
+            <ModeBadge mode={entry.mode} />
+            {entry.enabled_modules.slice(0, 4).map((k) => (
+              <ModuleChip key={k} label={moduleLabel(k)} />
+            ))}
+            {entry.enabled_modules.length > 4 && (
+              <span className="text-[11px] text-muted-foreground" title={entry.enabled_modules.map(moduleLabel).join(", ")}>
+                +{entry.enabled_modules.length - 4}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    ...columns.slice(4),
     {
       key: "support",
       header: "Support",
@@ -137,6 +181,9 @@ export default function InstitutesPage() {
               </SelectContent>
             </Select>
           </div>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setPresetOpen(true)}>
+            <Package className="mr-1 h-4 w-4" /> Apply preset
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -196,6 +243,25 @@ export default function InstitutesPage() {
           </div>
         }
       />
+
+      {presetOpen && (
+        <ApplyPresetDialog
+          instituteIds={Array.from(selectedIds)}
+          nameOf={(id) => nameById.get(id) ?? id}
+          onClose={() => setPresetOpen(false)}
+          onDone={(r) => {
+            setPresetOpen(false);
+            if (r.applied.length > 0) push("success", `Preset applied to ${r.applied.length} institute${r.applied.length === 1 ? "" : "s"}.`);
+            if (r.failed.length > 0) {
+              push("error", `Failed for ${r.failed.length}: ${r.failed.map((f) => nameById.get(f.institute_id) ?? f.institute_id).join(", ")}`);
+              setSelectedIds(new Set(r.failed.map((f) => f.institute_id)));
+            } else {
+              setSelectedIds(new Set());
+            }
+          }}
+        />
+      )}
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
 
       {supportTarget ? (
         <InstituteSupportDialog

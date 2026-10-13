@@ -6,6 +6,7 @@ const LoginPage = lazy(() => import("@/pages/LoginPage"));
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
 const InstitutesPage = lazy(() => import("@/pages/InstitutesPage"));
 const InstituteDetailPage = lazy(() => import("@/pages/InstituteDetailPage"));
+const ModulePresetsPage = lazy(() => import("@/pages/ModulePresetsPage"));
 const CreditsPage = lazy(() => import("@/pages/CreditsPage"));
 const ActivityPage = lazy(() => import("@/pages/ActivityPage"));
 const PulsePage = lazy(() => import("@/pages/PulsePage"));
@@ -59,6 +60,7 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="institutes" element={<InstitutesPage />} />
           <Route path="institutes/:id" element={<InstituteDetailPage />} />
+          <Route path="module-presets" element={<ModulePresetsPage />} />
           <Route path="credits" element={<CreditsPage />} />
           <Route path="pulse" element={<PulsePage />} />
           <Route path="performance" element={<PerfPage />} />
