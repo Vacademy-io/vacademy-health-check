@@ -257,7 +257,15 @@ export default function CallsPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">{rupees(c.cost_inr)}</TableCell>
-                    <TableCell className="text-right">{rupees(c.billed_inr)}</TableCell>
+                    <TableCell className="text-right"
+                      title={c.billed_from_ledger === false
+                        ? "Estimated: this call has not been charged yet (billing runs after the call)."
+                        : "What the wallet was charged for this call."}>
+                      {rupees(c.billed_inr)}
+                      {c.billed_from_ledger === false && (c.billed_inr ?? 0) > 0 && (
+                        <span className="ml-1 text-[10px] text-muted-foreground">est.</span>
+                      )}
+                    </TableCell>
                     <TableCell className={`text-right ${(c.margin_inr ?? 0) < 0 ? "text-red-600" : ""}`}>
                       {rupees(c.margin_inr)}
                     </TableCell>

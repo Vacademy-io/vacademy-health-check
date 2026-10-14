@@ -28,6 +28,8 @@ export interface CallRow {
   diagnostics: string | null;
   cost_inr: number | null;
   billed_inr: number | null;
+  /** true = billed_inr is what the wallet was charged; false = estimated (not charged yet). */
+  billed_from_ledger?: boolean | null;
   margin_inr: number | null;
   margin_pct: number | null;
   cost_breakdown: Record<string, number> | null;
