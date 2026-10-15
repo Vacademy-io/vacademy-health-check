@@ -32,6 +32,8 @@ import {
   KeySquare,
   Scale,
   Hourglass,
+  BadgeIndianRupee,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +55,8 @@ const navSections: Array<{
       { to: "/llm-keys", label: "Claude keys", icon: KeySquare },
       { to: "/metering", label: "Metering", icon: Scale },
       { to: "/ai-limits", label: "AI limits", icon: Hourglass },
+      { to: "/ai-plans", label: "AI plans", icon: BadgeIndianRupee },
+      { to: "/ai-subscriptions", label: "AI subscriptions", icon: Users },
       { to: "/tutor-assets", label: "Tutor Avatars & Voices", icon: UserSquare2 },
       { to: "/demo-topics", label: "Tutezy Demo Topics", icon: GraduationCap },
       { to: "/calls", label: "Calls", icon: PhoneCall },

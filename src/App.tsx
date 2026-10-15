@@ -17,6 +17,11 @@ const ModelDefaultsPage = lazy(() => import("@/pages/ModelDefaultsPage"));
 const LlmKeysPage = lazy(() => import("@/pages/LlmKeysPage"));
 const MeteringPage = lazy(() => import("@/pages/MeteringPage"));
 const LimitsOverviewPage = lazy(() => import("@/pages/LimitsOverviewPage"));
+const PlansPage = lazy(() => import("@/pages/PlansPage"));
+const PlanDetailPage = lazy(() => import("@/pages/PlanDetailPage"));
+const PlansSimulatePage = lazy(() => import("@/pages/PlansSimulatePage"));
+const PlanPnlPage = lazy(() => import("@/pages/PlanPnlPage"));
+const SubscriptionsPage = lazy(() => import("@/pages/SubscriptionsPage"));
 const TutorAssetsPage = lazy(() => import("@/pages/TutorAssetsPage"));
 const DemoTopicsPage = lazy(() => import("@/pages/DemoTopicsPage"));
 const CallsPage = lazy(() => import("@/pages/CallsPage"));
@@ -75,6 +80,11 @@ function App() {
           <Route path="llm-keys" element={<LlmKeysPage />} />
           <Route path="metering" element={<MeteringPage />} />
           <Route path="ai-limits" element={<LimitsOverviewPage />} />
+          <Route path="ai-plans" element={<PlansPage />} />
+          <Route path="ai-plans/simulate" element={<PlansSimulatePage />} />
+          <Route path="ai-plans/pnl" element={<PlanPnlPage />} />
+          <Route path="ai-plans/:id" element={<PlanDetailPage />} />
+          <Route path="ai-subscriptions" element={<SubscriptionsPage />} />
           <Route path="tutor-assets" element={<TutorAssetsPage />} />
           <Route path="demo-topics" element={<DemoTopicsPage />} />
           <Route path="calls" element={<CallsPage />} />

@@ -13,6 +13,7 @@ import { RolesNavTab } from "@/components/institute-modules/RolesNavTab";
 import { PreviewTab } from "@/components/institute-modules/PreviewTab";
 import { HistoryTab } from "@/components/institute-modules/HistoryTab";
 import { LimitsTab } from "@/components/institute-limits/LimitsTab";
+import { InstitutePlanTab } from "@/components/plans/InstitutePlanTab";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -119,8 +120,8 @@ export default function InstituteDetailPage() {
       </div>
 
       {/* Tabs */}
-      {/* ?tab=ai-limits opens the AI limits tab (linked from the AI limits overview page). */}
-      <Tabs defaultValue={searchParams.get("tab") === "ai-limits" ? "ai-limits" : "overview"}>
+      {/* ?tab=ai-limits opens the AI limits tab (linked from the AI limits overview page); ?tab=ai-plan the AI plan tab. */}
+      <Tabs defaultValue={searchParams.get("tab") === "ai-limits" ? "ai-limits" : searchParams.get("tab") === "ai-plan" ? "ai-plan" : "overview"}>
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="courses">Courses</TabsTrigger>
@@ -134,6 +135,7 @@ export default function InstituteDetailPage() {
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="ai-limits">AI limits</TabsTrigger>
+          <TabsTrigger value="ai-plan">AI plan</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -171,6 +173,9 @@ export default function InstituteDetailPage() {
         </TabsContent>
         <TabsContent value="ai-limits" className="mt-4">
           <LimitsTab instituteId={id!} />
+        </TabsContent>
+        <TabsContent value="ai-plan" className="mt-4">
+          <InstitutePlanTab instituteId={id!} instituteName={institute.name} />
         </TabsContent>
       </Tabs>
     </div>
