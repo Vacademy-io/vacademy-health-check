@@ -30,6 +30,7 @@ import {
   Boxes,
   Cpu,
   KeySquare,
+  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ const navSections: Array<{
       { to: "/ai-settings", label: "AI Settings", icon: SlidersHorizontal },
       { to: "/model-defaults", label: "Model defaults", icon: Cpu },
       { to: "/llm-keys", label: "Claude keys", icon: KeySquare },
+      { to: "/metering", label: "Metering", icon: Scale },
       { to: "/tutor-assets", label: "Tutor Avatars & Voices", icon: UserSquare2 },
       { to: "/demo-topics", label: "Tutezy Demo Topics", icon: GraduationCap },
       { to: "/calls", label: "Calls", icon: PhoneCall },
