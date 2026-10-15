@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useInstituteDetail, useGrantCredits, useDeductCredits, useUpdateLeadTag } from "@/services/institutes-api";
 import { useInstituteCourses } from "@/services/courses-api";
 import { useInstituteUsers, useDeactivateUser } from "@/services/users-api";
@@ -12,6 +12,7 @@ import { ModulesTab } from "@/components/institute-modules/ModulesTab";
 import { RolesNavTab } from "@/components/institute-modules/RolesNavTab";
 import { PreviewTab } from "@/components/institute-modules/PreviewTab";
 import { HistoryTab } from "@/components/institute-modules/HistoryTab";
+import { LimitsTab } from "@/components/institute-limits/LimitsTab";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -67,6 +68,7 @@ const TAG_COLORS: Record<string, string> = {
 export default function InstituteDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: institute, isLoading } = useInstituteDetail(id!);
 
   if (isLoading) {
@@ -117,7 +119,8 @@ export default function InstituteDetailPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview">
+      {/* ?tab=ai-limits opens the AI limits tab (linked from the AI limits overview page). */}
+      <Tabs defaultValue={searchParams.get("tab") === "ai-limits" ? "ai-limits" : "overview"}>
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="courses">Courses</TabsTrigger>
@@ -130,6 +133,7 @@ export default function InstituteDetailPage() {
           <TabsTrigger value="roles-nav">Roles &amp; navigation</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="ai-limits">AI limits</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -164,6 +168,9 @@ export default function InstituteDetailPage() {
         </TabsContent>
         <TabsContent value="history" className="mt-4">
           <HistoryTab instituteId={id!} />
+        </TabsContent>
+        <TabsContent value="ai-limits" className="mt-4">
+          <LimitsTab instituteId={id!} />
         </TabsContent>
       </Tabs>
     </div>
