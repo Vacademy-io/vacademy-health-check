@@ -3,7 +3,8 @@ import { Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { GEMINI_FALLBACK_ID, GLM_MODEL_ID, formatPrice, isChatModel, matchesModel } from "@/lib/model-defaults";
-import type { ModelOption } from "@/types/model-defaults";
+import { isImageModel, isImageUseCase } from "@/lib/image-use-cases";
+import type { ModelOption, UseCaseEntry } from "@/types/model-defaults";
 import { GatewayBadge, type ModelContext } from "./ModelLabel";
 
 const NONE = "__none__";
@@ -17,6 +18,8 @@ function rank(m: ModelOption, platformDefault: string) {
 /**
  * Searchable model list (Radix Select swallows typing, so this is a plain filter + listbox).
  * Chat models only unless `allCategories`; inactive models are hidden except the current value.
+ * For an image-generation `useCase` it lists image models instead (and keeps the current value
+ * visible even when it is not an image model, so a wrong pick can be seen and replaced).
  */
 export function ModelPicker({
   value,
@@ -25,6 +28,7 @@ export function ModelPicker({
   allowNone = false,
   noneLabel = "None",
   allCategories = false,
+  useCase,
   label,
 }: {
   value: string | null;
@@ -33,13 +37,20 @@ export function ModelPicker({
   allowNone?: boolean;
   noneLabel?: string;
   allCategories?: boolean;
+  /** The use case being edited; decides chat vs image models. Omitted = chat. */
+  useCase?: Pick<UseCaseEntry, "use_case" | "kind"> | null;
   label: string;
 }) {
   const [query, setQuery] = useState("");
+  const imageMode = !allCategories && isImageUseCase(useCase);
 
   const options = useMemo(() => {
     const list = ctx.models
-      .filter((m) => (allCategories || isChatModel(m)) && (m.is_active || m.model_id === value))
+      .filter((m) =>
+        imageMode
+          ? (isImageModel(m) && m.is_active) || m.model_id === value
+          : (allCategories || isChatModel(m)) && (m.is_active || m.model_id === value)
+      )
       .filter((m) => matchesModel(m, query));
     return list.sort(
       (a, b) =>
@@ -47,7 +58,7 @@ export function ModelPicker({
         a.provider.localeCompare(b.provider) ||
         a.name.localeCompare(b.name)
     );
-  }, [ctx.models, ctx.platformDefault, allCategories, value, query]);
+  }, [ctx.models, ctx.platformDefault, allCategories, imageMode, value, query]);
 
   const valueKnown = !value || ctx.models.some((m) => m.model_id === value);
 
@@ -73,7 +84,7 @@ export function ModelPicker({
       <Input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={`Search ${allCategories ? "models" : "chat models"} by name, id or provider`}
+        placeholder={`Search ${allCategories ? "models" : imageMode ? "image models" : "chat models"} by name, id or provider`}
         aria-label={`Search models for ${label}`}
         className="h-9"
       />
@@ -104,6 +115,9 @@ export function ModelPicker({
                 {tag && <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">{tag}</span>}
                 {!m.is_active && <span className="text-[10px] text-amber-700">inactive</span>}
                 {allCategories && !isChatModel(m) && <span className="text-[10px] text-muted-foreground">{m.category}</span>}
+                {imageMode && !isImageModel(m) && (
+                  <span className="text-[10px] text-amber-700">{m.category || "chat"} model, not an image model</span>
+                )}
               </div>
               <div className="flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
                 <span className="font-mono">{m.model_id}</span>

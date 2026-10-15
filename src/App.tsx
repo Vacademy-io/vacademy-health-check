@@ -14,6 +14,7 @@ const PerfPage = lazy(() => import("@/pages/PerfPage"));
 const UsagePage = lazy(() => import("@/pages/UsagePage"));
 const AiSettingsPage = lazy(() => import("@/pages/AiSettingsPage"));
 const ModelDefaultsPage = lazy(() => import("@/pages/ModelDefaultsPage"));
+const LlmKeysPage = lazy(() => import("@/pages/LlmKeysPage"));
 const TutorAssetsPage = lazy(() => import("@/pages/TutorAssetsPage"));
 const DemoTopicsPage = lazy(() => import("@/pages/DemoTopicsPage"));
 const CallsPage = lazy(() => import("@/pages/CallsPage"));
@@ -69,6 +70,7 @@ function App() {
           <Route path="usage" element={<UsagePage />} />
           <Route path="ai-settings" element={<AiSettingsPage />} />
           <Route path="model-defaults" element={<ModelDefaultsPage />} />
+          <Route path="llm-keys" element={<LlmKeysPage />} />
           <Route path="tutor-assets" element={<TutorAssetsPage />} />
           <Route path="demo-topics" element={<DemoTopicsPage />} />
           <Route path="calls" element={<CallsPage />} />

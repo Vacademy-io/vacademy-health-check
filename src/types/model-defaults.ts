@@ -2,7 +2,8 @@
 // feature uses by default, the video pipeline's per-stage models, and the
 // change log behind them. DECIMALs (prices) arrive as strings.
 
-export type UseCaseKind = "chat" | "vision";
+/** "image" = an image-generation use case (reads only its default model). */
+export type UseCaseKind = "chat" | "vision" | "image";
 
 /** One row of ai_model_defaults as the catalog returns it. */
 export interface UseCaseRow {

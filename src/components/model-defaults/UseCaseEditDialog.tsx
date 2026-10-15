@@ -14,6 +14,7 @@ import {
 import { useUpdateUseCaseModel } from "@/services/model-defaults-api";
 import { errorDetail } from "@/lib/eval-api-pricing";
 import { COPY_CHECK_DEDUCTION, GEMINI_FALLBACK_ID, modelName } from "@/lib/model-defaults";
+import { isImageUseCase } from "@/lib/image-use-cases";
 import type { UpdateUseCaseRequest, UseCaseEntry } from "@/types/model-defaults";
 import type { ModelContext } from "./ModelLabel";
 import { ModelPicker } from "./ModelPicker";
@@ -63,8 +64,10 @@ function EditForm({
 }) {
   const update = useUpdateUseCaseModel();
   const missing = entry.row === null;
-  const initialDefault = entry.row?.default_model_id ?? ctx.platformDefault;
-  const initialFallback = entry.row ? entry.row.fallback_model_id : GEMINI_FALLBACK_ID;
+  // An image use case must never be pre-filled with the chat platform default / chat fallback.
+  const image = isImageUseCase(entry);
+  const initialDefault = entry.row?.default_model_id ?? (image ? "" : ctx.platformDefault);
+  const initialFallback = entry.row ? entry.row.fallback_model_id : image ? null : GEMINI_FALLBACK_ID;
   const [def, setDef] = useState<string | null>(initialDefault || null);
   const [fallback, setFallback] = useState<string | null>(initialFallback);
   const [reason, setReason] = useState("");
@@ -129,15 +132,21 @@ function EditForm({
         {entry.kind === "vision" && (
           <p className="text-xs text-muted-foreground">This feature sends images — pick a model that accepts image input.</p>
         )}
+        {image && (
+          <p className="text-xs text-muted-foreground">
+            This feature generates images, so only image models are listed. Image generation reads the default model
+            only; a fallback set here is not used.
+          </p>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Default model</Label>
-            <ModelPicker value={def} onChange={setDef} ctx={ctx} label="Default model" />
+            <ModelPicker value={def} onChange={setDef} ctx={ctx} useCase={entry} label="Default model" />
           </div>
           <div className="space-y-1.5">
             <Label>Fallback (tried when the default errors)</Label>
-            <ModelPicker value={fallback} onChange={setFallback} ctx={ctx} allowNone noneLabel="No fallback" label="Fallback model" />
+            <ModelPicker value={fallback} onChange={setFallback} ctx={ctx} useCase={entry} allowNone noneLabel="No fallback" label="Fallback model" />
           </div>
         </div>
         {sameModel && <p className="text-xs text-amber-700">The fallback is the same model as the default, so it adds nothing.</p>}
