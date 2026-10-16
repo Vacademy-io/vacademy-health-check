@@ -1,6 +1,8 @@
 // AI subscription plans (ai-service /super-admin/v1/plans/**). Tables live in the admin_core
 // database (V588): ai_billing_feature, ai_plan, ai_plan_version, ai_plan_item,
 // institute_ai_subscription, ai_subscription_period, ai_subscription_override, ai_subscription_event.
+// Paid subscriptions, listing and billing documents (V590) are typed in ./plan-billing.
+import type { PlanListing } from "./plan-billing";
 
 export type FeatureEligibility = "INCLUDABLE" | "ALLOWANCE_ONLY" | "ALWAYS_CHARGED";
 export type VersionStatus = "DRAFT" | "PUBLISHED" | "RETIRED";
@@ -9,15 +11,18 @@ export type ModelPolicy = "ANY" | "DEFAULT_CHAIN" | "ALLOWLIST" | "MAX_PRICE";
 export type ViolationAction = "CHARGE" | "BLOCK";
 export type CapBasis = "ACTOR" | "SUBJECT";
 export type GraceBehaviour = "INCLUDED" | "CHARGED";
-export type SubscriptionStatus = "SCHEDULED" | "TRIAL" | "ACTIVE" | "GRACE" | "EXPIRED" | "CANCELLED";
+/** PENDING = a paid plan waiting for its first payment (source PAYMENT, V590); it gives no benefits. */
+export type SubscriptionStatus = "PENDING" | "SCHEDULED" | "TRIAL" | "ACTIVE" | "GRACE" | "EXPIRED" | "CANCELLED";
 export type Enforcement = "SHADOW" | "LIVE";
 export type SubscriptionSource = "MANUAL" | "COMPLIMENTARY" | "PAYMENT";
-export type PaymentStatus = "DUE" | "PAID" | "COMPLIMENTARY" | "WAIVED";
+export type PaymentStatus = "DUE" | "PAID" | "COMPLIMENTARY" | "WAIVED" | "REFUNDED";
 
 /** ai_billing_feature: the customer-facing feature a group of use cases bills under. */
 export interface BillingFeature {
   feature_key: string;
   label: string;
+  /** What tenants see instead of the internal label (storefront, invoices); null = label. Brand-linted. */
+  tenant_label: string | null;
   description: string | null;
   eligibility: FeatureEligibility;
   /** ai_calling / telephony: eligibility changes need an unlock reason. */
@@ -32,6 +37,8 @@ export interface BillingFeature {
 
 export interface FeaturePatch {
   label?: string;
+  /** null clears it (tenants then see label). */
+  tenant_label?: string | null;
   description?: string | null;
   display_order?: number;
   eligibility?: FeatureEligibility;
@@ -122,6 +129,8 @@ export interface Plan {
   updated_at: string | null;
   /** Newest first. Lists may carry a summary (no items); the detail call carries items. */
   versions: PlanVersion[];
+  /** Storefront marketing (unlisted by default). */
+  listing: PlanListing;
   live_subscriptions: number | null;
   shadow_subscriptions: number | null;
 }
@@ -178,13 +187,17 @@ export interface Subscription {
 export interface SubscriptionCreate {
   institute_id: string;
   plan_version_id: string;
-  start_at: string;
-  period_months: number;
+  /** Omitted for PAYMENT: the plan starts when the first payment arrives. */
+  start_at?: string;
+  /** Omitted for PAYMENT: a paid plan bills the version's own period. */
+  period_months?: number;
   auto_renew: boolean;
   grace_days: number;
   enforcement: Enforcement;
-  source: "MANUAL" | "COMPLIMENTARY";
+  source: "MANUAL" | "COMPLIMENTARY" | "PAYMENT";
   price_override_minor?: number;
+  /** PAYMENT only: email the institute admins a payment link for the first period now. */
+  send_link?: boolean;
   reason: string;
 }
 

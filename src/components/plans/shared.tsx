@@ -34,6 +34,7 @@ const VIOLET = "border-violet-500/40 bg-violet-50 text-violet-800 dark:bg-violet
 const RED = "border-destructive/40 bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300";
 
 const STATUS_TONE: Record<string, string> = {
+  PENDING: AMBER,
   DRAFT: AMBER,
   PUBLISHED: GREEN,
   RETIRED: GREY,
@@ -49,6 +50,17 @@ export function StatusPill({ status }: { status: string }) {
   return (
     <Badge variant="outline" className={cn(PILL, STATUS_TONE[status] ?? GREY)}>
       {STATUS_LABEL[status] ?? status}
+    </Badge>
+  );
+}
+
+const TONE_CLASS = { ok: GREEN, warn: AMBER, error: RED, info: BLUE, muted: GREY } as const;
+
+/** A small status pill coloured by tone (charges, mandates, storefront verdicts). */
+export function TonePill({ tone, children, title }: { tone: keyof typeof TONE_CLASS; children: ReactNode; title?: string }) {
+  return (
+    <Badge variant="outline" className={cn(PILL, TONE_CLASS[tone])} title={title}>
+      {children}
     </Badge>
   );
 }
@@ -107,14 +119,28 @@ export function MarginCell({ margin, revenue }: { margin: number; revenue: numbe
 }
 
 /** A section's error: 404 = backend not deployed, 403 = not a super admin, else the message and Retry. */
-export function PlansSectionError({ error, what, onRetry }: { error: unknown; what: string; onRetry: () => void }) {
+export function PlansSectionError({
+  error,
+  what,
+  onRetry,
+  service = "ai-service",
+  path,
+}: {
+  error: unknown;
+  what: string;
+  onRetry: () => void;
+  /** Which backend the call went to (admin-core for money and documents). */
+  service?: string;
+  /** The full path when it is not under /super-admin/v1/plans. */
+  path?: string;
+}) {
   if (isNotFound(error)) {
     return (
       <div className="flex flex-col items-center gap-2 py-8 text-center">
         <ServerOff className="h-8 w-8 text-muted-foreground/60" />
         <p className="text-sm font-medium">Backend not deployed yet</p>
         <p className="max-w-lg text-xs text-muted-foreground">
-          ai-service doesn't serve <span className="font-mono">/super-admin/v1/plans/{what}</span> yet (404). Until it does, no
+          {service} doesn't serve <span className="font-mono">{path ?? `/super-admin/v1/plans/${what}`}</span> yet (404). Until it does, no
           institute has a plan and every AI use is charged exactly as today.
         </p>
         <Button size="sm" variant="outline" className="mt-1" onClick={onRetry}>
@@ -128,7 +154,7 @@ export function PlansSectionError({ error, what, onRetry }: { error: unknown; wh
       <div className="flex flex-col items-center gap-2 py-8 text-center">
         <ShieldAlert className="h-8 w-8 text-muted-foreground/60" />
         <p className="text-sm font-medium">Super-admin access required</p>
-        <p className="max-w-lg text-xs text-muted-foreground">ai-service refused this account (403).</p>
+        <p className="max-w-lg text-xs text-muted-foreground">{service} refused this account (403).</p>
       </div>
     );
   }

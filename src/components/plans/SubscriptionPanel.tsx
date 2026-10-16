@@ -48,12 +48,15 @@ import {
 } from "@/services/plans-api";
 import type { BillingFeature, Enforcement, ItemMode, PaymentStatus, Subscription, SubscriptionOverride, SubscriptionPatch } from "@/types/plans";
 import { EnforcementPill, Field, MeterBar, ModeBadge, PlansSectionError, ReasonField, SELECT_CLASS, StatusPill } from "./shared";
+import { BillingTimeline } from "./BillingTimeline";
 
 type Notify = (tone: "success" | "error" | "info", text: string) => void;
 
 /** Everything a super admin can do to one subscription. Used on Subscriptions and the institute "AI plan" tab. */
 export function SubscriptionPanel({ sub, plansEnabled, notify }: { sub: Subscription; plansEnabled: boolean | null; notify: Notify }) {
   const live = isLiveStatus(sub.status);
+  const paid = sub.source === "PAYMENT";
+  const pendingPayment = sub.status === "PENDING";
   const plan = usePlan(sub.plan_id);
   const version = plan.data?.versions.find((v) => v.id === sub.plan_version_id) ?? null;
   const pending = useMemo(() => {
@@ -74,7 +77,8 @@ export function SubscriptionPanel({ sub, plansEnabled, notify }: { sub: Subscrip
                 {sub.plan_name ?? plan.data?.name ?? "AI plan"} {sub.version_no !== null ? `v${sub.version_no}` : version ? `v${version.version_no}` : ""}
               </CardTitle>
               <StatusPill status={sub.status} />
-              <EnforcementPill enforcement={sub.enforcement} plansEnabled={plansEnabled} />
+              {/* A paid plan keeps its benefits whatever billing.plans.enabled says. */}
+              <EnforcementPill enforcement={sub.enforcement} plansEnabled={paid ? true : plansEnabled} />
             </div>
             {sub.plan_id && (
               <Link to={`/ai-plans/${encodeURIComponent(sub.plan_id)}?version=${encodeURIComponent(sub.plan_version_id)}`} className="text-xs font-medium underline underline-offset-2">
@@ -92,7 +96,7 @@ export function SubscriptionPanel({ sub, plansEnabled, notify }: { sub: Subscrip
         <CardContent className="space-y-4 pt-0">
           <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <Item label="Current period" value={formatRange(sub.current_period?.period_start ?? sub.anchor_at, sub.current_period?.period_end ?? null)} />
-            <Item label="Price" value={`${formatInrMinor(price)}${sub.price_override_minor !== null ? " (custom deal)" : ""} · ${periodText(sub.period_months).toLowerCase()}`} />
+            <Item label="Price" value={`${formatInrMinor(price)}${paid ? " + GST" : ""}${sub.price_override_minor !== null ? " (custom deal)" : ""} · ${periodText(sub.period_months).toLowerCase()}`} />
             <Item label="Source · payment" value={`${SOURCE_LABEL[sub.source] ?? sub.source} · ${sub.current_period?.payment_status ? PAYMENT_LABEL[sub.current_period.payment_status as PaymentStatus] ?? sub.current_period.payment_status : "—"}`} />
             <Item label="Started" value={formatRange(sub.start_at, sub.end_at)} />
           </dl>
@@ -107,8 +111,33 @@ export function SubscriptionPanel({ sub, plansEnabled, notify }: { sub: Subscrip
             {sub.enforcement === "SHADOW" && <p className="text-[11px] text-muted-foreground">Shadow never draws on the allowance.</p>}
           </div>
 
+          {pendingPayment && (
+            <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-amber-500/40 p-3">
+              <div className="text-xs">
+                <p className="text-sm font-medium">Waiting for the first payment</p>
+                <p className="mt-1 text-muted-foreground">
+                  Nothing changes for this institute until the first period is paid (by link, autopay or an offline payment recorded under Billing).
+                  It then becomes Active and the period starts on the payment date.
+                </p>
+              </div>
+              <Button size="sm" variant="outline" className="text-destructive" onClick={() => setDialog("cancel")}>
+                <Ban className="mr-1 h-4 w-4" /> Withdraw
+              </Button>
+            </div>
+          )}
           {live && (
             <div className="grid gap-3 lg:grid-cols-2">
+              {paid ? (
+                <div className="rounded-md border border-blue-500/40 p-3 text-xs">
+                  <p className="flex items-center gap-1.5 text-sm font-medium">
+                    <Radio className="h-4 w-4 text-blue-600" /> Enforcement: Live (paid plan)
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    A paid plan is always Live and gives its benefits only for paid periods. The global switch does not take them away from a paying
+                    institute.
+                  </p>
+                </div>
+              ) : (
               <div className={cn("rounded-md border p-3", sub.enforcement === "LIVE" ? "border-blue-500/40" : "border-amber-500/40")}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -126,6 +155,7 @@ export function SubscriptionPanel({ sub, plansEnabled, notify }: { sub: Subscrip
                   </Button>
                 </div>
               </div>
+              )}
               <div className="space-y-2 rounded-md border p-3">
                 <SettingRow label="Auto-renew" hint="Off: expires at the end of the current period." checked={sub.auto_renew} onClick={() => setDialog("auto_renew")} />
                 <SettingRow label="Cancel at period end" hint="On: becomes Cancelled when this period ends; billing then returns to today's." checked={sub.cancel_at_period_end} onClick={() => setDialog("cancel_at_end")} />
@@ -158,6 +188,7 @@ export function SubscriptionPanel({ sub, plansEnabled, notify }: { sub: Subscrip
         </CardContent>
       </Card>
 
+      {paid && <BillingTimeline sub={sub} notify={notify} />}
       <OverridesCard sub={sub} editable={live} notify={notify} />
       <EventsCard subscriptionId={sub.id} />
 
@@ -384,7 +415,10 @@ function CancelDialog({ sub, onClose, notify }: { sub: Subscription; onClose: ()
         <DialogHeader>
           <DialogTitle>Cancel this subscription?</DialogTitle>
           <DialogDescription>
-            After cancellation the institute is charged for every AI use exactly as today. No refund is issued (v1 takes no payments).
+            After cancellation the institute is charged for every AI use exactly as today.{" "}
+            {sub.source === "PAYMENT"
+              ? "No refund is issued automatically: refund a paid period from Billing (that issues a credit note). Any unpaid charge and its link are voided."
+              : "No refund is issued (manual and complimentary plans take no payment)."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">

@@ -2,6 +2,7 @@
 // Plan P&L, Simulate, and the institute "AI plan" tab). No React and no "@/" imports, so
 // `node --test tests/` can run them directly (see tests/plans.test.ts).
 import { toNumber } from "./metering.ts";
+import { normalizeListing } from "./plan-billing.ts";
 import type { AiSettingEntry } from "../types/ai-settings";
 import type {
   BillingFeature,
@@ -48,12 +49,13 @@ export const VIOLATION_ACTIONS: readonly ViolationAction[] = ["CHARGE", "BLOCK"]
 export const CAP_BASES: readonly CapBasis[] = ["ACTOR", "SUBJECT"];
 export const GRACE_BEHAVIOURS: readonly GraceBehaviour[] = ["CHARGED", "INCLUDED"];
 export const VERSION_STATUSES: readonly VersionStatus[] = ["DRAFT", "PUBLISHED", "RETIRED"];
-export const SUBSCRIPTION_STATUSES: readonly SubscriptionStatus[] = ["SCHEDULED", "TRIAL", "ACTIVE", "GRACE", "EXPIRED", "CANCELLED"];
+export const SUBSCRIPTION_STATUSES: readonly SubscriptionStatus[] = ["PENDING", "SCHEDULED", "TRIAL", "ACTIVE", "GRACE", "EXPIRED", "CANCELLED"];
 /** At most one subscription per institute may be in one of these (DB partial unique index ux_ias_live). */
 export const LIVE_STATUSES: readonly SubscriptionStatus[] = ["TRIAL", "ACTIVE", "GRACE"];
 export const ENFORCEMENTS: readonly Enforcement[] = ["SHADOW", "LIVE"];
 /** v1 assigns by hand only; PAYMENT arrives with the Razorpay phase. */
-export const ASSIGN_SOURCES: readonly ("MANUAL" | "COMPLIMENTARY")[] = ["MANUAL", "COMPLIMENTARY"];
+/** PAYMENT = sales-led paid plan: PENDING until the first payment (link, or offline from the billing timeline). */
+export const ASSIGN_SOURCES: readonly ("MANUAL" | "COMPLIMENTARY" | "PAYMENT")[] = ["MANUAL", "COMPLIMENTARY", "PAYMENT"];
 export const PERIOD_MONTH_OPTIONS: readonly number[] = [1, 3, 6, 12];
 export const SIMULATE_DAY_OPTIONS: readonly number[] = [30, 60, 90];
 /** Role classes a plan item can include (critique C6: role classes, STUDENT maps to LEARNER). */
@@ -97,6 +99,7 @@ export const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft",
   PUBLISHED: "Published",
   RETIRED: "Retired",
+  PENDING: "Pending payment",
   SCHEDULED: "Scheduled",
   TRIAL: "Trial",
   ACTIVE: "Active",
@@ -112,7 +115,7 @@ export const ENFORCEMENT_HINT: Record<Enforcement, string> = {
     "The plan decides who pays: included uses cost the institute nothing, allowance uses draw down the plan allowance, everything else is charged from the wallet. Fair-use caps and the internal cost cap apply.",
 };
 export const SOURCE_LABEL: Record<string, string> = { MANUAL: "Manual", COMPLIMENTARY: "Complimentary", PAYMENT: "Payment" };
-export const PAYMENT_LABEL: Record<PaymentStatus, string> = { DUE: "Due", PAID: "Paid", COMPLIMENTARY: "Complimentary", WAIVED: "Waived" };
+export const PAYMENT_LABEL: Record<PaymentStatus, string> = { DUE: "Due", PAID: "Paid", COMPLIMENTARY: "Complimentary", WAIVED: "Waived", REFUNDED: "Refunded" };
 export const VIOLATION_LABEL: Record<ViolationAction, string> = { CHARGE: "Charge", BLOCK: "Block (pre-check)" };
 export const BASIS_LABEL: Record<CapBasis, string> = { ACTOR: "Who triggered it", SUBJECT: "Who it is about" };
 export const GRACE_LABEL: Record<GraceBehaviour, string> = { CHARGED: "Charge from wallet", INCLUDED: "Keep plan benefits" };
@@ -194,6 +197,7 @@ export function normalizeFeature(raw: unknown): BillingFeature {
   return {
     feature_key: key,
     label: str(r.label) ?? key,
+    tenant_label: str(r.tenant_label),
     description: str(r.description),
     eligibility: pick(ELIGIBILITIES, r.eligibility, "ALWAYS_CHARGED"),
     locked: bool(r.locked, false),
@@ -318,6 +322,7 @@ export function normalizePlan(raw: unknown): Plan {
     created_at: str(r.created_at),
     updated_at: str(r.updated_at),
     versions: sortVersions(versions),
+    listing: normalizeListing(r),
     live_subscriptions: numOrNull(obj(r.subscribers).live ?? r.live_subscriptions ?? r.live_count),
     shadow_subscriptions: numOrNull(obj(r.subscribers).shadow ?? r.shadow_subscriptions ?? r.shadow_count),
   };
@@ -911,6 +916,11 @@ export function liveSubscription(subs: Subscription[]): Subscription | null {
   return subs.find((s) => isLiveStatus(s.status)) ?? null;
 }
 
+/** The live subscription, else a paid one waiting for its first payment (PENDING). */
+export function currentSubscription(subs: Subscription[]): Subscription | null {
+  return liveSubscription(subs) ?? subs.find((s) => s.status === "PENDING") ?? null;
+}
+
 export interface AllowanceMeter {
   credits: number;
   used: number;
@@ -943,8 +953,10 @@ export interface AssignDraft {
   auto_renew: boolean;
   grace_days: string;
   enforcement: Enforcement;
-  source: "MANUAL" | "COMPLIMENTARY";
+  source: "MANUAL" | "COMPLIMENTARY" | "PAYMENT";
   price_override_rupees: string;
+  /** PAYMENT only: email the payment link now. */
+  send_link: boolean;
   reason: string;
 }
 
@@ -959,35 +971,49 @@ export function emptyAssignDraft(now: Date = new Date(), instituteId = ""): Assi
     enforcement: "SHADOW",
     source: "MANUAL",
     price_override_rupees: "",
+    send_link: true,
     reason: "",
   };
 }
 
-/** POST /subscriptions body. Only PUBLISHED versions may be assigned. */
-export function buildAssign(draft: AssignDraft, version: Pick<PlanVersion, "id" | "status"> | null): { body: SubscriptionCreate } | { error: string } {
+/**
+ * POST /subscriptions body. Only PUBLISHED versions may be assigned. PAYMENT plans are always Live
+ * (a paying customer gets the benefits), INR only, and start when the first payment arrives, so
+ * they carry no start date.
+ */
+export function buildAssign(
+  draft: AssignDraft,
+  version: (Pick<PlanVersion, "id" | "status"> & Partial<Pick<PlanVersion, "currency">>) | null
+): { body: SubscriptionCreate } | { error: string } {
   const inst = draft.institute_id.trim();
   if (inst === "") return { error: "Pick an institute" };
   if (!version || version.id !== draft.plan_version_id) return { error: "Pick a plan version" };
   if (version.status !== "PUBLISHED") return { error: "Only a published version can be assigned" };
+  const paid = draft.source === "PAYMENT";
+  if (paid && version.currency !== undefined && version.currency.toUpperCase() !== "INR") return { error: "Paid plans are sold in INR only: pick an INR version" };
   const start = new Date(draft.start_at);
-  if (draft.start_at.trim() === "" || Number.isNaN(start.getTime())) return { error: "Enter a start date" };
+  if (!paid && (draft.start_at.trim() === "" || Number.isNaN(start.getTime()))) return { error: "Enter a start date" };
   if (!PERIOD_MONTH_OPTIONS.includes(draft.period_months)) return { error: "The period must be 1, 3, 6 or 12 months" };
   const grace = parseCap(draft.grace_days, "Grace days", { integer: true, max: 90 });
   if ("error" in grace) return grace;
   const price = parseRupeesToMinor(draft.price_override_rupees);
   if ("error" in price) return { error: `Price override: ${price.error.toLowerCase()}` };
+  if (paid && price.value !== null && price.value < 100) return { error: "Price override: a paid plan costs at least ₹1 (the payment minimum)" };
   if (draft.reason.trim() === "") return { error: "Give a reason (it lands in the subscription's history)" };
   const body: SubscriptionCreate = {
     institute_id: inst,
     plan_version_id: version.id,
-    start_at: start.toISOString(),
-    period_months: draft.period_months,
     auto_renew: draft.auto_renew,
     grace_days: grace.value ?? 7,
-    enforcement: draft.enforcement,
+    enforcement: paid ? "LIVE" : draft.enforcement,
     source: draft.source,
     reason: draft.reason.trim(),
   };
+  if (paid) body.send_link = draft.send_link;
+  else {
+    body.start_at = start.toISOString();
+    body.period_months = draft.period_months;
+  }
   if (price.value !== null) body.price_override_minor = price.value;
   return { body };
 }

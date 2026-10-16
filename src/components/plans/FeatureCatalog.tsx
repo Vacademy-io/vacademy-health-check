@@ -10,6 +10,7 @@ import { ActorName } from "@/components/shared/ActorName";
 import { errorDetail } from "@/lib/eval-api-pricing";
 import { formatWhen } from "@/lib/model-defaults";
 import { ELIGIBILITIES, ELIGIBILITY_HINT, ELIGIBILITY_LABEL, isVoiceFeature } from "@/lib/plans";
+import { brandWords } from "@/lib/plan-billing";
 import { useBillingFeatures, usePatchFeature } from "@/services/plans-api";
 import type { BillingFeature, FeatureEligibility, FeaturePatch } from "@/types/plans";
 import { EligibilityBadge, Field, PlansSectionError, ReasonField, SELECT_CLASS } from "./shared";
@@ -54,6 +55,7 @@ export function FeatureCatalog({ notify }: { notify: Notify }) {
                   <tr key={f.feature_key} className={f.is_active ? "border-b last:border-0" : "border-b opacity-60 last:border-0"}>
                     <td className="py-2 pr-3">
                       <p className="font-medium">{f.label}</p>
+                      {f.tenant_label && <p className="text-xs text-muted-foreground">Tenants see: {f.tenant_label}</p>}
                       <p className="font-mono text-[11px] text-muted-foreground">{f.feature_key}</p>
                       {f.description && <p className="mt-0.5 max-w-md text-xs text-muted-foreground">{f.description}</p>}
                     </td>
@@ -107,6 +109,8 @@ export function FeatureCatalog({ notify }: { notify: Notify }) {
 function FeatureDialog({ feature, onClose, notify }: { feature: BillingFeature; onClose: () => void; notify: Notify }) {
   const patch = usePatchFeature();
   const [label, setLabel] = useState(feature.label);
+  const [tenantLabel, setTenantLabel] = useState(feature.tenant_label ?? "");
+  const tenantBrand = brandWords(tenantLabel);
   const [description, setDescription] = useState(feature.description ?? "");
   const [order, setOrder] = useState(String(feature.display_order));
   const [eligibility, setEligibility] = useState<FeatureEligibility>(feature.eligibility);
@@ -121,6 +125,8 @@ function FeatureDialog({ feature, onClose, notify }: { feature: BillingFeature; 
     const body: FeaturePatch = { reason: reason.trim() };
     if (label.trim() === "") return setError("The label cannot be empty");
     if (label.trim() !== feature.label) body.label = label.trim();
+    if (tenantBrand.length > 0) return setError(`The tenant label must not name the platform (${tenantBrand.join(", ")}): white-labelled institutes see it`);
+    if (tenantLabel.trim() !== (feature.tenant_label ?? "")) body.tenant_label = tenantLabel.trim() === "" ? null : tenantLabel.trim();
     if (description.trim() !== (feature.description ?? "")) body.description = description.trim() === "" ? null : description.trim();
     const n = Number(order);
     if (!Number.isInteger(n) || n < 0 || n > 10000) return setError("Order: a whole number from 0 to 10000");
@@ -157,8 +163,15 @@ function FeatureDialog({ feature, onClose, notify }: { feature: BillingFeature; 
           <DialogDescription className="font-mono text-xs">{feature.feature_key}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <Field label="Label (tenants see this)" htmlFor="feat-label">
+          <Field label="Label" htmlFor="feat-label" hint="Shown in the portal, and to tenants when no tenant label is set.">
             <Input id="feat-label" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={128} className="h-9" />
+          </Field>
+          <Field
+            label="Tenant label (optional)"
+            htmlFor="feat-tlabel"
+            hint={tenantBrand.length > 0 ? `Contains ${tenantBrand.join(", ")}: not allowed in tenant-facing text.` : "What institutes see on the storefront and invoices. Must not name the platform."}
+          >
+            <Input id="feat-tlabel" value={tenantLabel} onChange={(e) => setTenantLabel(e.target.value)} maxLength={128} placeholder={label} className={tenantBrand.length > 0 ? "h-9 border-destructive" : "h-9"} />
           </Field>
           <Field label="Description" htmlFor="feat-desc">
             <Textarea id="feat-desc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />

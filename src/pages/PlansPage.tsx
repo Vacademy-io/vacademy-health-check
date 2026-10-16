@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { FlaskConical, Loader2, Plus, Receipt, Users } from "lucide-react";
+import { FlaskConical, Loader2, Plus, Receipt, Store, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionErrorBoundary } from "@/components/shared/SectionErrorBoundary";
 import { ToastStack, useToasts } from "@/components/shared/Toast";
@@ -37,6 +37,11 @@ export default function PlansPage() {
             <Button asChild variant="outline" size="sm">
               <Link to="/ai-subscriptions">
                 <Users className="mr-1 h-4 w-4" /> Subscriptions
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/ai-plans/storefront">
+                <Store className="mr-1 h-4 w-4" /> Storefront
               </Link>
             </Button>
             <Button asChild variant="outline" size="sm">
@@ -125,7 +130,10 @@ function PlansTable({ plans }: { plans: Plan[] }) {
                   <Link to={`/ai-plans/${encodeURIComponent(p.id)}`} className="font-medium hover:underline">
                     {p.name}
                   </Link>
-                  <p className="font-mono text-[11px] text-muted-foreground">{p.plan_key}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground">
+                    {p.plan_key}
+                    {p.listing.listed && <span className="ml-1.5 font-sans font-medium text-emerald-700 dark:text-emerald-300">· listed</span>}
+                  </p>
                 </td>
                 <td className="px-2 py-2">{v ? <span className="inline-flex items-center gap-1.5">v{v.version_no} <StatusPill status={v.status} /></span> : <span className="text-xs text-muted-foreground">None published</span>}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{v ? formatInrMinor(v.price_minor) : "—"}</td>

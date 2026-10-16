@@ -22,6 +22,7 @@ const FILTERS = [
   { key: "LIVE_STATUS", label: "Live" },
   { key: "SHADOW", label: "Shadow" },
   { key: "LIVE", label: "Enforcing" },
+  { key: "PENDING", label: "Pending payment" },
   { key: "ENDED", label: "Ended" },
   { key: "ALL", label: "All" },
 ] as const;
@@ -30,11 +31,14 @@ type Filter = (typeof FILTERS)[number]["key"];
 const matches = (s: Subscription, f: Filter) => {
   switch (f) {
     case "LIVE_STATUS":
-      return isLiveStatus(s.status) || s.status === "SCHEDULED";
+      // A paid plan waiting for its first payment is listed with the live ones: it needs attention.
+      return isLiveStatus(s.status) || s.status === "SCHEDULED" || s.status === "PENDING";
     case "SHADOW":
       return isLiveStatus(s.status) && s.enforcement === "SHADOW";
     case "LIVE":
       return isLiveStatus(s.status) && s.enforcement === "LIVE";
+    case "PENDING":
+      return s.status === "PENDING";
     case "ENDED":
       return s.status === "EXPIRED" || s.status === "CANCELLED";
     default:

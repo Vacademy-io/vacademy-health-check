@@ -51,6 +51,7 @@ import type { BillingFeature, PlanItem, PlanVersion } from "../src/types/plans.t
 const feature = (feature_key: string, eligibility: BillingFeature["eligibility"], over: Partial<BillingFeature> = {}): BillingFeature => ({
   feature_key,
   label: feature_key.replace(/_/g, " "),
+  tenant_label: null,
   description: null,
   eligibility,
   locked: false,

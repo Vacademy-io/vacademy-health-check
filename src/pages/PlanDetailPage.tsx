@@ -7,6 +7,8 @@ import { ToastStack, useToasts } from "@/components/shared/Toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ListingEditor } from "@/components/plans/ListingEditor";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VersionEditor } from "@/components/plans/VersionEditor";
 import { Field, PlansSectionError, PlansSwitchNote, ReasonField, SELECT_CLASS, StatusPill } from "@/components/plans/shared";
@@ -28,6 +30,14 @@ export default function PlanDetailPage() {
 
   const versions = sortVersions(plan.data?.versions ?? []);
   const wanted = params.get("version");
+  const tab = params.get("tab") === "listing" ? "listing" : "versions";
+  /** Changes some query params and keeps the rest (tab + version live side by side). */
+  const setParam = (k: string, v: string | null) => {
+    const next = new URLSearchParams(params);
+    if (v === null) next.delete(k);
+    else next.set(k, v);
+    setParams(next, { replace: true });
+  };
   const selected = versions.find((v) => v.id === wanted) ?? (plan.data ? draftVersion(plan.data) ?? liveVersion(plan.data) : null) ?? versions[0] ?? null;
 
   return (
@@ -67,7 +77,20 @@ export default function PlanDetailPage() {
             </CardContent>
           </Card>
         ) : plan.data ? (
-          <>
+          <Tabs value={tab} onValueChange={(v) => setParam("tab", v === "listing" ? "listing" : null)}>
+            <TabsList>
+              <TabsTrigger value="versions">Versions</TabsTrigger>
+              <TabsTrigger value="listing">
+                Listing &amp; audience
+                {plan.data.listing.listed && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500" aria-label="listed" />}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="listing" className="mt-4">
+              <SectionErrorBoundary title="Listing">
+                <ListingEditor key={plan.data.id} plan={plan.data} features={features.data ?? []} notify={push} />
+              </SectionErrorBoundary>
+            </TabsContent>
+            <TabsContent value="versions" className="mt-4 space-y-6">
             <div className="flex flex-wrap gap-2" role="tablist" aria-label="Versions">
               {versions.map((v) => (
                 <button
@@ -75,7 +98,7 @@ export default function PlanDetailPage() {
                   type="button"
                   role="tab"
                   aria-selected={selected?.id === v.id}
-                  onClick={() => setParams({ version: v.id }, { replace: true })}
+                  onClick={() => setParam("version", v.id)}
                   className={cn(
                     "flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors",
                     selected?.id === v.id ? "border-primary bg-primary/5 font-medium" : "text-muted-foreground hover:bg-accent"
@@ -93,7 +116,8 @@ export default function PlanDetailPage() {
                 <VersionEditor key={selected.id} plan={plan.data} version={selected} features={features.data ?? []} inrPerUsd={settings.inrPerUsd} notify={push} />
               </SectionErrorBoundary>
             )}
-          </>
+            </TabsContent>
+          </Tabs>
         ) : null}
       </div>
       {newVersion && plan.data && (
@@ -103,7 +127,7 @@ export default function PlanDetailPage() {
           onClose={() => setNewVersion(false)}
           onCreated={(vid) => {
             push("success", "Draft version created.");
-            if (vid) setParams({ version: vid }, { replace: true });
+            if (vid) setParam("version", vid);
           }}
         />
       )}

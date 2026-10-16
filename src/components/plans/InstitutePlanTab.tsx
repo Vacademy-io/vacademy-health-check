@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionErrorBoundary } from "@/components/shared/SectionErrorBoundary";
 import { ToastStack, useToasts } from "@/components/shared/Toast";
-import { formatRange, liveSubscription } from "@/lib/plans";
+import { currentSubscription, formatRange } from "@/lib/plans";
 import { usePlanSettings, useSubscriptions } from "@/services/plans-api";
 import { AssignDialog } from "./AssignDialog";
 import { SubscriptionPanel } from "./SubscriptionPanel";
+import { BillingDocumentsCard } from "./BillingDocumentsCard";
 import { EnforcementPill, PlansSectionError, PlansSwitchNote, StatusPill } from "./shared";
 
 /** InstituteDetailPage → "AI plan": the live subscription (if any), past ones, and assignment. */
@@ -21,7 +22,8 @@ export function InstitutePlanTab({ instituteId, instituteName }: { instituteId: 
   const [openId, setOpenId] = useState<string | null>(null);
 
   const all = subs.data ?? [];
-  const live = liveSubscription(all);
+  // The live subscription, else a paid one waiting for its first payment.
+  const live = currentSubscription(all);
   const others = all.filter((s) => s.id !== live?.id);
   const opened = others.find((s) => s.id === openId) ?? null;
 
@@ -96,6 +98,9 @@ export function InstitutePlanTab({ instituteId, instituteName }: { instituteId: 
               <SubscriptionPanel sub={opened} plansEnabled={settings.enabled} notify={push} />
             </SectionErrorBoundary>
           )}
+          <SectionErrorBoundary title="Invoices">
+            <BillingDocumentsCard instituteId={instituteId} notify={push} />
+          </SectionErrorBoundary>
         </>
       )}
       {assigning && <AssignDialog instituteId={instituteId} instituteName={instituteName ?? null} onClose={() => setAssigning(false)} notify={push} />}

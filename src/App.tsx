@@ -21,6 +21,7 @@ const PlansPage = lazy(() => import("@/pages/PlansPage"));
 const PlanDetailPage = lazy(() => import("@/pages/PlanDetailPage"));
 const PlansSimulatePage = lazy(() => import("@/pages/PlansSimulatePage"));
 const PlanPnlPage = lazy(() => import("@/pages/PlanPnlPage"));
+const PlanStorefrontPage = lazy(() => import("@/pages/PlanStorefrontPage"));
 const SubscriptionsPage = lazy(() => import("@/pages/SubscriptionsPage"));
 const TutorAssetsPage = lazy(() => import("@/pages/TutorAssetsPage"));
 const DemoTopicsPage = lazy(() => import("@/pages/DemoTopicsPage"));
@@ -83,6 +84,7 @@ function App() {
           <Route path="ai-plans" element={<PlansPage />} />
           <Route path="ai-plans/simulate" element={<PlansSimulatePage />} />
           <Route path="ai-plans/pnl" element={<PlanPnlPage />} />
+          <Route path="ai-plans/storefront" element={<PlanStorefrontPage />} />
           <Route path="ai-plans/:id" element={<PlanDetailPage />} />
           <Route path="ai-subscriptions" element={<SubscriptionsPage />} />
           <Route path="tutor-assets" element={<TutorAssetsPage />} />
