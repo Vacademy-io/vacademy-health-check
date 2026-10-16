@@ -51,6 +51,8 @@ export const PLAN_BILLING_ENDPOINTS = {
   segment: (key: string) => `${PLANS}/storefront/segments/${enc(key)}`,
   subscriptionBilling: (sid: string) => `${PLANS}/subscriptions/${enc(sid)}/billing`,
   sendLink: (sid: string, cid: string) => `${PLANS}/subscriptions/${enc(sid)}/charges/${enc(cid)}/send-link`,
+  /** Creates (or reuses a live) Razorpay link now and emails it; first purchases included. */
+  resendLink: (iid: string, cid: string) => `${OPS(iid)}/charges/${enc(cid)}/resend-link`,
   markPaid: (iid: string, cid: string) => `${OPS(iid)}/charges/${enc(cid)}/mark-paid`,
   waive: (iid: string, cid: string) => `${OPS(iid)}/charges/${enc(cid)}/waive`,
   refund: (iid: string, ppId: string) => `${OPS(iid)}/payments/${enc(ppId)}/refund`,
@@ -208,20 +210,33 @@ function useInvalidateBilling() {
 export interface LinkResult {
   url: string | null;
   expires_at: string | null;
-  /** ai-service queued it: admin_core's billing job creates (replacing any old one) and emails the link. */
-  queued: boolean;
+  /** The live link was reused (emailed again) rather than a new one created. */
+  reused: boolean;
+  /** How many admins the email went to (0 = nobody to send to, or the mail was withheld). */
+  emailed_to: number;
 }
 
+/**
+ * Two calls: ai-service records the request (reason in the subscription history) and marks the
+ * charge for collection; admin_core then creates the link at once (reusing a live one) and emails
+ * it. The billing job alone never makes a first-purchase link, so the second call is what sends it.
+ */
 export function useSendChargeLink() {
   const invalidate = useInvalidateBilling();
   return useMutation({
-    mutationFn: async ({ subscriptionId, chargeId, reason }: { subscriptionId: string; chargeId: string; reason: string }): Promise<LinkResult> => {
-      const data = ((await api.post<unknown>(E.sendLink(subscriptionId, chargeId), { reason })).data ?? {}) as Record<string, unknown>;
-      const charge = (data.charge && typeof data.charge === "object" ? data.charge : {}) as Record<string, unknown>;
-      const pick = (...ks: string[]) => ks.flatMap((k) => [data[k], charge[k]]).find((v): v is string => typeof v === "string" && v !== "") ?? null;
-      return { url: pick("payment_link_url", "url", "short_url"), expires_at: pick("link_expires_at", "expires_at"), queued: data.queued === true };
+    mutationFn: async ({ instituteId, subscriptionId, chargeId, reason }: { instituteId: string; subscriptionId: string; chargeId: string; reason: string }): Promise<LinkResult> => {
+      await api.post<unknown>(E.sendLink(subscriptionId, chargeId), { reason });
+      const data = ((await api.post<unknown>(E.resendLink(instituteId, chargeId), {})).data ?? {}) as Record<string, unknown>;
+      const str = (v: unknown) => (typeof v === "string" && v !== "" ? v : null);
+      return {
+        url: str(data.url),
+        expires_at: str(data.link_expires_at),
+        reused: data.reused === true,
+        emailed_to: typeof data.emailed_to === "number" ? data.emailed_to : 0,
+      };
     },
     onSuccess: invalidate,
+    onError: invalidate,
   });
 }
 

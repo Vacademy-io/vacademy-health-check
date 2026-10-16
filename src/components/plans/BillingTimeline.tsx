@@ -114,7 +114,7 @@ export function BillingTimeline({ sub, notify }: { sub: Subscription; notify: No
           </>
         )}
       </CardContent>
-      {action?.kind === "link" && <SendLinkDialog charge={action.charge} onClose={() => setAction(null)} notify={notify} />}
+      {action?.kind === "link" && <SendLinkDialog instituteId={sub.institute_id} charge={action.charge} onClose={() => setAction(null)} notify={notify} />}
       {action?.kind === "paid" && <MarkPaidDialog instituteId={sub.institute_id} charge={action.charge} onClose={() => setAction(null)} notify={notify} />}
       {action?.kind === "waive" && <WaiveDialog instituteId={sub.institute_id} charge={action.charge} onClose={() => setAction(null)} notify={notify} />}
       {action?.kind === "refund" && <RefundDialog instituteId={sub.institute_id} charge={action.charge} onClose={() => setAction(null)} notify={notify} />}
@@ -328,7 +328,7 @@ function ChargeSummary({ charge: c }: { charge: SubscriptionCharge }) {
   );
 }
 
-function SendLinkDialog({ charge, onClose, notify }: { charge: SubscriptionCharge; onClose: () => void; notify: Notify }) {
+function SendLinkDialog({ instituteId, charge, onClose, notify }: { instituteId: string; charge: SubscriptionCharge; onClose: () => void; notify: Notify }) {
   const send = useSendChargeLink();
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -339,20 +339,19 @@ function SendLinkDialog({ charge, onClose, notify }: { charge: SubscriptionCharg
     if (!charge.subscription_id) return setError("This charge has no subscription id; reload the page");
     if (reason.trim() === "") return setError("Give a reason (it lands in the subscription's history)");
     send.mutate(
-      { subscriptionId: charge.subscription_id, chargeId: charge.id, reason: reason.trim() },
+      { instituteId, subscriptionId: charge.subscription_id, chargeId: charge.id, reason: reason.trim() },
       {
         onSuccess: (r) => {
           setResult(r);
+          if (!r.url) return notify("error", "No link came back; reload the page and check the charge");
           notify(
-            "success",
-            r.url
-              ? resend
-                ? "New payment link sent; the old one is cancelled."
-                : "Payment link sent to the institute's admins."
-              : "Queued: the billing job creates the link and emails it within a few minutes. It appears on this charge once sent."
+            r.emailed_to > 0 ? "success" : "info",
+            r.emailed_to > 0
+              ? `${r.reused ? "Current link" : "Payment link"} emailed to ${r.emailed_to} admin${r.emailed_to === 1 ? "" : "s"}.`
+              : "Link created but not emailed (no admin email, or the mail was withheld). Copy it from here."
           );
         },
-        onError: (err) => setError(errorDetail(err, "Could not send the link")),
+        onError: (err) => setError(errorDetail(err, "Could not create the link")),
       }
     );
   };
@@ -361,25 +360,20 @@ function SendLinkDialog({ charge, onClose, notify }: { charge: SubscriptionCharg
       title={resend ? "Resend the payment link?" : "Send a payment link?"}
       description={
         resend
-          ? "Queues a fresh link: the billing job cancels the current one (if it was paid meanwhile, the payment is fulfilled instead) and emails the new one to the institute's admins."
-          : "Queues this charge for collection: the billing job creates a payment link and emails it to the institute's admins."
+          ? "Emails the institute's admins the current link again, or a new one if it has expired or is about to (if the old one was paid meanwhile, the payment is fulfilled instead)."
+          : "Creates a Razorpay payment link for this charge now and emails it to the institute's admins."
       }
       error={error}
       pending={send.isPending}
-      confirmLabel={result ? "Queue again" : resend ? "Resend" : "Send"}
+      confirmLabel={result ? "Send again" : resend ? "Resend" : "Send"}
       onConfirm={go}
       onClose={onClose}
     >
       <ChargeSummary charge={charge} />
       {result?.url && (
         <p className="rounded-md border border-emerald-500/40 p-3 text-xs">
-          <CopyLink url={result.url} label="New payment link" />
+          <CopyLink url={result.url} label={result.reused ? "Current payment link" : "New payment link"} />
           {result.expires_at && <span className="ml-1 text-muted-foreground">valid until {formatWhen(result.expires_at)}</span>}
-        </p>
-      )}
-      {result && !result.url && (
-        <p className="rounded-md border border-emerald-500/40 p-3 text-xs text-muted-foreground">
-          Queued for the billing job. The timeline refreshes every 30 seconds while a link is out; the new link shows on the charge once it is created.
         </p>
       )}
       {!result && <ReasonField id="sl-reason" value={reason} onChange={setReason} />}
