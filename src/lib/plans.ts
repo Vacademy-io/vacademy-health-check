@@ -206,6 +206,14 @@ export function normalizeFeature(raw: unknown): BillingFeature {
     use_cases: Array.isArray(r.use_cases)
       ? r.use_cases.map((u) => (typeof u === "string" ? u : str(obj(u).use_case))).filter((u): u is string => !!u)
       : [],
+    use_case_labels: Array.isArray(r.use_cases)
+      ? r.use_cases
+          .map((u) => {
+            const key = typeof u === "string" ? u : str(obj(u).use_case);
+            return key ? { use_case: key, label: (typeof u === "string" ? null : str(obj(u).label)) ?? key } : null;
+          })
+          .filter((u): u is { use_case: string; label: string } => u !== null)
+      : [],
     updated_by: str(r.updated_by),
     updated_at: str(r.updated_at),
   };

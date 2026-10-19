@@ -63,11 +63,14 @@ export function FeatureCatalog({ notify }: { notify: Notify }) {
                       <EligibilityBadge eligibility={f.eligibility} locked={f.locked} />
                     </td>
                     <td className="px-2 py-2 text-xs text-muted-foreground">
-                      {f.use_cases.length > 0 ? (
-                        <span title={f.use_cases.join(", ")}>
-                          {f.use_cases.slice(0, 4).join(", ")}
-                          {f.use_cases.length > 4 && ` +${f.use_cases.length - 4}`}
-                        </span>
+                      {f.use_case_labels.length > 0 ? (
+                        <ul className="flex max-w-md flex-wrap gap-1" aria-label={`Use cases billed as ${f.label}`}>
+                          {f.use_case_labels.map((u) => (
+                            <li key={u.use_case} title={u.use_case} className="rounded border bg-muted/40 px-1.5 py-0.5 leading-tight">
+                              {u.label}
+                            </li>
+                          ))}
+                        </ul>
                       ) : (
                         "—"
                       )}

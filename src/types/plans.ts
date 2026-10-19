@@ -31,6 +31,8 @@ export interface BillingFeature {
   is_active: boolean;
   /** Catalog use cases that bill under this feature (when the server lists them). */
   use_cases: string[];
+  /** The same use cases with their catalog label (falls back to the key). */
+  use_case_labels: { use_case: string; label: string }[];
   updated_by: string | null;
   updated_at: string | null;
 }

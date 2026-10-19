@@ -467,3 +467,24 @@ test("normalizeSimulation: the engine's shape (features + totals, revenue_minor,
   assert.equal(c.absorbed_cost_inr, 40);
   assert.equal(c.margin_inr, 960);
 });
+
+test("normalizeFeatures keeps each use case's catalog label for the Features tab", () => {
+  const [f] = normalizeFeatures([
+    {
+      feature_key: "content_generation",
+      label: "Content generation",
+      eligibility: "INCLUDABLE",
+      use_cases: [
+        { use_case: "engagement_plan", label: "Daily engagement: Plan with AI", feature_group: "engagement" },
+        { use_case: "content" },
+        "lecture",
+      ],
+    },
+  ]);
+  assert.deepEqual(f.use_cases, ["engagement_plan", "content", "lecture"]);
+  assert.deepEqual(f.use_case_labels, [
+    { use_case: "engagement_plan", label: "Daily engagement: Plan with AI" },
+    { use_case: "content", label: "content" },
+    { use_case: "lecture", label: "lecture" },
+  ]);
+});
