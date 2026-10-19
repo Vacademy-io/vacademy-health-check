@@ -58,6 +58,7 @@ const feature = (feature_key: string, eligibility: BillingFeature["eligibility"]
   display_order: 100,
   is_active: true,
   use_cases: [],
+  use_case_labels: [],
   updated_by: null,
   updated_at: null,
   ...over,
