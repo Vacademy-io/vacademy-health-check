@@ -55,13 +55,24 @@ const Sparkline = ({ data, width = 80, height = 24 }: { data: number[]; width?: 
   );
 };
 
-const LatencyCard = ({ name, latencyMs, status, jvm, history }: {
+const LatencyCard = ({ name, latencyMs, serverMs, status, jvm, history, serverHistory }: {
     name: string;
+    /** Browser round trip: the viewer's network + the Cloudflare proxy + the service. */
     latencyMs: number | null;
+    /** Time inside the service (Server-Timing). Null when the service does not send it. */
+    serverMs: number | null;
     status: string;
     history?: number[];
+    serverHistory?: number[];
     jvm?: { heap_percent: number; gc_pause_ms_last: number; gc_count_total: number; gc_algorithm: string; threads_blocked: number; threads_waiting: number; heap_used_mb: number; heap_max_mb: number; };
 }) => {
+    // Grade the service on its own time when it reports one. The round trip from a
+    // browser in India went via Cloudflare HKG/NRT/CDG/SIN and took 400-1300 ms while
+    // the services answered in 1-2 ms.
+    const effectiveMs = serverMs ?? latencyMs;
+    const networkMs = serverMs !== null && latencyMs !== null ? Math.max(latencyMs - serverMs, 0) : null;
+    const sparkData = serverMs !== null ? serverHistory : history;
+
     // ── Root cause diagnosis with algorithm-specific fix ──────────────────
     type Diagnosis = { label: string; detail: string; flags?: string; color: string };
     const diagnosis: Diagnosis | null = (() => {
@@ -168,7 +179,14 @@ kubectl exec -it <pod> -- jstack 1 | grep BLOCKED`,
         }
 
         // ── JVM healthy but latency is high ──────────────────────────────
-        if (latencyMs > 300) {
+        if (serverMs !== null && serverMs > 300) {
+            return {
+                label: "🐢 JVM healthy — service itself is slow",
+                detail: `GC: ${gcMs}ms avg, Heap: ${heapPct}% — JVM is fine, but the service took ${serverMs}ms to answer a ping. Check the DB Matrix section below.`,
+                color: "text-blue-600 bg-blue-50 border-blue-200",
+            };
+        }
+        if (serverMs === null && latencyMs > 300) {
             return {
                 label: "🌐 JVM healthy — check DB or network",
                 detail: `GC: ${gcMs}ms avg, Heap: ${heapPct}% — JVM is fine. High latency is likely from a slow DB query or network hop. Check the DB Matrix section below.`,
@@ -183,8 +201,8 @@ kubectl exec -it <pod> -- jstack 1 | grep BLOCKED`,
     let color = "bg-gray-100 text-gray-500";
     const isGcDominated = jvm && latencyMs && jvm.gc_pause_ms_last > latencyMs * 0.4;
     if (status === "UP") {
-        if (latencyMs && latencyMs < 200 && !isGcDominated) color = "bg-green-100 text-green-700";
-        else if (latencyMs && latencyMs < 800) color = "bg-yellow-100 text-yellow-700";
+        if (effectiveMs !== null && effectiveMs < 200 && !isGcDominated) color = "bg-green-100 text-green-700";
+        else if (effectiveMs !== null && effectiveMs < 800) color = "bg-yellow-100 text-yellow-700";
         else color = "bg-red-100 text-red-700";
     } else if (status === "DOWN") {
         color = "bg-red-100 text-red-700";
@@ -193,8 +211,8 @@ kubectl exec -it <pod> -- jstack 1 | grep BLOCKED`,
     const statusLabel = status === "PENDING" ? "Checking…"
         : status !== "UP" ? "Unreachable"
         : isGcDominated ? "GC Impact"
-        : latencyMs && latencyMs < 200 ? "Excellent"
-        : latencyMs && latencyMs < 500 ? "Fair"
+        : effectiveMs !== null && effectiveMs < 200 ? "Excellent"
+        : effectiveMs !== null && effectiveMs < 500 ? "Fair"
         : "Slow";
 
     const [showDiagnosis, setShowDiagnosis] = useState(false);
@@ -210,12 +228,22 @@ kubectl exec -it <pod> -- jstack 1 | grep BLOCKED`,
                 {status === "UP" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
             </div>
             <div className="text-2xl font-bold">
-                {latencyMs !== null && latencyMs >= 0 ?
-                    `${latencyMs}ms` :
+                {effectiveMs !== null && effectiveMs >= 0 ?
+                    `${effectiveMs}ms` :
                     (status === "PENDING" ? "…" : "ERR")
                 }
             </div>
-            <div className="text-[10px] opacity-80 font-medium mb-1">{statusLabel}</div>
+            <div className="text-[10px] opacity-80 font-medium mb-1">
+                {statusLabel}{serverMs !== null && " · in service"}
+            </div>
+            {serverMs !== null && latencyMs !== null && (
+                <div
+                    className="text-[10px] opacity-70 mb-1"
+                    title="Browser round trip: your network and the Cloudflare proxy, plus the service time above. A slow value here with a fast service time is the route, not the service."
+                >
+                    🌐 {latencyMs}ms round trip ({networkMs}ms network)
+                </div>
+            )}
 
             {/* Root cause diagnosis — shown always if present */}
             {diagnosis && (
@@ -258,9 +286,9 @@ kubectl exec -it <pod> -- jstack 1 | grep BLOCKED`,
             )}
 
             {/* Sparkline */}
-            {history && history.length > 1 && (
+            {sparkData && sparkData.length > 1 && (
                 <div className="mt-2 opacity-70">
-                    <Sparkline data={history} />
+                    <Sparkline data={sparkData} />
                 </div>
             )}
         </div>
@@ -363,9 +391,11 @@ export default function Dashboard() {
                             key={res.service}
                             name={res.service}
                             latencyMs={res.pingLatencyMs}
+                            serverMs={res.serverMs}
                             status={res.pingStatus}
                             jvm={res.jvm}
                             history={res.pingHistory}
+                            serverHistory={res.serverHistory}
                         />
                     ))}
                     {Object.keys(latencyResults).length === 0 && (

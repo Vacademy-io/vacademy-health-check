@@ -7,6 +7,13 @@ export interface ServicePingResult {
   pingLatencyMs: number | null;
   /** Rolling history of ping latencies (last 30 readings = ~5min at 10s interval) */
   pingHistory: number[];
+  /**
+   * Time spent inside the service, from its Server-Timing header (app;dur=N).
+   * pingLatencyMs is the browser round trip and also counts the viewer's network
+   * and the Cloudflare Pages proxy, which alone can add 400-1300 ms.
+   */
+  serverMs: number | null;
+  serverHistory: number[];
   /** JVM snapshot from the ping response */
   jvm?: {
     heap_percent: number;
@@ -44,6 +51,19 @@ const SERVICES = [
 
 const HISTORY_SIZE = 30; // 30 × 10s = 5 minutes of history
 
+/** Duration of the "app" metric in a Server-Timing header, e.g. "app;dur=1". */
+const parseServerTiming = (header: string | null): number | null => {
+  if (!header) return null;
+  for (const metric of header.split(",")) {
+    const [name, ...params] = metric.trim().split(";");
+    if (name.trim() !== "app") continue;
+    const dur = params.map(p => p.trim()).find(p => p.startsWith("dur="));
+    const ms = dur ? Number(dur.slice(4)) : NaN;
+    return Number.isFinite(ms) ? Math.round(ms) : null;
+  }
+  return null;
+};
+
 /** Append value to a rolling array, capped at HISTORY_SIZE */
 const rolling = (prev: number[], val: number): number[] =>
   [...prev.slice(-(HISTORY_SIZE - 1)), val];
@@ -56,6 +76,7 @@ export const useServiceLatency = () => {
     const pingStart = performance.now();
     let pingStatus: "UP" | "DOWN" = "DOWN";
     let pingLatency: number | null = null;
+    let serverMs: number | null = null;
     let jvm: ServicePingResult["jvm"] | undefined;
 
     try {
@@ -68,6 +89,7 @@ export const useServiceLatency = () => {
       if (res.ok) {
         pingStatus = "UP";
         pingLatency = Math.round(pingEnd - pingStart);
+        serverMs = parseServerTiming(res.headers.get("server-timing"));
         try {
           const json = await res.json();
           if (json.jvm) jvm = json.jvm;
@@ -111,6 +133,7 @@ export const useServiceLatency = () => {
     setResults(prev => {
       const existing = prev[name];
       const prevHistory = existing?.pingHistory ?? [];
+      const prevServerHistory = existing?.serverHistory ?? [];
       return {
         ...prev,
         [name]: {
@@ -118,6 +141,8 @@ export const useServiceLatency = () => {
           pingStatus,
           pingLatency,
           pingHistory: pingLatency !== null ? rolling(prevHistory, pingLatency) : prevHistory,
+          serverMs,
+          serverHistory: serverMs !== null ? rolling(prevServerHistory, serverMs) : prevServerHistory,
           jvm,
           dbStatus,
           dbLatencyMs: dbLatency,
