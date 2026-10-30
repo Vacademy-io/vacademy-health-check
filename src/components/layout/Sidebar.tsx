@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   PhoneCall,
   LayoutDashboard,
+  HardDrive,
   Building2,
   CreditCard,
   Activity,
@@ -54,6 +55,7 @@ const navSections: Array<{
       { to: "/model-defaults", label: "Model defaults", icon: Cpu },
       { to: "/llm-keys", label: "Claude keys", icon: KeySquare },
       { to: "/metering", label: "Metering", icon: Scale },
+      { to: "/storage", label: "Storage & Bandwidth", icon: HardDrive },
       { to: "/ai-limits", label: "AI limits", icon: Hourglass },
       { to: "/ai-plans", label: "AI plans", icon: BadgeIndianRupee },
       { to: "/ai-subscriptions", label: "AI subscriptions", icon: Users },

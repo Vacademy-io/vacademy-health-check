@@ -16,6 +16,7 @@ const AiSettingsPage = lazy(() => import("@/pages/AiSettingsPage"));
 const ModelDefaultsPage = lazy(() => import("@/pages/ModelDefaultsPage"));
 const LlmKeysPage = lazy(() => import("@/pages/LlmKeysPage"));
 const MeteringPage = lazy(() => import("@/pages/MeteringPage"));
+const StoragePage = lazy(() => import("@/pages/StoragePage"));
 const LimitsOverviewPage = lazy(() => import("@/pages/LimitsOverviewPage"));
 const PlansPage = lazy(() => import("@/pages/PlansPage"));
 const PlanDetailPage = lazy(() => import("@/pages/PlanDetailPage"));
@@ -80,6 +81,7 @@ function App() {
           <Route path="model-defaults" element={<ModelDefaultsPage />} />
           <Route path="llm-keys" element={<LlmKeysPage />} />
           <Route path="metering" element={<MeteringPage />} />
+          <Route path="storage" element={<StoragePage />} />
           <Route path="ai-limits" element={<LimitsOverviewPage />} />
           <Route path="ai-plans" element={<PlansPage />} />
           <Route path="ai-plans/simulate" element={<PlansSimulatePage />} />
