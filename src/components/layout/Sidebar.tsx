@@ -35,6 +35,7 @@ import {
   Hourglass,
   BadgeIndianRupee,
   Users,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +53,7 @@ const navSections: Array<{
       { to: "/activity", label: "Activity", icon: Activity },
       { to: "/usage", label: "AI Usage", icon: Brain },
       { to: "/ai-settings", label: "AI Settings", icon: SlidersHorizontal },
+      { to: "/products", label: "Products", icon: Package },
       { to: "/model-defaults", label: "Model defaults", icon: Cpu },
       { to: "/llm-keys", label: "Claude keys", icon: KeySquare },
       { to: "/metering", label: "Metering", icon: Scale },
