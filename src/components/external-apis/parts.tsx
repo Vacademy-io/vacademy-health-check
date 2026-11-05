@@ -2,34 +2,54 @@ import { useMemo } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { errorText } from "./format";
+import { explainError, windowLabel } from "./format";
 
 const ALL = "all";
 
-export function ErrorNote({ title, error }: { title: string; error: unknown }) {
+export function ErrorNote({ title, error, onRetry }: { title: string; error: unknown; onRetry?: () => void }) {
   return (
     <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-      <div>
+      <div className="flex-1">
         <p className="font-medium">{title}</p>
-        <p className="text-xs">{errorText(error)}</p>
+        <p className="text-xs">{explainError(error)}</p>
       </div>
+      {onRetry && <Button variant="outline" size="sm" onClick={onRetry}>Try again</Button>}
     </div>
   );
 }
 
-export function FilterSelect({ value, onChange, label, options }: {
+/** An empty result that says what was searched and, when it can, offers a wider one. */
+export function EmptyNote({ what, hours, hint, onWiden }: {
+  what: string;
+  hours?: number;
+  hint?: string;
+  onWiden?: () => void;
+}) {
+  return (
+    <div className="space-y-2 py-8 text-center">
+      <p className="text-sm text-muted-foreground">
+        {hours ? `No ${what} in ${windowLabel(hours)}.` : `No ${what}.`}
+      </p>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {onWiden && <Button variant="outline" size="sm" onClick={onWiden}>Show the last 30 days</Button>}
+    </div>
+  );
+}
+
+export function FilterSelect({ value, onChange, label, options, format }: {
   value: string | undefined;
   onChange: (v: string | undefined) => void;
   label: string;
   options: string[];
+  format?: (v: string) => string;
 }) {
   return (
     <Select value={value ?? ALL} onValueChange={(v) => onChange(v === ALL ? undefined : v)}>
       <SelectTrigger className="w-56" aria-label={label}><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL}>{label}: all</SelectItem>
-        {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+        {options.map((o) => <SelectItem key={o} value={o}>{format ? format(o) : o}</SelectItem>)}
       </SelectContent>
     </Select>
   );

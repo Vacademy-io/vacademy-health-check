@@ -7,10 +7,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNotificationLogDetail, useNotificationLogs } from "@/services/external-apis-api";
 import { useInstitutes } from "@/services/institutes-api";
-import { dateTime, optionsFrom } from "./format";
-import { ErrorNote, FilterSelect, JsonBlock, Pager } from "./parts";
+import { dateTime, humanize, optionsFrom } from "./format";
+import { EmptyNote, ErrorNote, FilterSelect, JsonBlock, Pager } from "./parts";
 
-export function NotificationLogCard({ hours }: { hours: number }) {
+export function NotificationLogCard({ hours, onWiden }: { hours: number; onWiden?: () => void }) {
   const [instituteId, setInstituteId] = useState<string | undefined>();
   const [notificationType, setNotificationType] = useState<string | undefined>();
   const [page, setPage] = useState(0);
@@ -45,6 +45,7 @@ export function NotificationLogCard({ hours }: { hours: number }) {
             label="Type"
             value={notificationType}
             onChange={(v) => { setPage(0); setNotificationType(v); }}
+            format={humanize}
             options={optionsFrom(rows.map((r) => r.notificationType), notificationType)}
           />
         </div>
@@ -53,7 +54,7 @@ export function NotificationLogCard({ hours }: { hours: number }) {
         {!instituteId ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Choose an institute to see its sends</p>
         ) : logs.isError ? (
-          <ErrorNote title="Could not load sends. The notification-service endpoint may not be deployed yet." error={logs.error} />
+          <ErrorNote title="Could not load sends" error={logs.error} onRetry={() => logs.refetch()} />
         ) : logs.isLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : rows.length ? (
@@ -72,9 +73,9 @@ export function NotificationLogCard({ hours }: { hours: number }) {
                 {rows.map((r) => (
                   <TableRow key={r.id} className="cursor-pointer" onClick={() => setOpenId(r.id)}>
                     <TableCell className="whitespace-nowrap text-xs">{r.notificationDate ? dateTime(r.notificationDate) : "—"}</TableCell>
-                    <TableCell className="text-xs">{r.notificationType}</TableCell>
-                    <TableCell className="text-xs">{r.source ?? "—"}</TableCell>
-                    <TableCell><Badge variant="outline">{r.deliveryStatus ?? "No status yet"}</Badge></TableCell>
+                    <TableCell className="text-xs">{humanize(r.notificationType)}</TableCell>
+                    <TableCell className="text-xs">{humanize(r.source)}</TableCell>
+                    <TableCell><Badge variant="outline">{r.deliveryStatus ? humanize(r.deliveryStatus) : "No status yet"}</Badge></TableCell>
                     <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
                       {[r.deliveryErrorCode, r.deliveryErrorMessage].filter(Boolean).join(": ") || "—"}
                     </TableCell>
@@ -85,7 +86,7 @@ export function NotificationLogCard({ hours }: { hours: number }) {
             <Pager page={page} hasNext={page + 1 < (logs.data?.totalPages ?? 0)} onPage={setPage} />
           </>
         ) : (
-          <p className="py-8 text-center text-sm text-muted-foreground">No sends in this window</p>
+          <EmptyNote what="sends for this institute" hours={hours} onWiden={onWiden} />
         )}
       </CardContent>
 

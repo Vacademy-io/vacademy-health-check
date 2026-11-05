@@ -14,6 +14,15 @@ const AI_DB = "admin_core_service";
 
 export const AI_PAGE_SIZE = 50;
 
+// `provider` is optional on ai_usage_event and most writers leave it empty, so a vendor comes
+// from the route when one was recorded. Failing that, a "maker/model" id names the model's
+// maker only, which is marked so the page never passes it off as who was actually called.
+const vendorSql = (t = "") => `coalesce(
+    nullif(${t}provider, ''),
+    nullif(${t}router, ''),
+    CASE WHEN ${t}model_id LIKE '%/%' THEN 'model:' || split_part(${t}model_id, '/', 1) END,
+    'none')`;
+
 async function aiQuery<Row>(sql: string, params: unknown[]): Promise<Row[]> {
   const { data } = await api.post<{ rows: Row[] }>(QUERY_ENDPOINT, { db: AI_DB, sql, params });
   return data.rows;
@@ -36,7 +45,7 @@ export function useProviderTotals(hours: number) {
     queryKey: ["external-apis", "provider-totals", hours],
     queryFn: () =>
       aiQuery<ProviderTotalsRow>(
-        `SELECT coalesce(provider, 'unknown') AS provider,
+        `SELECT ${vendorSql()} AS provider,
                 count(*)::int AS calls,
                 coalesce(sum(real_cost_usd), 0)::float8 AS cost_usd,
                 (count(*) FILTER (WHERE real_cost_usd IS NULL))::int AS unpriced_calls,
@@ -117,7 +126,7 @@ export function useAiCalls(hours: number, filters: AiCallFilters, page: number) 
     queryKey: ["external-apis", "ai-calls", hours, filters, page],
     queryFn: () =>
       aiQuery<AiCallRow>(
-        `SELECT e.id, e.occurred_at, e.provider, e.model_id, e.use_case, e.source_service,
+        `SELECT e.id, e.occurred_at, ${vendorSql("e.")} AS provider, e.model_id, e.use_case, e.source_service,
                 e.institute_id, i.name AS institute_name, e.charge_status, e.billing_mode, e.free_reason,
                 e.byo_key, e.prompt_tokens::float8 AS prompt_tokens,
                 e.completion_tokens::float8 AS completion_tokens, e.characters,
@@ -127,7 +136,7 @@ export function useAiCalls(hours: number, filters: AiCallFilters, page: number) 
            FROM ai_usage_event e
            LEFT JOIN institutes i ON i.id = e.institute_id
           WHERE e.occurred_at > now() - make_interval(hours => $1::int)
-            AND ($2::text IS NULL OR coalesce(e.provider, 'unknown') = $2)
+            AND ($2::text IS NULL OR ${vendorSql("e.")} = $2)
             AND ($3::text IS NULL OR e.charge_status = $3)
           ORDER BY e.occurred_at DESC
           LIMIT $4::int OFFSET $5::int`,
@@ -187,7 +196,7 @@ export function useLoggedVendors(hours: number) {
   return useQuery({
     queryKey: [...LOGGED_VENDORS_QUERY, hours],
     queryFn: async () => {
-      const { data } = await api.get<{ vendors: LoggedVendor[]; auto_capture: boolean }>(
+      const { data } = await api.get<{ vendors: LoggedVendor[]; auto_capture: boolean; tables_ready: boolean }>(
         `${API_PREFIXES.AI}/external-apis/vendors`,
         { params: { hours } },
       );
