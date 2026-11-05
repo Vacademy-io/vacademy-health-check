@@ -17,6 +17,12 @@ import { useProducts, useUpdateProduct, type ProductConfig } from "@/services/pr
 
 type Status = { kind: "saved" | "error"; text: string } | null;
 
+const MAX_SIGNUP_CREDITS = 100000;
+
+/** Empty only while it has never been set: the server keeps the old number if it is sent empty. */
+const signupCreditsValid = (value: number | null, saved: number | null) =>
+  value == null ? saved == null : Number.isInteger(value) && value >= 0 && value <= MAX_SIGNUP_CREDITS;
+
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div className="space-y-1.5">
@@ -44,6 +50,7 @@ function ProductCard({ product }: { product: ProductConfig }) {
       set(key, e.target.value as ProductConfig[typeof key]),
   });
   const dirty = JSON.stringify(form) !== JSON.stringify(product);
+  const creditsValid = signupCreditsValid(form.demo_credits, product.demo_credits);
 
   const save = () =>
     update.mutate(form, {
@@ -53,7 +60,7 @@ function ProductCard({ product }: { product: ProductConfig }) {
 
   const saveRow = (
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={save} disabled={!dirty || update.isPending}>
+          <Button onClick={save} disabled={!dirty || !creditsValid || update.isPending}>
             {update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save
           </Button>
@@ -86,7 +93,7 @@ function ProductCard({ product }: { product: ProductConfig }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="signups">
+        <Tabs defaultValue="signups" onValueChange={() => setStatus(null)}>
           <TabsList className="mb-4 flex h-auto flex-wrap justify-start">
             <TabsTrigger value="signups">Sign-ups</TabsTrigger>
             <TabsTrigger value="settings">Trial and mail</TabsTrigger>
@@ -97,7 +104,42 @@ function ProductCard({ product }: { product: ProductConfig }) {
             <ProductSignupsTab productKey={product.product_key} />
           </TabsContent>
           <TabsContent value="pricing">
-            <ProductPricingTab />
+            <ProductPricingTab>
+              <section className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold">New sign-up credits</h3>
+                  <p className="text-xs text-muted-foreground">
+                    What each new {product.display_name} institute opens with. Institutes that have already signed up
+                    keep their credits.
+                  </p>
+                </div>
+                <div className="max-w-xs">
+                  <Field label="Credits for each new sign-up">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={MAX_SIGNUP_CREDITS}
+                      step={1}
+                      aria-label="Credits for each new sign-up"
+                      value={form.demo_credits ?? ""}
+                      onChange={(e) => set("demo_credits", e.target.value === "" ? null : Number(e.target.value))}
+                    />
+                  </Field>
+                </div>
+                {creditsValid ? (
+                  <p className="text-sm text-muted-foreground">
+                    {product.demo_credits == null
+                      ? "Now: not set, so new sign-ups get the platform's default."
+                      : `Now: ${product.demo_credits.toLocaleString()} credits for each new sign-up.`}
+                  </p>
+                ) : (
+                  <p role="alert" className="text-sm text-destructive">
+                    Enter a whole number from 0 to {MAX_SIGNUP_CREDITS.toLocaleString()}.
+                  </p>
+                )}
+                {saveRow}
+              </section>
+            </ProductPricingTab>
           </TabsContent>
           <TabsContent value="alerts" className="space-y-6">
             <section className="space-y-4">
@@ -175,19 +217,6 @@ function ProductCard({ product }: { product: ProductConfig }) {
                 aria-label="Trial days"
                 value={form.trial_days}
                 onChange={(e) => set("trial_days", Number(e.target.value))}
-              />
-            </Field>
-            <Field
-              label="Demo credits"
-              hint="What each new institute of this product opens with. If never set, it gets the platform's default."
-            >
-              <Input
-                type="number"
-                min={0}
-                max={100000}
-                aria-label="Demo credits"
-                value={form.demo_credits ?? ""}
-                onChange={(e) => set("demo_credits", e.target.value === "" ? null : Number(e.target.value))}
               />
             </Field>
             <Field label="App path" hint="Where people land after signing up.">

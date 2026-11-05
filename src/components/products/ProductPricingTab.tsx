@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -192,14 +192,16 @@ function PackRow({ pack }: { pack: CreditPack }) {
   );
 }
 
-/** What checking costs in credits, and what credits cost in money. */
-export function ProductPricingTab() {
+/** What a new sign-up gets (children), what checking costs in credits, and what credits cost in money. */
+export function ProductPricingTab({ children }: { children: ReactNode }) {
   const pricing = useToolPricing();
   const packs = useCreditPacks();
   const rate = pricing.data?.tools.find((tool) => tool.tool_key === RATE_TOOL);
 
   return (
     <div className="space-y-6">
+      {children}
+
       {pricing.isLoading && <Skeleton className="h-28 w-full" />}
       {pricing.isError && (
         <p role="alert" className="text-sm text-destructive">
