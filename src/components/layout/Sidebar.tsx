@@ -36,6 +36,7 @@ import {
   BadgeIndianRupee,
   Users,
   Package,
+  Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -65,6 +66,7 @@ const navSections: Array<{
       { to: "/demo-topics", label: "Tutezy Demo Topics", icon: GraduationCap },
       { to: "/calls", label: "Calls", icon: PhoneCall },
       { to: "/performance", label: "Experienced Perf", icon: Timer },
+      { to: "/external-apis", label: "External APIs", icon: Plug },
       { to: "/health", label: "System Health", icon: HeartPulse },
       { to: "/admin/status", label: "Status", icon: Megaphone },
       { to: "/broadcasts", label: "Broadcasts", icon: Radio },
