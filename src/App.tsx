@@ -28,6 +28,7 @@ const SubscriptionsPage = lazy(() => import("@/pages/SubscriptionsPage"));
 const TutorAssetsPage = lazy(() => import("@/pages/TutorAssetsPage"));
 const DemoTopicsPage = lazy(() => import("@/pages/DemoTopicsPage"));
 const CallsPage = lazy(() => import("@/pages/CallsPage"));
+const ExternalApisPage = lazy(() => import("@/pages/ExternalApisPage"));
 const HealthPage = lazy(() => import("@/pages/HealthPage"));
 const StatusPage = lazy(() => import("@/pages/StatusPage"));
 const StatusAdminPage = lazy(() => import("@/pages/StatusAdminPage"));
@@ -94,6 +95,7 @@ function App() {
           <Route path="tutor-assets" element={<TutorAssetsPage />} />
           <Route path="demo-topics" element={<DemoTopicsPage />} />
           <Route path="calls" element={<CallsPage />} />
+          <Route path="external-apis" element={<ExternalApisPage />} />
           <Route path="health" element={<HealthPage />} />
           <Route path="admin/status" element={<StatusAdminPage />} />
           <Route path="files" element={<FilesPage />} />

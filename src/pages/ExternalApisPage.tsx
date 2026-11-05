@@ -1,0 +1,537 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { Coins, DollarSign, Unplug, Zap } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { KeyAccountsTab } from "@/components/external-apis/KeyAccountsTab";
+import { LoggedVendorsCard } from "@/components/external-apis/LoggedVendorsCard";
+import { NotificationLogCard } from "@/components/external-apis/NotificationLogCard";
+import { VendorLogCard } from "@/components/external-apis/VendorLogCard";
+import { count, credits, dateTime, usd } from "@/components/external-apis/format";
+import { ErrorNote, FilterSelect, JsonBlock, Pager } from "@/components/external-apis/parts";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { StatCard } from "@/components/shared/StatCard";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  BILLING_LABELS,
+  CAPTURE_LABELS,
+  EXTERNAL_VENDORS,
+  type CaptureLevel,
+} from "@/lib/external-api-catalog";
+import {
+  AI_PAGE_SIZE,
+  useAiCalls,
+  useCommunicationLogDetail,
+  useCommunicationLogs,
+  useProviderTotals,
+  useSpendSeries,
+  type AiCallFilters,
+  type AiCallRow,
+  type CommunicationLogFilters,
+  type SpendBucketRow,
+} from "@/services/external-apis-api";
+
+const RANGES = [
+  { value: "1", label: "Last 1 hour" },
+  { value: "24", label: "Last 24 hours" },
+  { value: "168", label: "Last 7 days" },
+  { value: "720", label: "Last 30 days" },
+];
+
+const CHARGE_STATUSES = [
+  "POSTED", "DROPPED_INSUFFICIENT", "SKIPPED_NO_INSTITUTE", "NOT_APPLICABLE", "REFUNDED", "PARTIAL_REFUND",
+];
+
+/** One measure per chart: dollars and credits have different scales, so they never share an axis. */
+function SpendChart({ title, data, dataKey, format, hourly }: {
+  title: string;
+  data: SpendBucketRow[];
+  dataKey: "cost_usd" | "credits";
+  format: (n: number) => string;
+  hourly: boolean;
+}) {
+  const label = (v: string) =>
+    hourly
+      ? new Date(v).toLocaleTimeString("en", { hour: "numeric", hour12: true })
+      : new Date(v).toLocaleDateString("en", { month: "short", day: "numeric" });
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={data} barCategoryGap={2}>
+            <CartesianGrid vertical={false} className="stroke-muted" />
+            <XAxis dataKey="bucket" tick={{ fontSize: 12 }} tickFormatter={label} tickLine={false} axisLine={false} minTickGap={24} />
+            <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} width={56} />
+            <Tooltip
+              cursor={{ fill: "hsl(var(--muted))" }}
+              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
+              labelFormatter={(v) => new Date(v as string).toLocaleString()}
+              formatter={(v) => [format(Number(v)), title]}
+            />
+            <Bar dataKey={dataKey} fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} maxBarSize={24} />
+          </BarChart>
+        </ResponsiveContainer>
+        <details className="mt-2 text-xs text-muted-foreground">
+          <summary className="cursor-pointer">View as table</summary>
+          <Table>
+            <TableBody>
+              {data.map((row) => (
+                <TableRow key={row.bucket}>
+                  <TableCell>{new Date(row.bucket).toLocaleString()}</TableCell>
+                  <TableCell className="text-right tabular-nums">{format(row[dataKey])}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </details>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OverviewTab({ hours }: { hours: number }) {
+  const totals = useProviderTotals(hours);
+  const series = useSpendSeries(hours);
+  const rows = totals.data ?? [];
+  const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((acc, r) => acc + pick(r), 0);
+  const unpriced = sum((r) => r.unpriced_calls);
+
+  if (totals.isError) return <ErrorNote title="Could not read ai_usage_event" error={totals.error} />;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {totals.isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)
+        ) : (
+          <>
+            <StatCard title="Metered calls" value={count(sum((r) => r.calls))} icon={Zap} />
+            <StatCard
+              title="Vendor cost"
+              value={usd(sum((r) => r.cost_usd))}
+              description={unpriced ? `${count(unpriced)} calls have no recorded cost` : undefined}
+              icon={DollarSign}
+            />
+            <StatCard title="Credits deducted" value={credits(sum((r) => r.credits))} description="Net of refunds" icon={Coins} />
+            <StatCard
+              title="Calls not billed"
+              value={count(sum((r) => r.unbilled_calls + r.dropped_calls))}
+              description="Unbilled gap or insufficient credits"
+              icon={Unplug}
+            />
+          </>
+        )}
+      </div>
+
+      {series.isError ? (
+        <ErrorNote title="Could not load the spend series" error={series.error} />
+      ) : series.data?.length ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <SpendChart title="Vendor cost (USD)" data={series.data} dataKey="cost_usd" format={usd} hourly={hours <= 48} />
+          <SpendChart title="Credits deducted" data={series.data} dataKey="credits" format={credits} hourly={hours <= 48} />
+        </div>
+      ) : null}
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">By provider</CardTitle></CardHeader>
+        <CardContent>
+          {totals.isLoading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : rows.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Provider</TableHead>
+                  <TableHead className="text-right">Calls</TableHead>
+                  <TableHead className="text-right">Tokens</TableHead>
+                  <TableHead className="text-right">Vendor cost</TableHead>
+                  <TableHead className="text-right">Credits</TableHead>
+                  <TableHead className="text-right">No cost recorded</TableHead>
+                  <TableHead className="text-right">Not billed</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.provider}>
+                    <TableCell className="font-medium">{r.provider}</TableCell>
+                    <TableCell className="text-right tabular-nums">{count(r.calls)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{count(r.tokens)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{usd(r.cost_usd)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{credits(r.credits)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{count(r.unpriced_calls)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{count(r.unbilled_calls + r.dropped_calls)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">No metered calls in this window</p>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Only vendors that write to ai_usage_event appear here. See All vendors for what is not metered yet.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AiCallsTab({ hours }: { hours: number }) {
+  const [filters, setFilters] = useState<AiCallFilters>({});
+  const [page, setPage] = useState(0);
+  const [open, setOpen] = useState<AiCallRow | null>(null);
+  const calls = useAiCalls(hours, filters, page);
+  const providers = useProviderTotals(hours);
+  const rows = (calls.data ?? []).slice(0, AI_PAGE_SIZE);
+
+  const set = (patch: AiCallFilters) => {
+    setPage(0);
+    setFilters((f) => ({ ...f, ...patch }));
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
+        <div className="space-y-1">
+          <CardTitle className="text-base">AI calls</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Cost and credits per call. Prompts and vendor responses are not stored for these calls.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <FilterSelect
+            label="Provider"
+            value={filters.provider}
+            onChange={(provider) => set({ provider })}
+            options={(providers.data ?? []).map((p) => p.provider)}
+          />
+          <FilterSelect
+            label="Charge"
+            value={filters.chargeStatus}
+            onChange={(chargeStatus) => set({ chargeStatus })}
+            options={CHARGE_STATUSES}
+          />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {calls.isError ? (
+          <ErrorNote title="Could not read ai_usage_event" error={calls.error} />
+        ) : calls.isLoading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : rows.length ? (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Vendor / model</TableHead>
+                  <TableHead>Use case</TableHead>
+                  <TableHead>Institute</TableHead>
+                  <TableHead>Charge</TableHead>
+                  <TableHead className="text-right">Vendor cost</TableHead>
+                  <TableHead className="text-right">Credits</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.id} className="cursor-pointer" onClick={() => setOpen(r)}>
+                    <TableCell className="whitespace-nowrap text-xs">{dateTime(r.occurred_at)}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{r.provider ?? "unknown"}</div>
+                      <div className="text-xs text-muted-foreground">{r.model_id ?? "—"}</div>
+                    </TableCell>
+                    <TableCell className="text-xs">{r.use_case}</TableCell>
+                    <TableCell className="text-xs">{r.institute_name ?? r.institute_id ?? "—"}</TableCell>
+                    <TableCell><Badge variant="outline">{r.charge_status}</Badge></TableCell>
+                    <TableCell className="text-right tabular-nums">{usd(r.real_cost_usd)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{credits(r.credits_charged - r.refunded_credits)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <Pager page={page} hasNext={(calls.data?.length ?? 0) > AI_PAGE_SIZE} onPage={setPage} />
+          </>
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">No calls match these filters</p>
+        )}
+      </CardContent>
+
+      <Dialog open={open != null} onOpenChange={(o) => !o && setOpen(null)}>
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+          <DialogHeader><DialogTitle>{open?.provider ?? "unknown"} call</DialogTitle></DialogHeader>
+          {open && (
+            <div className="space-y-4">
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                {([
+                  ["Time", dateTime(open.occurred_at)],
+                  ["Model", open.model_id ?? "—"],
+                  ["Use case", open.use_case],
+                  ["Called from", open.source_service],
+                  ["Institute", open.institute_id
+                    ? <Link className="hover:underline" to={`/institutes/${open.institute_id}`}>{open.institute_name ?? open.institute_id}</Link>
+                    : "—"],
+                  ["Customer's own key", open.byo_key ? "Yes" : "No"],
+                  ["Prompt / completion tokens", `${count(open.prompt_tokens)} / ${count(open.completion_tokens)}`],
+                  ["Characters / seconds", `${count(open.characters)} / ${count(open.seconds)}`],
+                  ["Vendor cost", `${usd(open.real_cost_usd)} (${open.cost_source})`],
+                  ["Credits charged / refunded", `${credits(open.credits_charged)} / ${credits(open.refunded_credits)}`],
+                  ["Charge status", open.charge_status],
+                  ["Billing mode", open.free_reason ? `${open.billing_mode} (${open.free_reason})` : open.billing_mode],
+                  ["Ledger transaction", open.ledger_tx_id ?? "—"],
+                ] as const).map(([k, v]) => (
+                  <div key={k}>
+                    <dt className="text-xs text-muted-foreground">{k}</dt>
+                    <dd className="break-all">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <JsonBlock
+                title="Price snapshot"
+                body={open.price_snapshot ? JSON.stringify(open.price_snapshot) : null}
+                empty="No price snapshot recorded"
+              />
+              <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+                The request and response for this call were not stored, so there is no payload to show.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+function MessagingLogsTab({ hours }: { hours: number }) {
+  const [filters, setFilters] = useState<CommunicationLogFilters>({});
+  const [page, setPage] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const logs = useCommunicationLogs(hours, filters, page);
+  const detail = useCommunicationLogDetail(openId);
+  const rows = logs.data?.content ?? [];
+
+  const set = (patch: CommunicationLogFilters) => {
+    setPage(0);
+    setFilters((f) => ({ ...f, ...patch }));
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
+        <div className="space-y-1">
+          <CardTitle className="text-base">Messaging payloads</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Stored request and response bodies. Only WATI bulk sends write here today. Recipients and credentials are masked.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <FilterSelect label="Source" value={filters.source} onChange={(source) => set({ source })} options={["WHATSAPP", "EMAIL"]} />
+          <FilterSelect label="Status" value={filters.status} onChange={(status) => set({ status })} options={["INITIATED", "SUCCESS", "FAILED"]} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {logs.isError ? (
+          <ErrorNote title="Could not load messaging logs. The notification-service endpoint may not be deployed yet." error={logs.error} />
+        ) : logs.isLoading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : rows.length ? (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Error</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.id} className="cursor-pointer" onClick={() => setOpenId(r.id)}>
+                    <TableCell className="whitespace-nowrap text-xs">{dateTime(r.createdAt)}</TableCell>
+                    <TableCell>{r.source}</TableCell>
+                    <TableCell><Badge variant="outline">{r.status}</Badge></TableCell>
+                    <TableCell className="max-w-md truncate text-xs text-muted-foreground">{r.errorMessage ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <Pager page={page} hasNext={page + 1 < (logs.data?.totalPages ?? 0)} onPage={setPage} />
+          </>
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">No messaging logs in this window</p>
+        )}
+      </CardContent>
+
+      <Dialog open={openId != null} onOpenChange={(o) => !o && setOpenId(null)}>
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+          <DialogHeader><DialogTitle>Messaging log</DialogTitle></DialogHeader>
+          {detail.isError ? (
+            <ErrorNote title="Could not load this log" error={detail.error} />
+          ) : detail.isLoading || !detail.data ? (
+            <Skeleton className="h-48 w-full" />
+          ) : (
+            <div className="space-y-4">
+              {detail.data.summary.errorMessage && (
+                <p className="rounded-md bg-red-50 p-3 text-xs text-red-800">{detail.data.summary.errorMessage}</p>
+              )}
+              <JsonBlock title="Payload" body={detail.data.payload} empty="No payload stored" />
+              <JsonBlock title="Response" body={detail.data.response} empty="No response stored" />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+function VendorsTab() {
+  const [search, setSearch] = useState("");
+  const [capture, setCapture] = useState<string | undefined>();
+  const needle = search.trim().toLowerCase();
+  const vendors = EXTERNAL_VENDORS.filter(
+    (v) =>
+      (!capture || CAPTURE_LABELS[v.capture] === capture) &&
+      (!needle || `${v.name} ${v.category} ${v.services} ${v.keyConfig}`.toLowerCase().includes(needle)),
+  );
+  const fully = EXTERNAL_VENDORS.filter((v) => v.capture === ("full" satisfies CaptureLevel)).length;
+
+  return (
+    <Card>
+      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0">
+        <div className="space-y-1">
+          <CardTitle className="text-base">All vendors</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {EXTERNAL_VENDORS.length} integrations found in the code, {fully} with full payload capture. From a code scan on 5 Nov 2026, not live data.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Input className="w-56" placeholder="Search vendors" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <FilterSelect label="Capture" value={capture} onChange={setCapture} options={Object.values(CAPTURE_LABELS)} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Vendor</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Services</TableHead>
+              <TableHead>Key config (names only)</TableHead>
+              <TableHead>Logs</TableHead>
+              <TableHead>Credits</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {vendors.map((v) => (
+              <TableRow key={v.name}>
+                <TableCell className="font-medium">{v.name}</TableCell>
+                <TableCell className="text-xs">{v.category}</TableCell>
+                <TableCell className="text-xs">{v.services}</TableCell>
+                <TableCell className="font-mono text-xs">{v.keyConfig}</TableCell>
+                <TableCell>
+                  <Badge variant="outline">{CAPTURE_LABELS[v.capture]}</Badge>
+                  {v.store && <div className="mt-1 text-xs text-muted-foreground">{v.store}</div>}
+                </TableCell>
+                <TableCell className="text-xs">{BILLING_LABELS[v.billing]}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function ExternalApisPage() {
+  const [range, setRange] = useState("24");
+  const hours = Number(range);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="External APIs"
+        description="Third-party API usage, stored payloads, vendor cost and credit deductions"
+        actions={
+          <Select value={range} onValueChange={setRange}>
+            <SelectTrigger className="w-40" aria-label="Time range"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {RANGES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        }
+      />
+      <Tabs defaultValue="overview">
+        <TabsList className="h-auto flex-wrap justify-start">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="ai">AI calls</TabsTrigger>
+          <TabsTrigger value="telephony">Telephony</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="messaging">Messaging</TabsTrigger>
+          <TabsTrigger value="calls">Logged calls</TabsTrigger>
+          <TabsTrigger value="keys">Keys &amp; accounts</TabsTrigger>
+          <TabsTrigger value="vendors">All vendors</TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview"><OverviewTab hours={hours} /></TabsContent>
+        <TabsContent value="ai"><AiCallsTab hours={hours} /></TabsContent>
+        <TabsContent value="telephony">
+          <VendorLogCard
+            title="Calls"
+            description="One row per call attempt. Provider webhook payloads are masked, and the price is as the vendor reported it."
+            source="telephony"
+            hours={hours}
+            operationLabel="Direction"
+            amountLabel="Vendor price"
+            showInstitute
+            showDuration
+            showCreditsBilled
+          />
+        </TabsContent>
+        <TabsContent value="payments" className="space-y-6">
+          <VendorLogCard
+            title="Payments"
+            description="Gateway data stored with each payment, masked. Offline payments recorded by admins also appear here."
+            source="payments"
+            hours={hours}
+            operationLabel="Order status"
+            amountLabel="Amount"
+          />
+          <VendorLogCard
+            title="Webhooks received"
+            description="Events gateways sent to us. Our outbound requests to gateways are not stored."
+            source="webhooks"
+            hours={hours}
+            operationLabel="Event"
+          />
+        </TabsContent>
+        <TabsContent value="messaging" className="space-y-6">
+          <MessagingLogsTab hours={hours} />
+          <NotificationLogCard hours={hours} />
+        </TabsContent>
+        <TabsContent value="calls" className="space-y-6">
+          <VendorLogCard
+            title="Logged API calls"
+            description="One row per real request, including failed ones, for every vendor that logs here (Serper today). Serper cost comes from the price entered under Keys & accounts, for new requests only."
+            source="calls"
+            hours={hours}
+            operationLabel="Operation"
+            amountLabel="Cost"
+            showInstitute
+            showDuration
+          />
+        </TabsContent>
+        <TabsContent value="keys"><KeyAccountsTab /></TabsContent>
+        <TabsContent value="vendors" className="space-y-6">
+          <LoggedVendorsCard hours={hours} />
+          <VendorsTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
