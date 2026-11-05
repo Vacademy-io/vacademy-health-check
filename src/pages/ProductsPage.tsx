@@ -7,14 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { errorText } from "@/components/products/errors";
+import { ProductAlertsSection } from "@/components/products/ProductAlertsSection";
+import { ProductPricingTab } from "@/components/products/ProductPricingTab";
+import { ProductSignupsTab } from "@/components/products/ProductSignupsTab";
 import { useProducts, useUpdateProduct, type ProductConfig } from "@/services/products-api";
 
 type Status = { kind: "saved" | "error"; text: string } | null;
-
-const errorText = (error: unknown) => {
-  const data = (error as { response?: { data?: { ex?: string; message?: string } } })?.response?.data;
-  return data?.ex || data?.message || "Could not save. Try again.";
-};
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -50,6 +51,24 @@ function ProductCard({ product }: { product: ProductConfig }) {
       onError: (error) => setStatus({ kind: "error", text: errorText(error) }),
     });
 
+  const saveRow = (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={save} disabled={!dirty || update.isPending}>
+            {update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save
+          </Button>
+          {status && (
+            <p
+              role={status.kind === "error" ? "alert" : "status"}
+              className={`flex items-center gap-1 text-sm ${status.kind === "error" ? "text-destructive" : "text-muted-foreground"}`}
+            >
+              {status.kind === "error" ? <AlertCircle className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+              {status.text}
+            </p>
+          )}
+        </div>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -66,7 +85,61 @@ function ProductCard({ product }: { product: ProductConfig }) {
             : ""}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent>
+        <Tabs defaultValue="signups">
+          <TabsList className="mb-4 flex h-auto flex-wrap justify-start">
+            <TabsTrigger value="signups">Sign-ups</TabsTrigger>
+            <TabsTrigger value="settings">Trial and mail</TabsTrigger>
+            <TabsTrigger value="alerts">Alerts</TabsTrigger>
+            <TabsTrigger value="pricing">Pricing</TabsTrigger>
+          </TabsList>
+          <TabsContent value="signups">
+            <ProductSignupsTab productKey={product.product_key} />
+          </TabsContent>
+          <TabsContent value="pricing">
+            <ProductPricingTab />
+          </TabsContent>
+          <TabsContent value="alerts" className="space-y-6">
+            <section className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Who hears about each new sign-up. A failed alert never affects the sign-up.
+              </p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Alert emails" hint="Comma-separated. Sent from this product's mail sender.">
+                  <Textarea
+                    rows={3}
+                    aria-label="Alert emails"
+                    value={form.signup_alert_emails ?? ""}
+                    onChange={(e) => set("signup_alert_emails", e.target.value)}
+                  />
+                </Field>
+                <Field label="Alert WhatsApp numbers" hint="Comma-separated, with the country code: 919876543210.">
+                  <Textarea
+                    rows={3}
+                    aria-label="Alert WhatsApp numbers"
+                    value={form.signup_alert_whatsapp ?? ""}
+                    onChange={(e) => set("signup_alert_whatsapp", e.target.value)}
+                  />
+                </Field>
+                <Field
+                  label="WhatsApp Business Account id"
+                  hint="Of the Vidyayatan Technologies account. Needed to register the template."
+                >
+                  <Input aria-label="WhatsApp Business Account id" {...text("whatsapp_waba_id")} />
+                </Field>
+                <Field label="Template name" hint="Empty uses product_signup_alert. Language: en.">
+                  <Input aria-label="Template name" {...text("signup_alert_template")} />
+                </Field>
+              </div>
+              {saveRow}
+            </section>
+            <ProductAlertsSection
+              productKey={product.product_key}
+              hasWabaId={!!product.whatsapp_waba_id}
+              dirty={dirty}
+            />
+          </TabsContent>
+          <TabsContent value="settings" className="space-y-6">
         <section className="space-y-4">
           <h3 className="text-sm font-semibold">Mail sender</h3>
           <div className="grid gap-4 md:grid-cols-2">
@@ -102,6 +175,19 @@ function ProductCard({ product }: { product: ProductConfig }) {
                 aria-label="Trial days"
                 value={form.trial_days}
                 onChange={(e) => set("trial_days", Number(e.target.value))}
+              />
+            </Field>
+            <Field
+              label="Demo credits"
+              hint="What each new institute of this product opens with. If never set, it gets the platform's default."
+            >
+              <Input
+                type="number"
+                min={0}
+                max={100000}
+                aria-label="Demo credits"
+                value={form.demo_credits ?? ""}
+                onChange={(e) => set("demo_credits", e.target.value === "" ? null : Number(e.target.value))}
               />
             </Field>
             <Field label="App path" hint="Where people land after signing up.">
@@ -140,21 +226,9 @@ function ProductCard({ product }: { product: ProductConfig }) {
           </div>
         </section>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={save} disabled={!dirty || update.isPending}>
-            {update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save
-          </Button>
-          {status && (
-            <p
-              role={status.kind === "error" ? "alert" : "status"}
-              className={`flex items-center gap-1 text-sm ${status.kind === "error" ? "text-destructive" : "text-muted-foreground"}`}
-            >
-              {status.kind === "error" ? <AlertCircle className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-              {status.text}
-            </p>
-          )}
-        </div>
+        {saveRow}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
@@ -165,7 +239,7 @@ export default function ProductsPage() {
   const products = useProducts();
   return (
     <div className="space-y-6">
-      <PageHeader title="Products" description="Mail sender, trial and sign-up settings for each product." />
+      <PageHeader title="Products" description="Sign-ups, trials, alerts and pricing for each product." />
       {products.isLoading && <Skeleton className="h-96 w-full" />}
       {products.isError && (
         <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
