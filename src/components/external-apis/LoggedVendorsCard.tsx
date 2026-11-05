@@ -5,13 +5,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { VENDOR_LOG_NAMES } from "@/lib/external-api-catalog";
 import { useLoggedVendors, useSetAutoCapture } from "@/services/external-apis-api";
-import { count, dateTime } from "./format";
-import { ErrorNote } from "./parts";
+import { count, dateTime, vendorName } from "./format";
+import { EmptyNote, ErrorNote } from "./parts";
 
 const CATALOGUED = new Set(Object.values(VENDOR_LOG_NAMES).flat());
 
 /** Vendors the backend has actually logged, so a new API shows up here without a portal change. */
-export function LoggedVendorsCard({ hours }: { hours: number }) {
+export function LoggedVendorsCard({ hours, onWiden }: { hours: number; onWiden?: () => void }) {
   const logged = useLoggedVendors(hours);
   const setAutoCapture = useSetAutoCapture();
   const vendors = logged.data?.vendors ?? [];
@@ -43,9 +43,11 @@ export function LoggedVendorsCard({ hours }: { hours: number }) {
       <CardContent>
         {setAutoCapture.isError && <ErrorNote title="Could not change automatic capture" error={setAutoCapture.error} />}
         {logged.isError ? (
-          <ErrorNote title="Could not load logged vendors. The ai-service endpoint may not be deployed yet." error={logged.error} />
+          <ErrorNote title="Could not load vendors seen in live traffic" error={logged.error} onRetry={() => logged.refetch()} />
         ) : logged.isLoading ? (
           <Skeleton className="h-32 w-full" />
+        ) : logged.data?.tables_ready === false ? (
+          <EmptyNote what="vendor data yet" hint="The database update for this has not run. It arrives with the next admin-core deployment." />
         ) : vendors.length ? (
           <Table>
             <TableHeader>
@@ -62,7 +64,7 @@ export function LoggedVendorsCard({ hours }: { hours: number }) {
               {vendors.map((v) => (
                 <TableRow key={v.vendor}>
                   <TableCell className="font-medium">
-                    {v.vendor} {!CATALOGUED.has(v.vendor) && <Badge variant="outline">New</Badge>}
+                    {vendorName(v.vendor)} {!CATALOGUED.has(v.vendor) && <Badge variant="outline">New</Badge>}
                   </TableCell>
                   <TableCell className="text-xs">{v.source_service}</TableCell>
                   <TableCell className="text-right tabular-nums">{count(v.calls)}</TableCell>
@@ -74,7 +76,7 @@ export function LoggedVendorsCard({ hours }: { hours: number }) {
             </TableBody>
           </Table>
         ) : (
-          <p className="py-8 text-center text-sm text-muted-foreground">No vendor has logged a call yet</p>
+          <EmptyNote what="vendor calls logged" hours={hours} onWiden={onWiden} />
         )}
       </CardContent>
     </Card>

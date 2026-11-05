@@ -6,8 +6,8 @@ import { KeyAccountsTab } from "@/components/external-apis/KeyAccountsTab";
 import { LoggedVendorsCard } from "@/components/external-apis/LoggedVendorsCard";
 import { NotificationLogCard } from "@/components/external-apis/NotificationLogCard";
 import { VendorLogCard } from "@/components/external-apis/VendorLogCard";
-import { count, credits, dateTime, usd } from "@/components/external-apis/format";
-import { ErrorNote, FilterSelect, JsonBlock, Pager } from "@/components/external-apis/parts";
+import { chargeLabel, count, credits, dateTime, humanize, MODEL_VENDOR_PREFIX, NO_VENDOR, usd, vendorName } from "@/components/external-apis/format";
+import { EmptyNote, ErrorNote, FilterSelect, JsonBlock, Pager } from "@/components/external-apis/parts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { Badge } from "@/components/ui/badge";
@@ -96,14 +96,18 @@ function SpendChart({ title, data, dataKey, format, hourly }: {
   );
 }
 
-function OverviewTab({ hours }: { hours: number }) {
+function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }) {
   const totals = useProviderTotals(hours);
   const series = useSpendSeries(hours);
   const rows = totals.data ?? [];
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((acc, r) => acc + pick(r), 0);
   const unpriced = sum((r) => r.unpriced_calls);
 
-  if (totals.isError) return <ErrorNote title="Could not read ai_usage_event" error={totals.error} />;
+  const noVendor = rows
+    .filter((r) => r.provider === NO_VENDOR || r.provider.startsWith(MODEL_VENDOR_PREFIX))
+    .reduce((acc, r) => acc + r.calls, 0);
+
+  if (totals.isError) return <ErrorNote title="Could not load AI usage" error={totals.error} onRetry={() => totals.refetch()} />;
 
   return (
     <div className="space-y-6">
@@ -131,7 +135,7 @@ function OverviewTab({ hours }: { hours: number }) {
       </div>
 
       {series.isError ? (
-        <ErrorNote title="Could not load the spend series" error={series.error} />
+        <ErrorNote title="Could not load the spend charts" error={series.error} onRetry={() => series.refetch()} />
       ) : series.data?.length ? (
         <div className="grid gap-6 lg:grid-cols-2">
           <SpendChart title="Vendor cost (USD)" data={series.data} dataKey="cost_usd" format={usd} hourly={hours <= 48} />
@@ -140,7 +144,7 @@ function OverviewTab({ hours }: { hours: number }) {
       ) : null}
 
       <Card>
-        <CardHeader><CardTitle className="text-base">By provider</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">By vendor</CardTitle></CardHeader>
         <CardContent>
           {totals.isLoading ? (
             <Skeleton className="h-48 w-full" />
@@ -148,7 +152,7 @@ function OverviewTab({ hours }: { hours: number }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Provider</TableHead>
+                  <TableHead>Vendor</TableHead>
                   <TableHead className="text-right">Calls</TableHead>
                   <TableHead className="text-right">Tokens</TableHead>
                   <TableHead className="text-right">Vendor cost</TableHead>
@@ -160,7 +164,7 @@ function OverviewTab({ hours }: { hours: number }) {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.provider}>
-                    <TableCell className="font-medium">{r.provider}</TableCell>
+                    <TableCell className="font-medium">{vendorName(r.provider)}</TableCell>
                     <TableCell className="text-right tabular-nums">{count(r.calls)}</TableCell>
                     <TableCell className="text-right tabular-nums">{count(r.tokens)}</TableCell>
                     <TableCell className="text-right tabular-nums">{usd(r.cost_usd)}</TableCell>
@@ -172,10 +176,11 @@ function OverviewTab({ hours }: { hours: number }) {
               </TableBody>
             </Table>
           ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">No metered calls in this window</p>
+            <EmptyNote what="AI calls" hours={hours} onWiden={onWiden} />
           )}
           <p className="mt-3 text-xs text-muted-foreground">
-            Only vendors that write to ai_usage_event appear here. See All vendors for what is not metered yet.
+            {noVendor > 0 && `${count(noVendor)} calls did not record which vendor served them. `}
+            This covers AI calls only. See All vendors for everything else.
           </p>
         </CardContent>
       </Card>
@@ -183,7 +188,7 @@ function OverviewTab({ hours }: { hours: number }) {
   );
 }
 
-function AiCallsTab({ hours }: { hours: number }) {
+function AiCallsTab({ hours, onWiden }: { hours: number; onWiden?: () => void }) {
   const [filters, setFilters] = useState<AiCallFilters>({});
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState<AiCallRow | null>(null);
@@ -207,13 +212,15 @@ function AiCallsTab({ hours }: { hours: number }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <FilterSelect
-            label="Provider"
+            label="Vendor"
+            format={vendorName}
             value={filters.provider}
             onChange={(provider) => set({ provider })}
             options={(providers.data ?? []).map((p) => p.provider)}
           />
           <FilterSelect
             label="Charge"
+            format={chargeLabel}
             value={filters.chargeStatus}
             onChange={(chargeStatus) => set({ chargeStatus })}
             options={CHARGE_STATUSES}
@@ -222,7 +229,7 @@ function AiCallsTab({ hours }: { hours: number }) {
       </CardHeader>
       <CardContent>
         {calls.isError ? (
-          <ErrorNote title="Could not read ai_usage_event" error={calls.error} />
+          <ErrorNote title="Could not load AI calls" error={calls.error} onRetry={() => calls.refetch()} />
         ) : calls.isLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : rows.length ? (
@@ -244,12 +251,12 @@ function AiCallsTab({ hours }: { hours: number }) {
                   <TableRow key={r.id} className="cursor-pointer" onClick={() => setOpen(r)}>
                     <TableCell className="whitespace-nowrap text-xs">{dateTime(r.occurred_at)}</TableCell>
                     <TableCell>
-                      <div className="font-medium">{r.provider ?? "unknown"}</div>
+                      <div className="font-medium">{vendorName(r.provider)}</div>
                       <div className="text-xs text-muted-foreground">{r.model_id ?? "—"}</div>
                     </TableCell>
-                    <TableCell className="text-xs">{r.use_case}</TableCell>
+                    <TableCell className="text-xs">{humanize(r.use_case)}</TableCell>
                     <TableCell className="text-xs">{r.institute_name ?? r.institute_id ?? "—"}</TableCell>
-                    <TableCell><Badge variant="outline">{r.charge_status}</Badge></TableCell>
+                    <TableCell><Badge variant="outline">{chargeLabel(r.charge_status)}</Badge></TableCell>
                     <TableCell className="text-right tabular-nums">{usd(r.real_cost_usd)}</TableCell>
                     <TableCell className="text-right tabular-nums">{credits(r.credits_charged - r.refunded_credits)}</TableCell>
                   </TableRow>
@@ -259,20 +266,24 @@ function AiCallsTab({ hours }: { hours: number }) {
             <Pager page={page} hasNext={(calls.data?.length ?? 0) > AI_PAGE_SIZE} onPage={setPage} />
           </>
         ) : (
-          <p className="py-8 text-center text-sm text-muted-foreground">No calls match these filters</p>
+          <EmptyNote
+            what={filters.provider || filters.chargeStatus ? "AI calls match these filters" : "AI calls"}
+            hours={hours}
+            onWiden={onWiden}
+          />
         )}
       </CardContent>
 
       <Dialog open={open != null} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
-          <DialogHeader><DialogTitle>{open?.provider ?? "unknown"} call</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{vendorName(open?.provider)} call</DialogTitle></DialogHeader>
           {open && (
             <div className="space-y-4">
               <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 {([
                   ["Time", dateTime(open.occurred_at)],
                   ["Model", open.model_id ?? "—"],
-                  ["Use case", open.use_case],
+                  ["Use case", humanize(open.use_case)],
                   ["Called from", open.source_service],
                   ["Institute", open.institute_id
                     ? <Link className="hover:underline" to={`/institutes/${open.institute_id}`}>{open.institute_name ?? open.institute_id}</Link>
@@ -282,7 +293,7 @@ function AiCallsTab({ hours }: { hours: number }) {
                   ["Characters / seconds", `${count(open.characters)} / ${count(open.seconds)}`],
                   ["Vendor cost", `${usd(open.real_cost_usd)} (${open.cost_source})`],
                   ["Credits charged / refunded", `${credits(open.credits_charged)} / ${credits(open.refunded_credits)}`],
-                  ["Charge status", open.charge_status],
+                  ["Charge status", chargeLabel(open.charge_status)],
                   ["Billing mode", open.free_reason ? `${open.billing_mode} (${open.free_reason})` : open.billing_mode],
                   ["Ledger transaction", open.ledger_tx_id ?? "—"],
                 ] as const).map(([k, v]) => (
@@ -308,7 +319,7 @@ function AiCallsTab({ hours }: { hours: number }) {
   );
 }
 
-function MessagingLogsTab({ hours }: { hours: number }) {
+function MessagingLogsTab({ hours, onWiden }: { hours: number; onWiden?: () => void }) {
   const [filters, setFilters] = useState<CommunicationLogFilters>({});
   const [page, setPage] = useState(0);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -331,13 +342,13 @@ function MessagingLogsTab({ hours }: { hours: number }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <FilterSelect label="Source" value={filters.source} onChange={(source) => set({ source })} options={["WHATSAPP", "EMAIL"]} />
-          <FilterSelect label="Status" value={filters.status} onChange={(status) => set({ status })} options={["INITIATED", "SUCCESS", "FAILED"]} />
+          <FilterSelect label="Source" value={filters.source} onChange={(source) => set({ source })} options={["WHATSAPP", "EMAIL"]} format={vendorName} />
+          <FilterSelect label="Status" value={filters.status} onChange={(status) => set({ status })} options={["INITIATED", "SUCCESS", "FAILED"]} format={humanize} />
         </div>
       </CardHeader>
       <CardContent>
         {logs.isError ? (
-          <ErrorNote title="Could not load messaging logs. The notification-service endpoint may not be deployed yet." error={logs.error} />
+          <ErrorNote title="Could not load messaging payloads" error={logs.error} onRetry={() => logs.refetch()} />
         ) : logs.isLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : rows.length ? (
@@ -355,8 +366,8 @@ function MessagingLogsTab({ hours }: { hours: number }) {
                 {rows.map((r) => (
                   <TableRow key={r.id} className="cursor-pointer" onClick={() => setOpenId(r.id)}>
                     <TableCell className="whitespace-nowrap text-xs">{dateTime(r.createdAt)}</TableCell>
-                    <TableCell>{r.source}</TableCell>
-                    <TableCell><Badge variant="outline">{r.status}</Badge></TableCell>
+                    <TableCell>{vendorName(r.source)}</TableCell>
+                    <TableCell><Badge variant="outline">{humanize(r.status)}</Badge></TableCell>
                     <TableCell className="max-w-md truncate text-xs text-muted-foreground">{r.errorMessage ?? "—"}</TableCell>
                   </TableRow>
                 ))}
@@ -365,7 +376,7 @@ function MessagingLogsTab({ hours }: { hours: number }) {
             <Pager page={page} hasNext={page + 1 < (logs.data?.totalPages ?? 0)} onPage={setPage} />
           </>
         ) : (
-          <p className="py-8 text-center text-sm text-muted-foreground">No messaging logs in this window</p>
+          <EmptyNote what="stored payloads" hours={hours} hint="Only WATI bulk sends store a payload today." onWiden={onWiden} />
         )}
       </CardContent>
 
@@ -450,8 +461,10 @@ function VendorsTab() {
 }
 
 export default function ExternalApisPage() {
-  const [range, setRange] = useState("24");
+  const [range, setRange] = useState("168");
   const hours = Number(range);
+  // Offered on empty results, so "nothing here" is never a dead end.
+  const onWiden = hours < 720 ? () => setRange("720") : undefined;
 
   return (
     <div className="space-y-6">
@@ -478,11 +491,14 @@ export default function ExternalApisPage() {
           <TabsTrigger value="keys">Keys &amp; accounts</TabsTrigger>
           <TabsTrigger value="vendors">All vendors</TabsTrigger>
         </TabsList>
-        <TabsContent value="overview"><OverviewTab hours={hours} /></TabsContent>
-        <TabsContent value="ai"><AiCallsTab hours={hours} /></TabsContent>
+        <TabsContent value="overview"><OverviewTab hours={hours} onWiden={onWiden} /></TabsContent>
+        <TabsContent value="ai"><AiCallsTab hours={hours} onWiden={onWiden} /></TabsContent>
         <TabsContent value="telephony">
           <VendorLogCard
             title="Calls"
+            emptyWhat="calls"
+            emptyHint="Calls appear here once an institute with telephony set up places one."
+            onWiden={onWiden}
             description="One row per call attempt. Provider webhook payloads are masked, and the price is as the vendor reported it."
             source="telephony"
             hours={hours}
@@ -496,6 +512,8 @@ export default function ExternalApisPage() {
         <TabsContent value="payments" className="space-y-6">
           <VendorLogCard
             title="Payments"
+            emptyWhat="payments"
+            onWiden={onWiden}
             description="Gateway data stored with each payment, masked. Offline payments recorded by admins also appear here."
             source="payments"
             hours={hours}
@@ -504,6 +522,8 @@ export default function ExternalApisPage() {
           />
           <VendorLogCard
             title="Webhooks received"
+            emptyWhat="webhooks"
+            onWiden={onWiden}
             description="Events gateways sent to us. Our outbound requests to gateways are not stored."
             source="webhooks"
             hours={hours}
@@ -511,12 +531,15 @@ export default function ExternalApisPage() {
           />
         </TabsContent>
         <TabsContent value="messaging" className="space-y-6">
-          <MessagingLogsTab hours={hours} />
-          <NotificationLogCard hours={hours} />
+          <MessagingLogsTab hours={hours} onWiden={onWiden} />
+          <NotificationLogCard hours={hours} onWiden={onWiden} />
         </TabsContent>
         <TabsContent value="calls" className="space-y-6">
           <VendorLogCard
             title="Logged API calls"
+            emptyWhat="logged calls"
+            emptyHint="Serper calls appear after a video that searches for real images is generated. Turn on automatic capture under All vendors to log more."
+            onWiden={onWiden}
             description="One row per real request, including failed ones, for every vendor that logs here (Serper today). Serper cost comes from the price entered under Keys & accounts, for new requests only."
             source="calls"
             hours={hours}
@@ -528,7 +551,7 @@ export default function ExternalApisPage() {
         </TabsContent>
         <TabsContent value="keys"><KeyAccountsTab /></TabsContent>
         <TabsContent value="vendors" className="space-y-6">
-          <LoggedVendorsCard hours={hours} />
+          <LoggedVendorsCard hours={hours} onWiden={onWiden} />
           <VendorsTab />
         </TabsContent>
       </Tabs>

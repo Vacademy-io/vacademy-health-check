@@ -16,7 +16,8 @@ import {
   type OwnerSource,
   type PlatformKeyRow,
 } from "@/services/external-apis-api";
-import { ErrorNote } from "./parts";
+import { vendorName } from "./format";
+import { EmptyNote, ErrorNote } from "./parts";
 
 const SOURCE_LABELS: Record<OwnerSource, string> = {
   stored: "Recorded on the key",
@@ -102,7 +103,7 @@ function DetailsDialog({ row, units, currencies, onClose }: {
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>{row.vendor} details</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{vendorName(row.vendor)} details</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
             {row.key_hint ? `Key …${row.key_hint}` : row.credential}. These are entered by hand and not checked with the vendor. Never paste a key here.
@@ -163,7 +164,7 @@ export function KeyAccountsTab() {
   const [editing, setEditing] = useState<PlatformKeyRow | null>(null);
 
   if (accounts.isError) {
-    return <ErrorNote title="Could not load key accounts. The ai-service endpoint may not be deployed yet." error={accounts.error} />;
+    return <ErrorNote title="Could not load keys and accounts" error={accounts.error} onRetry={() => accounts.refetch()} />;
   }
   if (accounts.isLoading || !accounts.data) return <Skeleton className="h-96 w-full" />;
 
@@ -196,7 +197,7 @@ export function KeyAccountsTab() {
             <TableBody>
               {platform.map((r) => (
                 <TableRow key={r.details_key}>
-                  <TableCell className="font-medium">{r.vendor}</TableCell>
+                  <TableCell className="font-medium">{vendorName(r.vendor)}</TableCell>
                   <TableCell>
                     <div className="font-mono text-xs">{r.credential}</div>
                     <div className="text-xs text-muted-foreground">{r.service} · {configuredLabel(r.configured)}</div>
@@ -242,7 +243,7 @@ export function KeyAccountsTab() {
               <TableBody>
                 {institute.map((r) => (
                   <TableRow key={`${r.credential}:${r.vendor}:${r.institute_id}`}>
-                    <TableCell className="font-medium">{r.vendor}</TableCell>
+                    <TableCell className="font-medium">{vendorName(r.vendor)}</TableCell>
                     <TableCell>{r.institute_name ?? r.institute_id}</TableCell>
                     <TableCell className="font-mono text-xs">{r.account_ref ?? "—"}</TableCell>
                     <TableCell className="font-mono text-xs">{r.credential}</TableCell>
@@ -251,7 +252,7 @@ export function KeyAccountsTab() {
               </TableBody>
             </Table>
           ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">No institute keys found</p>
+            <EmptyNote what="institute has its own keys set up" />
           )}
         </CardContent>
       </Card>

@@ -10,8 +10,8 @@ import {
   type VendorLogFilters,
   type VendorLogSource,
 } from "@/services/external-apis-api";
-import { dateTime, optionsFrom } from "./format";
-import { ErrorNote, FilterSelect, JsonBlock, Pager } from "./parts";
+import { dateTime, humanize, optionsFrom, vendorName } from "./format";
+import { EmptyNote, ErrorNote, FilterSelect, JsonBlock, Pager } from "./parts";
 
 const seconds = (ms: number | null) => (ms == null ? "—" : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`);
 const money = (amount: number | null, currency: string | null) => {
@@ -20,9 +20,12 @@ const money = (amount: number | null, currency: string | null) => {
   return `${currency ? `${currency} ` : ""}${amount.toFixed(digits)}`;
 };
 
-export function VendorLogCard({ title, description, source, hours, operationLabel, amountLabel, showInstitute, showDuration, showCreditsBilled }: {
+export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWiden, source, hours, operationLabel, amountLabel, showInstitute, showDuration, showCreditsBilled }: {
   title: string;
   description: string;
+  emptyWhat: string;
+  emptyHint?: string;
+  onWiden?: () => void;
   source: VendorLogSource;
   hours: number;
   operationLabel: string;
@@ -51,13 +54,13 @@ export function VendorLogCard({ title, description, source, hours, operationLabe
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <FilterSelect label="Vendor" value={filters.vendor} onChange={(vendor) => set({ vendor })} options={optionsFrom(rows.map((r) => r.vendor), filters.vendor)} />
-          <FilterSelect label="Status" value={filters.status} onChange={(status) => set({ status })} options={optionsFrom(rows.map((r) => r.status), filters.status)} />
+          <FilterSelect label="Vendor" format={vendorName} value={filters.vendor} onChange={(vendor) => set({ vendor })} options={optionsFrom(rows.map((r) => r.vendor), filters.vendor)} />
+          <FilterSelect label="Status" format={humanize} value={filters.status} onChange={(status) => set({ status })} options={optionsFrom(rows.map((r) => r.status), filters.status)} />
         </div>
       </CardHeader>
       <CardContent>
         {logs.isError ? (
-          <ErrorNote title="Could not load this log. The admin-core endpoint may not be deployed yet." error={logs.error} />
+          <ErrorNote title={`Could not load ${title.toLowerCase()}`} error={logs.error} onRetry={() => logs.refetch()} />
         ) : logs.isLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : rows.length ? (
@@ -80,14 +83,14 @@ export function VendorLogCard({ title, description, source, hours, operationLabe
                 {rows.map((r) => (
                   <TableRow key={r.id} className="cursor-pointer" onClick={() => setOpenId(r.id)}>
                     <TableCell className="whitespace-nowrap text-xs">{dateTime(r.occurred_at)}</TableCell>
-                    <TableCell className="font-medium">{r.vendor ?? "—"}</TableCell>
-                    <TableCell className="text-xs">{r.operation ?? "—"}</TableCell>
-                    <TableCell><Badge variant="outline">{r.status ?? "—"}</Badge></TableCell>
+                    <TableCell className="font-medium">{vendorName(r.vendor)}</TableCell>
+                    <TableCell className="text-xs">{humanize(r.operation)}</TableCell>
+                    <TableCell><Badge variant="outline">{humanize(r.status)}</Badge></TableCell>
                     {showInstitute && <TableCell className="text-xs">{r.institute_name ?? r.institute_id ?? "—"}</TableCell>}
                     {showDuration && <TableCell className="text-right tabular-nums">{seconds(r.duration_ms)}</TableCell>}
                     {amountLabel && <TableCell className="text-right tabular-nums">{money(r.amount, r.currency)}</TableCell>}
                     {showCreditsBilled && <TableCell className="text-xs">{r.credits_billed ? "Charged" : "Not charged"}</TableCell>}
-                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground">{r.error ?? "—"}</TableCell>
+                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={r.error ?? undefined}>{humanize(r.error)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -95,7 +98,7 @@ export function VendorLogCard({ title, description, source, hours, operationLabe
             <Pager page={page} hasNext={page + 1 < (logs.data?.total_pages ?? 0)} onPage={setPage} />
           </>
         ) : (
-          <p className="py-8 text-center text-sm text-muted-foreground">Nothing recorded in this window</p>
+          <EmptyNote what={emptyWhat} hours={hours} hint={emptyHint} onWiden={onWiden} />
         )}
       </CardContent>
 
