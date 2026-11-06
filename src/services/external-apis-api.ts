@@ -14,12 +14,26 @@ const AI_DB = "admin_core_service";
 
 export const AI_PAGE_SIZE = 50;
 
-// `provider` is optional on ai_usage_event and most writers leave it empty, so a vendor comes
-// from the route when one was recorded. Failing that, a "maker/model" id names the model's
-// maker only, which is marked so the page never passes it off as who was actually called.
+// A recorded provider or route is a fact. Older rows recorded neither, so the rest is worked
+// out and prefixed "likely:" for the page to say so: an LLM call from today's route map (it may
+// have changed since), and a few features from the vendor their code uses. Anything else is
+// only known by the model's maker ("model:") or not at all ("none").
+const ROUTE_MAP_SQL = `(SELECT (setting_value #>> '{}')::jsonb FROM ai_platform_settings WHERE setting_key = 'llm.model_routes')`;
 const vendorSql = (t = "") => `coalesce(
     nullif(${t}provider, ''),
     nullif(${t}router, ''),
+    CASE WHEN ${t}model_id IS NOT NULL AND ${t}prompt_tokens + ${t}completion_tokens > 0 THEN 'likely:' ||
+      CASE WHEN ${t}byo_key THEN 'openrouter'
+           ELSE coalesce(${ROUTE_MAP_SQL} -> ${t}model_id ->> 'router', ${ROUTE_MAP_SQL} ->> ${t}model_id, 'openrouter')
+      END
+    END,
+    CASE ${t}use_case
+      WHEN 'telephony' THEN 'likely:plivo'
+      WHEN 'ai_calling' THEN 'likely:voice_bot'
+      WHEN 'tts' THEN 'likely:speech'
+      WHEN 'transcription' THEN 'likely:speech'
+      WHEN 'stock_media' THEN 'likely:stock_media'
+    END,
     CASE WHEN ${t}model_id LIKE '%/%' THEN 'model:' || split_part(${t}model_id, '/', 1) END,
     'none')`;
 
@@ -64,6 +78,46 @@ export function useProviderTotals(hours: number) {
   });
 }
 
+export interface FeatureCostRow {
+  use_case: string;
+  feature: string;
+  feature_group: string;
+  vendor: string;
+  model_id: string | null;
+  calls: number;
+  cost_usd: number;
+  unpriced_calls: number;
+  credits: number;
+}
+
+/** Where cost comes from: each feature, split by the vendor and model that served it. */
+export function useFeatureCosts(hours: number) {
+  return useQuery({
+    queryKey: ["external-apis", "feature-costs", hours],
+    queryFn: () =>
+      aiQuery<FeatureCostRow>(
+        `SELECT e.use_case,
+                coalesce(c.label, e.use_case) AS feature,
+                e.feature_group,
+                ${vendorSql("e.")} AS vendor,
+                e.model_id,
+                count(*)::int AS calls,
+                coalesce(sum(e.real_cost_usd), 0)::float8 AS cost_usd,
+                (count(*) FILTER (WHERE e.real_cost_usd IS NULL))::int AS unpriced_calls,
+                coalesce(sum(e.credits_charged - e.refunded_credits), 0)::float8 AS credits
+           FROM ai_usage_event e
+           LEFT JOIN ai_use_case_catalog c ON c.use_case = e.use_case
+          WHERE e.occurred_at > now() - make_interval(hours => $1::int)
+          GROUP BY 1, 2, 3, 4, 5
+          ORDER BY cost_usd DESC, credits DESC
+          LIMIT 300`,
+        [hours],
+      ),
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export interface SpendBucketRow {
   bucket: string;
   cost_usd: number;
@@ -97,6 +151,7 @@ export interface AiCallRow {
   provider: string | null;
   model_id: string | null;
   use_case: string;
+  feature: string;
   source_service: string;
   institute_id: string | null;
   institute_name: string | null;
@@ -126,7 +181,8 @@ export function useAiCalls(hours: number, filters: AiCallFilters, page: number) 
     queryKey: ["external-apis", "ai-calls", hours, filters, page],
     queryFn: () =>
       aiQuery<AiCallRow>(
-        `SELECT e.id, e.occurred_at, ${vendorSql("e.")} AS provider, e.model_id, e.use_case, e.source_service,
+        `SELECT e.id, e.occurred_at, ${vendorSql("e.")} AS provider, e.model_id, e.use_case,
+                coalesce(c.label, e.use_case) AS feature, e.source_service,
                 e.institute_id, i.name AS institute_name, e.charge_status, e.billing_mode, e.free_reason,
                 e.byo_key, e.prompt_tokens::float8 AS prompt_tokens,
                 e.completion_tokens::float8 AS completion_tokens, e.characters,
@@ -135,6 +191,7 @@ export function useAiCalls(hours: number, filters: AiCallFilters, page: number) 
                 e.refunded_credits::float8 AS refunded_credits, e.ledger_tx_id, e.price_snapshot
            FROM ai_usage_event e
            LEFT JOIN institutes i ON i.id = e.institute_id
+           LEFT JOIN ai_use_case_catalog c ON c.use_case = e.use_case
           WHERE e.occurred_at > now() - make_interval(hours => $1::int)
             AND ($2::text IS NULL OR ${vendorSql("e.")} = $2)
             AND ($3::text IS NULL OR e.charge_status = $3)

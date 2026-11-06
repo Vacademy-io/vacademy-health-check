@@ -32,17 +32,25 @@ const VENDOR_NAMES: Record<string, string> = {
   paypal: "PayPal",
   whatsapp: "WhatsApp",
   email: "Email",
+  voice_bot: "Voice bot stack",
+  speech: "Speech vendor",
+  stock_media: "Pexels, Pixabay",
 };
 
 const titleCase = (word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 
 /** Prefix on vendor values the query derived from the model name, because no route was recorded. */
 export const MODEL_VENDOR_PREFIX = "model:";
+/** Prefix on vendors worked out from the route map or the feature, not recorded on the call. */
+export const LIKELY_VENDOR_PREFIX = "likely:";
 export const NO_VENDOR = "none";
 
 /** A vendor as people call it. Hosts stay as they are, since they are already precise. */
 export const vendorName = (raw: string | null | undefined): string => {
   if (!raw || raw === NO_VENDOR || raw === "unknown") return "Vendor not recorded";
+  if (raw.startsWith(LIKELY_VENDOR_PREFIX)) {
+    return `${vendorName(raw.slice(LIKELY_VENDOR_PREFIX.length))} (likely)`;
+  }
   if (raw.startsWith(MODEL_VENDOR_PREFIX)) {
     return `${vendorName(raw.slice(MODEL_VENDOR_PREFIX.length))} model, route not recorded`;
   }
