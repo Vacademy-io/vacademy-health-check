@@ -12,6 +12,13 @@ test("vendorName marks a vendor guessed from the model name", () => {
   assert.equal(vendorName("model:google"), "Google model, route not recorded");
 });
 
+test("vendorName says when a vendor was worked out rather than recorded", () => {
+  assert.equal(vendorName("likely:openrouter"), "OpenRouter (likely)");
+  assert.equal(vendorName("likely:plivo"), "Plivo (likely)");
+  assert.equal(vendorName("likely:voice_bot"), "Voice bot stack (likely)");
+  assert.equal(vendorName("anthropic"), "Anthropic");
+});
+
 test("vendorName uses proper names and leaves hosts alone", () => {
   assert.equal(vendorName("openrouter"), "OpenRouter");
   assert.equal(vendorName("PLIVO"), "Plivo");

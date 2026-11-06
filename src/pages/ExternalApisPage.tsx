@@ -6,7 +6,8 @@ import { KeyAccountsTab } from "@/components/external-apis/KeyAccountsTab";
 import { LoggedVendorsCard } from "@/components/external-apis/LoggedVendorsCard";
 import { NotificationLogCard } from "@/components/external-apis/NotificationLogCard";
 import { VendorLogCard } from "@/components/external-apis/VendorLogCard";
-import { chargeLabel, count, credits, dateTime, humanize, MODEL_VENDOR_PREFIX, NO_VENDOR, usd, vendorName } from "@/components/external-apis/format";
+import { FeatureCostCard } from "@/components/external-apis/FeatureCostCard";
+import { chargeLabel, count, credits, dateTime, humanize, LIKELY_VENDOR_PREFIX, MODEL_VENDOR_PREFIX, NO_VENDOR, usd, vendorName } from "@/components/external-apis/format";
 import { EmptyNote, ErrorNote, FilterSelect, JsonBlock, Pager } from "@/components/external-apis/parts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
@@ -106,6 +107,9 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
   const noVendor = rows
     .filter((r) => r.provider === NO_VENDOR || r.provider.startsWith(MODEL_VENDOR_PREFIX))
     .reduce((acc, r) => acc + r.calls, 0);
+  const likelyVendor = rows
+    .filter((r) => r.provider.startsWith(LIKELY_VENDOR_PREFIX))
+    .reduce((acc, r) => acc + r.calls, 0);
 
   if (totals.isError) return <ErrorNote title="Could not load AI usage" error={totals.error} onRetry={() => totals.refetch()} />;
 
@@ -143,6 +147,8 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
         </div>
       ) : null}
 
+      {rows.length > 0 && <FeatureCostCard hours={hours} onWiden={onWiden} />}
+
       <Card>
         <CardHeader><CardTitle className="text-base">By vendor</CardTitle></CardHeader>
         <CardContent>
@@ -167,7 +173,7 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
                     <TableCell className="font-medium">{vendorName(r.provider)}</TableCell>
                     <TableCell className="text-right tabular-nums">{count(r.calls)}</TableCell>
                     <TableCell className="text-right tabular-nums">{count(r.tokens)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{usd(r.cost_usd)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{r.unpriced_calls === r.calls ? "Not recorded" : usd(r.cost_usd)}</TableCell>
                     <TableCell className="text-right tabular-nums">{credits(r.credits)}</TableCell>
                     <TableCell className="text-right tabular-nums">{count(r.unpriced_calls)}</TableCell>
                     <TableCell className="text-right tabular-nums">{count(r.unbilled_calls + r.dropped_calls)}</TableCell>
@@ -179,7 +185,8 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
             <EmptyNote what="AI calls" hours={hours} onWiden={onWiden} />
           )}
           <p className="mt-3 text-xs text-muted-foreground">
-            {noVendor > 0 && `${count(noVendor)} calls did not record which vendor served them. `}
+            {likelyVendor > 0 && `${count(likelyVendor)} calls did not record their vendor, so "(likely)" comes from today's routing or the feature. `}
+            {noVendor > 0 && `${count(noVendor)} calls cannot be traced to a vendor. `}
             This covers AI calls only. See All vendors for everything else.
           </p>
         </CardContent>
@@ -239,7 +246,7 @@ function AiCallsTab({ hours, onWiden }: { hours: number; onWiden?: () => void })
                 <TableRow>
                   <TableHead>Time</TableHead>
                   <TableHead>Vendor / model</TableHead>
-                  <TableHead>Use case</TableHead>
+                  <TableHead>Feature</TableHead>
                   <TableHead>Institute</TableHead>
                   <TableHead>Charge</TableHead>
                   <TableHead className="text-right">Vendor cost</TableHead>
@@ -254,7 +261,7 @@ function AiCallsTab({ hours, onWiden }: { hours: number; onWiden?: () => void })
                       <div className="font-medium">{vendorName(r.provider)}</div>
                       <div className="text-xs text-muted-foreground">{r.model_id ?? "—"}</div>
                     </TableCell>
-                    <TableCell className="text-xs">{humanize(r.use_case)}</TableCell>
+                    <TableCell className="text-xs">{r.feature}</TableCell>
                     <TableCell className="text-xs">{r.institute_name ?? r.institute_id ?? "—"}</TableCell>
                     <TableCell><Badge variant="outline">{chargeLabel(r.charge_status)}</Badge></TableCell>
                     <TableCell className="text-right tabular-nums">{usd(r.real_cost_usd)}</TableCell>
@@ -283,7 +290,7 @@ function AiCallsTab({ hours, onWiden }: { hours: number; onWiden?: () => void })
                 {([
                   ["Time", dateTime(open.occurred_at)],
                   ["Model", open.model_id ?? "—"],
-                  ["Use case", humanize(open.use_case)],
+                  ["Feature", open.feature],
                   ["Called from", open.source_service],
                   ["Institute", open.institute_id
                     ? <Link className="hover:underline" to={`/institutes/${open.institute_id}`}>{open.institute_name ?? open.institute_id}</Link>
