@@ -1,6 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chargeLabel, explainError, humanize, sourceLabel, vendorName, windowLabel } from "../src/components/external-apis/format.ts";
+import { alertProblem, chargeLabel, explainError, humanize, keyEnding, sourceLabel, vendorName, windowLabel } from "../src/components/external-apis/format.ts";
+
+test("alertProblem says what is wrong in words", () => {
+  assert.equal(alertProblem({ kind: "CREDITS", consecutive_failures: 1 }), "Out of credits");
+  assert.equal(alertProblem({ kind: "FAILING", consecutive_failures: 7 }), "7 failures in a row");
+});
+
+test("keyEnding never shows the placeholder for a short key", () => {
+  assert.equal(keyEnding("ab12"), "Key ending ab12");
+  assert.equal(keyEnding("****"), "Key too short to show");
+});
 
 test("sourceLabel names where a call was recorded", () => {
   assert.equal(sourceLabel("ai"), "AI call");

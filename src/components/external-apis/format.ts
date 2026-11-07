@@ -148,6 +148,12 @@ const SOURCE_LABELS: Record<string, string> = {
 /** Which table a call came from, in words. */
 export const sourceLabel = (source: string) => SOURCE_LABELS[source] ?? humanize(source);
 
+export const alertProblem = ({ kind, consecutive_failures }: { kind: string; consecutive_failures: number }) =>
+  kind === "CREDITS" ? "Out of credits" : `${count(consecutive_failures)} failures in a row`;
+
+/** "****" is what a key too short to hint at is stored as. */
+export const keyEnding = (hint: string) => (hint === "****" ? "Key too short to show" : `Key ending ${hint}`);
+
 /** NO_ANSWER and course_generation become readable. "POST /v1/x" and the like are left alone. */
 export const humanize = (raw: string | null | undefined): string => {
   if (!raw) return "—";
