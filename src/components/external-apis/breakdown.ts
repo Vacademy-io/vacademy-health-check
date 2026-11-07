@@ -1,4 +1,11 @@
-import type { SpendBreakdownRow } from "@/services/external-apis-api";
+// The row shape of useSpendBreakdown, declared here rather than imported: the tests' tsconfig
+// has no "@/" alias, so this file must not depend on one.
+interface SpendBreakdownRow {
+  bucket: string;
+  series: string;
+  cost_usd: number;
+  credits: number;
+}
 
 /** Named series a chart shows before the rest fold into "Other": the palette's validated five. */
 export const MAX_SERIES = 5;

@@ -29,7 +29,8 @@ const duration = (ms: number | null) => (ms == null ? "—" : `${(ms / 1000).toF
 
 function CallDetail({ call }: { call: RecentCallRow }) {
   const logged = call.source !== "ai";
-  const bodies = useVendorLogDetail(logged ? call.source : "calls", logged ? call.id : null);
+  // AI calls store no bodies, so their query stays disabled (id null).
+  const bodies = useVendorLogDetail(call.source === "ai" ? "calls" : call.source, logged ? call.id : null);
   const facts: Array<[string, React.ReactNode]> = [
     ["Time", dateTime(call.occurred_at)],
     ["Source", sourceLabel(call.source)],
