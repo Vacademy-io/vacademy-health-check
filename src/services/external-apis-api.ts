@@ -118,25 +118,32 @@ export function useFeatureCosts(hours: number) {
   });
 }
 
-export interface SpendBucketRow {
+export type SpendBreakdown = "vendor" | "feature";
+
+export interface SpendBreakdownRow {
   bucket: string;
+  /** A vendor value, as vendorName reads it, or a feature's label. */
+  series: string;
   cost_usd: number;
   credits: number;
 }
 
-export function useSpendSeries(hours: number) {
+export function useSpendBreakdown(hours: number, by: SpendBreakdown) {
   // Hourly bars up to two days, then daily, matching the AI Usage page.
   const unit = hours <= 48 ? "hour" : "day";
+  const series = by === "vendor" ? vendorSql("e.") : "coalesce(c.label, e.use_case)";
   return useQuery({
-    queryKey: ["external-apis", "spend-series", hours],
+    queryKey: ["external-apis", "spend-breakdown", hours, by],
     queryFn: () =>
-      aiQuery<SpendBucketRow>(
-        `SELECT date_trunc($2::text, occurred_at) AS bucket,
-                coalesce(sum(real_cost_usd), 0)::float8 AS cost_usd,
-                coalesce(sum(credits_charged - refunded_credits), 0)::float8 AS credits
-           FROM ai_usage_event
-          WHERE occurred_at > now() - make_interval(hours => $1::int)
-          GROUP BY 1
+      aiQuery<SpendBreakdownRow>(
+        `SELECT date_trunc($2::text, e.occurred_at) AS bucket,
+                ${series} AS series,
+                coalesce(sum(e.real_cost_usd), 0)::float8 AS cost_usd,
+                coalesce(sum(e.credits_charged - e.refunded_credits), 0)::float8 AS credits
+           FROM ai_usage_event e
+           LEFT JOIN ai_use_case_catalog c ON c.use_case = e.use_case
+          WHERE e.occurred_at > now() - make_interval(hours => $1::int)
+          GROUP BY 1, 2
           ORDER BY 1`,
         [hours, unit],
       ),
@@ -331,6 +338,109 @@ export function useVendorLogs(source: VendorLogSource, hours: number, filters: V
     },
     placeholderData: keepPreviousData,
     retry: false,
+  });
+}
+
+export type RecentCallSource = "ai" | VendorLogSource;
+
+export interface RecentCallRow {
+  source: RecentCallSource;
+  id: string;
+  occurred_at: string;
+  vendor: string | null;
+  /** The feature for AI calls; the operation, direction or event for the rest. */
+  operation: string | null;
+  /** The model for AI calls, the HTTP status for logged calls. */
+  detail: string | null;
+  status: string | null;
+  failed: boolean;
+  institute_id: string | null;
+  institute_name: string | null;
+  amount: number | null;
+  currency: string | null;
+  credits: number | null;
+  duration_ms: number | null;
+  tokens: number | null;
+  error: string | null;
+}
+
+export interface RecentCallFilters {
+  source?: RecentCallSource;
+  failedOnly?: boolean;
+}
+
+export const RECENT_PAGE_SIZE = 50;
+
+// Every call admin-core's database records, newest first. Metadata only, under the SQL proxy
+// rule at the top of this file: bodies come one row at a time from the masked detail endpoint.
+// Each source is cut to (offset + page) rows before the union, so a page never sorts more.
+// Timestamps without a zone are UTC, as SuperAdminExternalApiLogService reads them.
+const RECENT_CALLS_SQL = `
+SELECT f.*, i.name AS institute_name
+  FROM (
+    (SELECT 'ai' AS source, e.id::text AS id, e.occurred_at, ${vendorSql("e.")} AS vendor,
+            coalesce(c.label, e.use_case) AS operation, e.model_id AS detail, e.charge_status AS status,
+            FALSE AS failed, e.institute_id::text AS institute_id, e.real_cost_usd::float8 AS amount,
+            'USD' AS currency, (e.credits_charged - e.refunded_credits)::float8 AS credits,
+            NULL::float8 AS duration_ms, (e.prompt_tokens + e.completion_tokens)::float8 AS tokens,
+            NULL::text AS error
+       FROM ai_usage_event e
+       LEFT JOIN ai_use_case_catalog c ON c.use_case = e.use_case
+      WHERE ($2::text IS NULL OR $2::text = 'ai') AND $3::boolean IS NOT TRUE
+        AND e.occurred_at > now() - make_interval(hours => $1::int)
+      ORDER BY e.occurred_at DESC LIMIT $4::int)
+    UNION ALL
+    (SELECT 'calls', l.id::text, l.occurred_at, l.vendor, l.operation, l.http_status::text, l.status,
+            l.status = 'FAILED', l.institute_id, l.cost_amount::float8, l.cost_currency, NULL::float8,
+            l.duration_ms::float8, NULL::float8, l.error_message
+       FROM external_api_call_log l
+      WHERE ($2::text IS NULL OR $2::text = 'calls') AND ($3::boolean IS NOT TRUE OR l.status = 'FAILED')
+        AND l.occurred_at > now() - make_interval(hours => $1::int)
+      ORDER BY l.occurred_at DESC LIMIT $4::int)
+    UNION ALL
+    (SELECT 'telephony', t.id::text, t.created_at AT TIME ZONE 'UTC', t.provider_type, t.direction, NULL, t.status,
+            t.status ILIKE '%fail%' OR t.status ILIKE '%error%', t.institute_id, t.price::float8, NULL,
+            NULL::float8, t.duration_seconds * 1000.0, NULL::float8, t.termination_reason
+       FROM telephony_call_log t
+      WHERE ($2::text IS NULL OR $2::text = 'telephony')
+        AND ($3::boolean IS NOT TRUE OR t.status ILIKE '%fail%' OR t.status ILIKE '%error%')
+        AND t.created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'
+      ORDER BY t.created_at DESC LIMIT $4::int)
+    UNION ALL
+    (SELECT 'payments', p.id::text, p.created_at AT TIME ZONE 'UTC', p.vendor, p.order_status, NULL, p.payment_status,
+            coalesce(p.payment_status ILIKE '%fail%', FALSE), NULL, p.payment_amount::float8, p.currency,
+            NULL::float8, NULL::float8, NULL::float8, NULL
+       FROM payment_log p
+      WHERE ($2::text IS NULL OR $2::text = 'payments') AND ($3::boolean IS NOT TRUE OR p.payment_status ILIKE '%fail%')
+        AND p.created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'
+      ORDER BY p.created_at DESC LIMIT $4::int)
+    UNION ALL
+    (SELECT 'webhooks', w.id::text, w.created_at AT TIME ZONE 'UTC', w.vendor, w.event_type, NULL, w.status,
+            w.status ILIKE '%fail%' OR w.status ILIKE '%error%', NULL, NULL::float8, NULL,
+            NULL::float8, NULL::float8, NULL::float8, w.error_message
+       FROM web_hook w
+      WHERE ($2::text IS NULL OR $2::text = 'webhooks')
+        AND ($3::boolean IS NOT TRUE OR w.status ILIKE '%fail%' OR w.status ILIKE '%error%')
+        AND w.created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'
+      ORDER BY w.created_at DESC LIMIT $4::int)
+  ) f
+  LEFT JOIN institutes i ON i.id = f.institute_id
+ ORDER BY f.occurred_at DESC
+ LIMIT $5::int OFFSET $6::int`;
+
+export function useRecentCalls(hours: number, filters: RecentCallFilters, page: number) {
+  return useQuery({
+    queryKey: ["external-apis", "recent-calls", hours, filters, page],
+    queryFn: () => {
+      const offset = page * RECENT_PAGE_SIZE;
+      // One extra row tells us whether there is a next page without a count(*).
+      const take = RECENT_PAGE_SIZE + 1;
+      return aiQuery<RecentCallRow>(RECENT_CALLS_SQL, [
+        hours, filters.source ?? null, filters.failedOnly ?? false, offset + take, take, offset,
+      ]);
+    },
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   });
 }
 

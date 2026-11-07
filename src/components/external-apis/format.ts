@@ -59,6 +59,17 @@ export const vendorName = (raw: string | null | undefined): string => {
   return /^[A-Z_]+$/.test(raw) ? raw.split("_").map(titleCase).join(" ") : raw;
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  ai: "AI call",
+  calls: "Logged vendor call",
+  telephony: "Telephony",
+  payments: "Payment",
+  webhooks: "Webhook",
+};
+
+/** Which table a call came from, in words. */
+export const sourceLabel = (source: string) => SOURCE_LABELS[source] ?? humanize(source);
+
 /** NO_ANSWER and course_generation become readable. "POST /v1/x" and the like are left alone. */
 export const humanize = (raw: string | null | undefined): string => {
   if (!raw) return "—";

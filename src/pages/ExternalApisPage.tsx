@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Coins, DollarSign, Unplug, Zap } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { KeyAccountsTab } from "@/components/external-apis/KeyAccountsTab";
 import { LoggedVendorsCard } from "@/components/external-apis/LoggedVendorsCard";
 import { NotificationLogCard } from "@/components/external-apis/NotificationLogCard";
 import { VendorLogCard } from "@/components/external-apis/VendorLogCard";
 import { FeatureCostCard } from "@/components/external-apis/FeatureCostCard";
+import { RecentCallsTab } from "@/components/external-apis/RecentCallsTab";
+import { SpendBreakdownCharts } from "@/components/external-apis/SpendBreakdownCharts";
 import { chargeLabel, count, credits, dateTime, humanize, LIKELY_VENDOR_PREFIX, MODEL_VENDOR_PREFIX, NO_VENDOR, usd, vendorName } from "@/components/external-apis/format";
 import { EmptyNote, ErrorNote, FilterSelect, JsonBlock, Pager } from "@/components/external-apis/parts";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -31,11 +32,9 @@ import {
   useCommunicationLogDetail,
   useCommunicationLogs,
   useProviderTotals,
-  useSpendSeries,
   type AiCallFilters,
   type AiCallRow,
   type CommunicationLogFilters,
-  type SpendBucketRow,
 } from "@/services/external-apis-api";
 
 const RANGES = [
@@ -49,57 +48,8 @@ const CHARGE_STATUSES = [
   "POSTED", "DROPPED_INSUFFICIENT", "SKIPPED_NO_INSTITUTE", "NOT_APPLICABLE", "REFUNDED", "PARTIAL_REFUND",
 ];
 
-/** One measure per chart: dollars and credits have different scales, so they never share an axis. */
-function SpendChart({ title, data, dataKey, format, hourly }: {
-  title: string;
-  data: SpendBucketRow[];
-  dataKey: "cost_usd" | "credits";
-  format: (n: number) => string;
-  hourly: boolean;
-}) {
-  const label = (v: string) =>
-    hourly
-      ? new Date(v).toLocaleTimeString("en", { hour: "numeric", hour12: true })
-      : new Date(v).toLocaleDateString("en", { month: "short", day: "numeric" });
-  return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={data} barCategoryGap={2}>
-            <CartesianGrid vertical={false} className="stroke-muted" />
-            <XAxis dataKey="bucket" tick={{ fontSize: 12 }} tickFormatter={label} tickLine={false} axisLine={false} minTickGap={24} />
-            <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} width={56} />
-            <Tooltip
-              cursor={{ fill: "hsl(var(--muted))" }}
-              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))" }}
-              labelFormatter={(v) => new Date(v as string).toLocaleString()}
-              formatter={(v) => [format(Number(v)), title]}
-            />
-            <Bar dataKey={dataKey} fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} maxBarSize={24} />
-          </BarChart>
-        </ResponsiveContainer>
-        <details className="mt-2 text-xs text-muted-foreground">
-          <summary className="cursor-pointer">View as table</summary>
-          <Table>
-            <TableBody>
-              {data.map((row) => (
-                <TableRow key={row.bucket}>
-                  <TableCell>{new Date(row.bucket).toLocaleString()}</TableCell>
-                  <TableCell className="text-right tabular-nums">{format(row[dataKey])}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </details>
-      </CardContent>
-    </Card>
-  );
-}
-
 function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }) {
   const totals = useProviderTotals(hours);
-  const series = useSpendSeries(hours);
   const rows = totals.data ?? [];
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((acc, r) => acc + pick(r), 0);
   const unpriced = sum((r) => r.unpriced_calls);
@@ -138,14 +88,7 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
         )}
       </div>
 
-      {series.isError ? (
-        <ErrorNote title="Could not load the spend charts" error={series.error} onRetry={() => series.refetch()} />
-      ) : series.data?.length ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <SpendChart title="Vendor cost (USD)" data={series.data} dataKey="cost_usd" format={usd} hourly={hours <= 48} />
-          <SpendChart title="Credits deducted" data={series.data} dataKey="credits" format={credits} hourly={hours <= 48} />
-        </div>
-      ) : null}
+      <SpendBreakdownCharts hours={hours} />
 
       {rows.length > 0 && <FeatureCostCard hours={hours} onWiden={onWiden} />}
 
@@ -469,6 +412,7 @@ function VendorsTab() {
 
 export default function ExternalApisPage() {
   const [range, setRange] = useState("168");
+  const [tab, setTab] = useState("overview");
   const hours = Number(range);
   // Offered on empty results, so "nothing here" is never a dead end.
   const onWiden = hours < 720 ? () => setRange("720") : undefined;
@@ -487,9 +431,10 @@ export default function ExternalApisPage() {
           </Select>
         }
       />
-      <Tabs defaultValue="overview">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="recent">Recent calls</TabsTrigger>
           <TabsTrigger value="ai">AI calls</TabsTrigger>
           <TabsTrigger value="telephony">Telephony</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
@@ -499,6 +444,9 @@ export default function ExternalApisPage() {
           <TabsTrigger value="vendors">All vendors</TabsTrigger>
         </TabsList>
         <TabsContent value="overview"><OverviewTab hours={hours} onWiden={onWiden} /></TabsContent>
+        <TabsContent value="recent">
+          <RecentCallsTab hours={hours} onWiden={onWiden} onOpenMessaging={() => setTab("messaging")} />
+        </TabsContent>
         <TabsContent value="ai"><AiCallsTab hours={hours} onWiden={onWiden} /></TabsContent>
         <TabsContent value="telephony">
           <VendorLogCard
