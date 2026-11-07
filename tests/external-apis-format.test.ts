@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chargeLabel, explainError, humanize, vendorName, windowLabel } from "../src/components/external-apis/format.ts";
+import { chargeLabel, explainError, humanize, sourceLabel, vendorName, windowLabel } from "../src/components/external-apis/format.ts";
+
+test("sourceLabel names where a call was recorded", () => {
+  assert.equal(sourceLabel("ai"), "AI call");
+  assert.equal(sourceLabel("calls"), "Logged vendor call");
+  assert.equal(sourceLabel("webhooks"), "Webhook");
+  assert.equal(sourceLabel("NEW_SOURCE"), "New source");
+});
 
 test("vendorName never shows a bare unknown", () => {
   assert.equal(vendorName("unknown"), "Vendor not recorded");
