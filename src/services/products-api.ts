@@ -24,9 +24,18 @@ export interface ProductConfig {
   signup_alert_template: string | null;
   signup_alert_language: string | null;
   whatsapp_waba_id: string | null;
+  /** Paid plans the product's website shows, in order. */
+  plans?: ProductPlan[] | null;
+  /** How long a plan and its credits last. */
+  plan_validity_months?: number | null;
+  /** What one extra credit costs after a plan's credits are used, in rupees (shown on the website). */
+  extra_credit_price_inr?: number | null;
   updated_by: string | null;
   updated_at: string | null;
 }
+
+export type { ProductPlan } from "@/components/products/plans";
+import type { ProductPlan } from "@/components/products/plans";
 
 export type TrialStatus = "ON_TRIAL" | "EXPIRED" | "PAID" | "NOT_ON_TRIAL";
 

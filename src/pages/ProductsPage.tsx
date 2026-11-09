@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { errorText } from "@/components/products/errors";
 import { ProductAlertsSection } from "@/components/products/ProductAlertsSection";
+import { ProductPlansSection } from "@/components/products/ProductPlansSection";
+import { plansProblem } from "@/components/products/plans";
 import { ProductPricingTab } from "@/components/products/ProductPricingTab";
 import { ProductSignupsTab } from "@/components/products/ProductSignupsTab";
 import { useProducts, useUpdateProduct, type ProductConfig } from "@/services/products-api";
@@ -51,6 +53,7 @@ function ProductCard({ product }: { product: ProductConfig }) {
   });
   const dirty = JSON.stringify(form) !== JSON.stringify(product);
   const creditsValid = signupCreditsValid(form.demo_credits, product.demo_credits);
+  const plansValid = plansProblem(form.plans, form.plan_validity_months, form.extra_credit_price_inr) === null;
 
   const save = () =>
     update.mutate(form, {
@@ -60,7 +63,7 @@ function ProductCard({ product }: { product: ProductConfig }) {
 
   const saveRow = (
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={save} disabled={!dirty || !creditsValid || update.isPending}>
+          <Button onClick={save} disabled={!dirty || !creditsValid || !plansValid || update.isPending}>
             {update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save
           </Button>
@@ -137,8 +140,18 @@ function ProductCard({ product }: { product: ProductConfig }) {
                     Enter a whole number from 0 to {MAX_SIGNUP_CREDITS.toLocaleString()}.
                   </p>
                 )}
-                {saveRow}
               </section>
+              <ProductPlansSection
+                displayName={product.display_name}
+                plans={form.plans}
+                months={form.plan_validity_months}
+                extra={form.extra_credit_price_inr}
+                onChange={(patch) => {
+                  setForm((f) => ({ ...f, ...patch }));
+                  setStatus(null);
+                }}
+                saveRow={saveRow}
+              />
             </ProductPricingTab>
           </TabsContent>
           <TabsContent value="alerts" className="space-y-6">
