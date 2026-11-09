@@ -41,6 +41,7 @@ import {
   YAxis,
 } from "recharts";
 import type { LeadTag } from "@/lib/constants";
+import { summarizeActive } from "@/lib/pulse-active";
 
 // Institute id -> { name, lead_tag } map, fetched once via the SQL proxy so we
 // can label per-institute rows and filter out TEST/LEAD workspaces client-side.
@@ -93,11 +94,12 @@ export default function PulsePage() {
   const instituteName = (id: string | null) =>
     (id && meta.data?.get(id)?.name) || (id ? `${id.slice(0, 8)}…` : "Unattributed");
 
-  const activeRows = useMemo(
-    () => (activeNow.data ?? []).filter((r) => isRealInstitute(r.institute_id)),
+  // De-duplicated per user: a learner logged under both their institute and a
+  // blank/"null" one counts once, under their institute.
+  const { rows: activeRows, total: activeTotal } = useMemo(
+    () => summarizeActive(activeNow.data ?? [], (id) => isRealInstitute(id)),
     [activeNow.data, isRealInstitute],
   );
-  const activeTotal = activeRows.reduce((sum, r) => sum + r.users, 0);
 
   const aiChatRows = useMemo(
     () => (aiChat.data ?? []).filter((r) => isRealInstitute(r.institute_id)),

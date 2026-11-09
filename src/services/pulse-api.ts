@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/axios";
+import type { ActivePair } from "@/lib/pulse-active";
 
 // Live Pulse — product-usage metrics read straight from the prod DB standby via
 // the analytics-api SQL proxy (see vacademy_platform/vacademy_devops/analytics-api.yaml).
@@ -35,23 +36,20 @@ async function pulseQuery<Row>(db: PulseDb, sql: string): Promise<Row[]> {
 // 1. Active users right now (15-minute window), split per institute
 // ---------------------------------------------------------------------------
 
-export interface ActiveNowRow {
-  institute_id: string | null;
-  users: number;
-}
-
+// Returns distinct (user, institute) pairs, not per-institute counts: the same
+// user is logged under a blank / "null" institute as well as their real one, so
+// counts must be de-duplicated per user (see src/lib/pulse-active.ts).
 export function useActiveNow() {
   return useQuery({
-    queryKey: ["pulse", "active-now"],
+    queryKey: ["pulse", "active-now", "pairs"],
     queryFn: () =>
-      pulseQuery<ActiveNowRow>(
+      pulseQuery<ActivePair>(
         "auth_service",
-        `SELECT nullif(institute_id, '') AS institute_id,
-                count(DISTINCT user_id)::int AS users
+        `SELECT DISTINCT user_id,
+                CASE WHEN lower(btrim(coalesce(institute_id, ''))) IN ('', 'null', 'undefined')
+                     THEN NULL ELSE btrim(institute_id) END AS institute_id
            FROM user_activity_log
-          WHERE created_at > now() - interval '15 minutes'
-          GROUP BY 1
-          ORDER BY 2 DESC`,
+          WHERE created_at > now() - interval '15 minutes'`,
       ),
     refetchInterval: 60_000,
   });
