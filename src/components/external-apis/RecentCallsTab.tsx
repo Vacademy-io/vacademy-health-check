@@ -28,8 +28,9 @@ const money = (amount: number | null, currency: string | null) => {
 const duration = (ms: number | null) => (ms == null ? "—" : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`);
 
 function CallDetail({ call }: { call: RecentCallRow }) {
-  const logged = call.source !== "ai";
-  const bodies = useVendorLogDetail(logged ? call.source : "calls", logged ? call.id : null);
+  const source = call.source;
+  const logged = source !== "ai";
+  const bodies = useVendorLogDetail(source !== "ai" ? source : "calls", logged ? call.id : null);
   const facts: Array<[string, React.ReactNode]> = [
     ["Time", dateTime(call.occurred_at)],
     ["Source", sourceLabel(call.source)],

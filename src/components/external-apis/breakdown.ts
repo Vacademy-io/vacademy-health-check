@@ -1,4 +1,4 @@
-import type { SpendBreakdownRow } from "@/services/external-apis-api";
+import type { SpendBreakdownRow } from "../../types/external-apis";
 
 /** Named series a chart shows before the rest fold into "Other": the palette's validated five. */
 export const MAX_SERIES = 5;

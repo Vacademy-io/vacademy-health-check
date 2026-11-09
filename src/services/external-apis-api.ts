@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/axios";
 import { API_PREFIXES } from "@/lib/constants";
+import type { SpendBreakdownRow } from "@/types/external-apis";
 
 // Two sources, on purpose:
 // - AI call metadata and cost come from ai_usage_event through the analytics-api SQL proxy,
@@ -120,13 +121,7 @@ export function useFeatureCosts(hours: number) {
 
 export type SpendBreakdown = "vendor" | "feature";
 
-export interface SpendBreakdownRow {
-  bucket: string;
-  /** A vendor value, as vendorName reads it, or a feature's label. */
-  series: string;
-  cost_usd: number;
-  credits: number;
-}
+export type { SpendBreakdownRow };
 
 export function useSpendBreakdown(hours: number, by: SpendBreakdown) {
   // Hourly bars up to two days, then daily, matching the AI Usage page.
