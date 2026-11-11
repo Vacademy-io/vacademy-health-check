@@ -14,6 +14,7 @@ import { PreviewTab } from "@/components/institute-modules/PreviewTab";
 import { HistoryTab } from "@/components/institute-modules/HistoryTab";
 import { LimitsTab } from "@/components/institute-limits/LimitsTab";
 import { InstitutePlanTab } from "@/components/plans/InstitutePlanTab";
+import { ContentLibraryTab } from "@/components/institute-content-library/ContentLibraryTab";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -136,6 +137,7 @@ export default function InstituteDetailPage() {
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="ai-limits">AI limits</TabsTrigger>
           <TabsTrigger value="ai-plan">AI plan</TabsTrigger>
+          <TabsTrigger value="content-library">Content Library</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -176,6 +178,9 @@ export default function InstituteDetailPage() {
         </TabsContent>
         <TabsContent value="ai-plan" className="mt-4">
           <InstitutePlanTab instituteId={id!} instituteName={institute.name} />
+        </TabsContent>
+        <TabsContent value="content-library" className="mt-4">
+          <ContentLibraryTab instituteId={id!} instituteName={institute.name} />
         </TabsContent>
       </Tabs>
     </div>
