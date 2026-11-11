@@ -10,9 +10,10 @@ test("sourceLabel names where a call was recorded", () => {
 });
 
 test("vendorName never shows a bare unknown", () => {
-  assert.equal(vendorName("unknown"), "Vendor not recorded");
-  assert.equal(vendorName("none"), "Vendor not recorded");
-  assert.equal(vendorName(null), "Vendor not recorded");
+  assert.equal(vendorName("unknown"), "Vendor not tracked");
+  assert.equal(vendorName("none"), "Vendor not tracked");
+  assert.equal(vendorName(null), "Vendor not tracked");
+  assert.equal(vendorName("none:Emails sent"), "Emails sent (vendor not tracked)");
 });
 
 test("vendorName marks a vendor guessed from the model name", () => {

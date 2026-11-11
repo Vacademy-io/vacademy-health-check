@@ -8,7 +8,7 @@ import { VendorLogCard } from "@/components/external-apis/VendorLogCard";
 import { FeatureCostCard } from "@/components/external-apis/FeatureCostCard";
 import { RecentCallsTab } from "@/components/external-apis/RecentCallsTab";
 import { SpendBreakdownCharts } from "@/components/external-apis/SpendBreakdownCharts";
-import { chargeLabel, count, credits, dateTime, humanize, LIKELY_VENDOR_PREFIX, MODEL_VENDOR_PREFIX, NO_VENDOR, usd, vendorName } from "@/components/external-apis/format";
+import { chargeLabel, count, credits, dateTime, humanize, LIKELY_VENDOR_PREFIX, MODEL_VENDOR_PREFIX, NO_VENDOR, NO_VENDOR_PREFIX, usd, vendorName } from "@/components/external-apis/format";
 import { EmptyNote, ErrorNote, FilterSelect, JsonBlock, Pager } from "@/components/external-apis/parts";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
@@ -55,7 +55,7 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
   const unpriced = sum((r) => r.unpriced_calls);
 
   const noVendor = rows
-    .filter((r) => r.provider === NO_VENDOR || r.provider.startsWith(MODEL_VENDOR_PREFIX))
+    .filter((r) => r.provider === NO_VENDOR || r.provider.startsWith(NO_VENDOR_PREFIX) || r.provider.startsWith(MODEL_VENDOR_PREFIX))
     .reduce((acc, r) => acc + r.calls, 0);
   const likelyVendor = rows
     .filter((r) => r.provider.startsWith(LIKELY_VENDOR_PREFIX))
@@ -129,7 +129,8 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
           )}
           <p className="mt-3 text-xs text-muted-foreground">
             {likelyVendor > 0 && `${count(likelyVendor)} calls did not record their vendor, so "(likely)" comes from today's routing or the feature. `}
-            {noVendor > 0 && `${count(noVendor)} calls cannot be traced to a vendor. `}
+            {noVendor > 0 && `${count(noVendor)} calls did not record their vendor, so they are named by feature. `}
+            A vendor cost can still show without a vendor: it is saved with each call, from its price snapshot or the vendor&apos;s own report.{" "}
             This covers AI calls only. See All vendors for everything else.
           </p>
         </CardContent>

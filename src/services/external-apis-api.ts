@@ -18,7 +18,8 @@ export const AI_PAGE_SIZE = 50;
 // A recorded provider or route is a fact. Older rows recorded neither, so the rest is worked
 // out and prefixed "likely:" for the page to say so: an LLM call from today's route map (it may
 // have changed since), and a few features from the vendor their code uses. Anything else is
-// only known by the model's maker ("model:") or not at all ("none").
+// only known by the model's maker ("model:"), or by nothing but its feature ("none:" and the
+// feature's label), so untracked usage still says what it was for.
 const ROUTE_MAP_SQL = `(SELECT (setting_value #>> '{}')::jsonb FROM ai_platform_settings WHERE setting_key = 'llm.model_routes')`;
 const vendorSql = (t = "") => `coalesce(
     nullif(${t}provider, ''),
@@ -34,9 +35,13 @@ const vendorSql = (t = "") => `coalesce(
       WHEN 'tts' THEN 'likely:speech'
       WHEN 'transcription' THEN 'likely:speech'
       WHEN 'stock_media' THEN 'likely:stock_media'
+      WHEN 'email_send' THEN 'likely:email'
+      WHEN 'embedding' THEN 'likely:openrouter'
     END,
     CASE WHEN ${t}model_id LIKE '%/%' THEN 'model:' || split_part(${t}model_id, '/', 1) END,
-    'none')`;
+    'none:' || coalesce(
+      (SELECT uc.label FROM ai_use_case_catalog uc WHERE uc.use_case = ${t || "ai_usage_event."}use_case),
+      ${t}use_case, 'unknown'))`;
 
 async function aiQuery<Row>(sql: string, params: unknown[]): Promise<Row[]> {
   const { data } = await api.post<{ rows: Row[] }>(QUERY_ENDPOINT, { db: AI_DB, sql, params });
