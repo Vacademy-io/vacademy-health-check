@@ -1,6 +1,8 @@
 // The summary at the top of each log tab: a few headline figures and what they mean,
 // so the table below is for digging in, not for working out the picture.
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -27,6 +29,10 @@ import {
   periodWords,
 } from "./insights";
 import { ErrorNote, Highlights, Tiles } from "./parts";
+
+/** The first few of a long list, then "and N more", so a tile never turns into a wall of text. */
+const shortList = (parts: string[], keep = 3): string | null =>
+  !parts.length ? null : parts.length <= keep ? parts.join(" · ") : `${parts.slice(0, keep).join(" · ")} and ${parts.length - keep} more`;
 
 const sumOf = <T,>(rows: T[], pick: (r: T) => number) => rows.reduce((n, r) => n + pick(r), 0);
 
@@ -153,7 +159,7 @@ export function TelephonySummary({ hours }: { hours: number }) {
       <Tiles
         loading={summary.isLoading}
         items={[
-          { label: "Calls", value: count(total), note: byProvider.map((p) => `${vendorName(p.key)} ${count(p.total)}`).join(" · ") || null },
+          { label: "Calls", value: count(total), note: shortList(byProvider.map((p) => `${vendorName(p.key)} ${count(p.total)}`)) },
           {
             label: "Connected",
             value: pctLabel(connectRate),
@@ -319,6 +325,7 @@ export function LoggedCallsSummary({ hours }: { hours: number }) {
     failed: sumOf(rows.filter((r) => r.vendor === v.key), (r) => r.failed),
   }));
   const busiest = rows[0];
+  const failing = [...byVendor].filter((v) => v.failed > 0).sort((a, b) => b.failed - a.failed);
 
   if (summary.isError) return <ErrorNote title="Could not load the vendor call summary" error={summary.error} onRetry={() => summary.refetch()} />;
 
@@ -327,7 +334,7 @@ export function LoggedCallsSummary({ hours }: { hours: number }) {
       <Tiles
         loading={summary.isLoading}
         items={[
-          { label: "Calls", value: count(total), note: byVendor.map((v) => `${vendorName(v.name)} ${count(v.calls)}`).join(" · ") || null },
+          { label: "Calls", value: count(total), note: shortList(byVendor.map((v) => `${vendorName(v.name)} ${count(v.calls)}`)) },
           { label: "Failed", value: count(failed), note: total ? `${pctLabel(pct(failed, total))} of calls` : null, tone: failed ? "warn" : undefined },
           { label: "Recorded cost", value: amounts(rows.map((r) => ({ currency: r.currency, amount: r.cost }))), note: "From the prices entered under Keys & accounts" },
           { label: "Average response", value: avgMs == null ? "—" : `${(avgMs / 1000).toFixed(1)}s`, note: "Time the vendor took to answer" },
@@ -335,11 +342,59 @@ export function LoggedCallsSummary({ hours }: { hours: number }) {
       />
       <Highlights
         items={[
-          ...byVendor.filter((v) => v.failed > 0).map((v) => `${vendorName(v.name)}: ${count(v.failed)} of ${count(v.calls)} calls failed (${pctLabel(pct(v.failed, v.calls))}).`),
+          ...failing.slice(0, 3).map((v) => `${vendorName(v.name)}: ${count(v.failed)} of ${count(v.calls)} calls failed (${pctLabel(pct(v.failed, v.calls))}).`),
+          failing.length > 3 && `${failing.length - 3} more vendors had failures. See the table below.`,
           busiest && `Most used: ${vendorName(busiest.vendor)} ${humanize(busiest.operation).toLowerCase()}, ${count(busiest.calls)} calls.`,
         ]}
       />
+      {byVendor.length > 0 && <VendorBreakdown vendors={byVendor} />}
     </div>
   );
 }
 
+
+const BREAKDOWN_ROWS = 8;
+
+/** Calls per vendor, busiest first: a few rows, with the rest one click away. */
+function VendorBreakdown({ vendors }: { vendors: Array<{ name: string; calls: number; failed: number }> }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? vendors : vendors.slice(0, BREAKDOWN_ROWS);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Calls by vendor</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Vendor</TableHead>
+                <TableHead className="text-right">Calls</TableHead>
+                <TableHead className="text-right">Failed</TableHead>
+                <TableHead className="text-right">Failure rate</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shown.map((v) => (
+                <TableRow key={v.name}>
+                  <TableCell className="break-all font-medium">{vendorName(v.name)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{count(v.calls)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{v.failed ? count(v.failed) : "—"}</TableCell>
+                  <TableCell className="text-right tabular-nums">{v.failed ? pctLabel(pct(v.failed, v.calls)) : "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        {vendors.length > BREAKDOWN_ROWS && (
+          <div className="pt-3 text-center">
+            <Button variant="outline" size="sm" onClick={() => setAll((a) => !a)}>
+              {all ? "Show fewer" : `Show all ${vendors.length} vendors`}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
