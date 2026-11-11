@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Coins, DollarSign, Unplug, Zap } from "lucide-react";
+import { BalancesTab } from "@/components/external-apis/BalancesTab";
 import { KeyAccountsTab } from "@/components/external-apis/KeyAccountsTab";
 import { LoggedVendorsCard } from "@/components/external-apis/LoggedVendorsCard";
 import { NotificationLogCard } from "@/components/external-apis/NotificationLogCard";
@@ -435,6 +436,7 @@ export default function ExternalApisPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="balances">Balances</TabsTrigger>
           <TabsTrigger value="recent">Recent calls</TabsTrigger>
           <TabsTrigger value="ai">AI calls</TabsTrigger>
           <TabsTrigger value="telephony">Telephony</TabsTrigger>
@@ -445,6 +447,7 @@ export default function ExternalApisPage() {
           <TabsTrigger value="vendors">All vendors</TabsTrigger>
         </TabsList>
         <TabsContent value="overview"><OverviewTab hours={hours} onWiden={onWiden} /></TabsContent>
+        <TabsContent value="balances"><BalancesTab /></TabsContent>
         <TabsContent value="recent">
           <RecentCallsTab hours={hours} onWiden={onWiden} onOpenMessaging={() => setTab("messaging")} />
         </TabsContent>
