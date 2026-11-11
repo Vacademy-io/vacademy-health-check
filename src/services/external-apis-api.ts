@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import api from "@/lib/axios";
 import { API_PREFIXES } from "@/lib/constants";
 import type { SpendBreakdownRow } from "@/types/external-apis";
+import type { VendorBalance } from "@/components/external-apis/balances";
 
 // Two sources, on purpose:
 // - AI call metadata and cost come from ai_usage_event through the analytics-api SQL proxy,
@@ -604,5 +605,48 @@ export function useCommunicationLogDetail(id: string | null) {
     },
     enabled: id != null,
     retry: false,
+  });
+}
+
+// Live balances, each from the vendor's own API: ai-service for the keys it holds (OpenRouter,
+// fal.ai, RunPod), admin-core for every institute's Exotel and Plivo account. Both cache for
+// ten minutes and accept a forced refresh at most every 30 seconds.
+export const BALANCE_SOURCES = {
+  platform: `${API_PREFIXES.AI}/external-apis/balances`,
+  telephony: `${API_PREFIXES.ADMIN_CORE}/external-apis/telephony-balances`,
+} as const;
+
+export type BalanceSource = keyof typeof BALANCE_SOURCES;
+
+const balancesQueryKey = (source: BalanceSource) => ["external-apis", "balances", source];
+
+const fetchBalances = async (source: BalanceSource, refresh: boolean): Promise<VendorBalance[]> => {
+  const { data } = await api.get<{ balances: VendorBalance[] }>(BALANCE_SOURCES[source], {
+    params: refresh ? { refresh: true } : undefined,
+  });
+  return data.balances ?? [];
+};
+
+export function useVendorBalances(source: BalanceSource) {
+  return useQuery({
+    queryKey: balancesQueryKey(source),
+    queryFn: () => fetchBalances(source, false),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+/** Asks both services to check the vendors again; a source that fails keeps its last rows. */
+export function useRefreshBalances() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const sources = Object.keys(BALANCE_SOURCES) as BalanceSource[];
+      const results = await Promise.allSettled(sources.map((s) => fetchBalances(s, true)));
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled") queryClient.setQueryData(balancesQueryKey(sources[i]), r.value);
+      });
+      if (results.every((r) => r.status === "rejected")) throw (results[0] as PromiseRejectedResult).reason;
+    },
   });
 }
