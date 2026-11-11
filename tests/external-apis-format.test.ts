@@ -57,7 +57,7 @@ test("windowLabel names the range", () => {
 const failure = (status: number, data?: unknown) => ({ response: { status, data } });
 
 test("explainError says what to do, not just a status code", () => {
-  assert.match(explainError(failure(403)), /SUPER_ADMIN_USER_IDS/);
+  assert.match(explainError(failure(403)), /super-admin access/);
   assert.match(explainError(failure(401)), /Sign in again/);
   assert.match(explainError(failure(408)), /shorter time range/);
   assert.match(explainError(failure(500, { error: "boom" })), /error \(500\).*boom/);
