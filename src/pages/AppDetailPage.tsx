@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/shared/PageHeader";
 import { ToastStack, useToasts } from "@/components/shared/Toast";
 import { AssetStudio, PlatformTabs } from "@/components/apps/AssetStudio";
+import { IosBuildPanel } from "@/components/apps/IosBuildPanel";
 import { ChecklistPanel, RegistrationProgressCard } from "@/components/apps/ChecklistPanel";
 import { FieldGrid, FieldRenderer } from "@/components/apps/FieldRenderer";
 import { FirebaseConfigCheck } from "@/components/apps/FirebaseConfigCheck";
@@ -595,7 +596,8 @@ export default function AppDetailPage() {
           <PrivacySecurityPanel app={app} onChange={update} />
         </TabsContent>
 
-        <TabsContent value="builds">
+        <TabsContent value="builds" className="space-y-4">
+          {platform === "IOS" && app.platforms.IOS?.enabled && <IosBuildPanel appId={app.id} notify={push} />}
           <OtaBuildCheck apps={[app]} onChange={update} notify={push} />
         </TabsContent>
 
