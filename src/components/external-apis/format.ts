@@ -44,10 +44,13 @@ export const MODEL_VENDOR_PREFIX = "model:";
 /** Prefix on vendors worked out from the route map or the feature, not recorded on the call. */
 export const LIKELY_VENDOR_PREFIX = "likely:";
 export const NO_VENDOR = "none";
+/** Prefix on usage with no vendor at all, followed by the feature that used it. */
+export const NO_VENDOR_PREFIX = "none:";
 
 /** A vendor as people call it. Hosts stay as they are, since they are already precise. */
 export const vendorName = (raw: string | null | undefined): string => {
-  if (!raw || raw === NO_VENDOR || raw === "unknown") return "Vendor not recorded";
+  if (!raw || raw === NO_VENDOR || raw === "unknown") return "Vendor not tracked";
+  if (raw.startsWith(NO_VENDOR_PREFIX)) return `${raw.slice(NO_VENDOR_PREFIX.length)} (vendor not tracked)`;
   if (raw.startsWith(LIKELY_VENDOR_PREFIX)) {
     return `${vendorName(raw.slice(LIKELY_VENDOR_PREFIX.length))} (likely)`;
   }
