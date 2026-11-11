@@ -85,3 +85,46 @@ export function JsonBlock({ title, body, empty }: { title: string; body: string 
     </div>
   );
 }
+
+export interface Tile {
+  label: string;
+  value: string;
+  note?: string | null;
+  /** "warn" draws attention to a figure someone should act on. */
+  tone?: "warn";
+}
+
+/** A row of headline figures at the top of a tab. */
+export function Tiles({ items, loading }: { items: Tile[]; loading?: boolean }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((t) => (
+        <div key={t.label} className="rounded-lg border bg-card p-4">
+          <p className="text-xs font-medium text-muted-foreground">{t.label}</p>
+          {loading ? (
+            <div className="mt-2 h-7 w-24 animate-pulse rounded bg-muted" />
+          ) : (
+            <p className={`mt-1 text-2xl font-semibold tabular-nums ${t.tone === "warn" ? "text-amber-700 dark:text-amber-400" : ""}`}>
+              {t.value}
+            </p>
+          )}
+          {!loading && t.note && <p className="mt-1 text-xs text-muted-foreground">{t.note}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Plain sentences about what the numbers mean. Renders nothing when there is nothing to say. */
+export function Highlights({ items, title = "What stands out" }: { items: Array<string | null | false | undefined>; title?: string }) {
+  const lines = items.filter((l): l is string => !!l);
+  if (!lines.length) return null;
+  return (
+    <div className="rounded-lg border bg-muted/40 p-4">
+      <p className="mb-2 text-sm font-medium">{title}</p>
+      <ul className="list-disc space-y-1 pl-5 text-sm">
+        {lines.map((l) => <li key={l}>{l}</li>)}
+      </ul>
+    </div>
+  );
+}

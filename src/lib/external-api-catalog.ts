@@ -18,17 +18,17 @@ export interface ExternalVendor {
 }
 
 export const CAPTURE_LABELS: Record<CaptureLevel, string> = {
-  full: "Payload + response",
-  partial: "Partial",
-  metered: "Cost only, no bodies",
-  none: "Not captured",
+  full: "Every call, with what was sent and received",
+  partial: "Some of each call",
+  metered: "Each call and its cost",
+  none: "Nothing",
   unverified: "Not verified",
 };
 
 export const BILLING_LABELS: Record<BillingLevel, string> = {
-  credits: "Deducts credits",
-  partial: "Some paths deduct",
-  none: "No deduction",
+  credits: "Yes, in credits",
+  partial: "For some features",
+  none: "No",
   unverified: "Not verified",
 };
 

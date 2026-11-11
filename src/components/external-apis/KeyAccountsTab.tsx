@@ -16,8 +16,8 @@ import {
   type OwnerSource,
   type PlatformKeyRow,
 } from "@/services/external-apis-api";
-import { vendorName } from "./format";
-import { EmptyNote, ErrorNote } from "./parts";
+import { instituteKeyKind, keyLabel, serviceName, vendorName } from "./format";
+import { EmptyNote, ErrorNote, Highlights, Tiles } from "./parts";
 
 const SOURCE_LABELS: Record<OwnerSource, string> = {
   stored: "Recorded on the key",
@@ -35,7 +35,7 @@ const UNIT_LABELS: Record<string, string> = {
 };
 
 const configuredLabel = (configured: boolean | null) =>
-  configured == null ? "Held by another service" : configured ? "Set" : "Not set";
+  configured == null ? "Can't be checked from here" : configured ? "Set up" : "Not set up";
 
 const priceLabel = (row: PlatformKeyRow) =>
   row.price == null ? null : `${row.currency} ${row.price} ${UNIT_LABELS[row.price_unit ?? ""] ?? ""}`.trim();
@@ -45,7 +45,7 @@ function OpenRouterCheck({ hint }: { hint: string }) {
   if (check.data) {
     return (
       <p className="text-xs text-muted-foreground">
-        OpenRouter creator: {check.data.creator_user_id ?? "not reported"}
+        OpenRouter account: {check.data.creator_user_id ?? "not reported"}
         {check.data.usage_monthly != null && ` · $${check.data.usage_monthly.toFixed(2)} this month`}
         {check.data.limit != null && ` · limit $${check.data.limit}`}
       </p>
@@ -106,7 +106,7 @@ function DetailsDialog({ row, units, currencies, onClose }: {
         <DialogHeader><DialogTitle>{vendorName(row.vendor)} details</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
-            {row.key_hint ? `Key …${row.key_hint}` : row.credential}. These are entered by hand and not checked with the vendor. Never paste a key here.
+            {row.key_hint ? `Key ending …${row.key_hint}` : keyLabel(row.credential)}. These are entered by hand and not checked with the vendor. Never paste a key here.
           </p>
           <div className="space-y-1">
             <Label htmlFor="key-account">Account</Label>
@@ -171,12 +171,31 @@ export function KeyAccountsTab() {
   const { platform_keys: platform, institute_keys: institute, price_units: units, currencies } = accounts.data;
   const known = platform.filter((r) => r.owner).length;
   const priced = platform.filter((r) => r.price != null).length;
+  const set = platform.filter((r) => r.configured === true).length;
+  const missing = platform.filter((r) => r.configured === false);
+  const unknownOwner = platform.filter((r) => r.configured !== false && !r.owner);
+  const instituteCount = new Set(institute.map((r) => r.institute_id)).size;
 
   return (
     <div className="space-y-6">
+      <Tiles
+        items={[
+          { label: "Our keys set up", value: `${set} of ${platform.length}`, note: missing.length ? `${missing.length} not set up` : "All set up" },
+          { label: "Account known", value: `${known} of ${platform.length}`, note: "Whose vendor account each key bills", tone: unknownOwner.length ? "warn" : undefined },
+          { label: "Price entered", value: `${priced} of ${platform.length}`, note: "Needed to cost the calls we log" },
+          { label: "Institutes with their own keys", value: String(instituteCount), note: "The vendor bills them, not us" },
+        ]}
+      />
+      <Highlights
+        items={[
+          unknownOwner.length > 0 &&
+            `${unknownOwner.length} key${unknownOwner.length === 1 ? " has" : "s have"} no known account (${[...new Set(unknownOwner.map((r) => vendorName(r.vendor)))].slice(0, 6).join(", ")}). Fill them in with "Edit details" so each vendor bill can be matched to a key.`,
+          missing.length > 0 && `Not set up: ${missing.map((r) => vendorName(r.vendor)).join(", ")}. Features that need them won't work.`,
+        ]}
+      />
       <Card>
         <CardHeader className="space-y-1">
-          <CardTitle className="text-base">Platform keys</CardTitle>
+          <CardTitle className="text-base">Our keys</CardTitle>
           <p className="text-xs text-muted-foreground">
             Account known for {known} of {platform.length}, price entered for {priced}. Only the last four characters of a key are ever shown.
           </p>
@@ -186,7 +205,7 @@ export function KeyAccountsTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>Vendor</TableHead>
-                <TableHead>Configured as</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Key</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead>How we know</TableHead>
@@ -199,8 +218,8 @@ export function KeyAccountsTab() {
                 <TableRow key={r.details_key}>
                   <TableCell className="font-medium">{vendorName(r.vendor)}</TableCell>
                   <TableCell>
-                    <div className="font-mono text-xs">{r.credential}</div>
-                    <div className="text-xs text-muted-foreground">{r.service} · {configuredLabel(r.configured)}</div>
+                    <div className="text-xs">{configuredLabel(r.configured)}</div>
+                    <div className="text-xs text-muted-foreground">{keyLabel(r.credential)} · {serviceName(r.service)}</div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-mono text-xs">{r.key_hint ? `…${r.key_hint}` : "—"}</TableCell>
                   <TableCell>
@@ -226,7 +245,7 @@ export function KeyAccountsTab() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-base">Institutes' own keys</CardTitle>
           <p className="text-xs text-muted-foreground">
-            These credentials were configured for the institute shown, so we treat the account as theirs. WhatsApp, email and Firebase settings live in notification-service and are not listed yet.
+            Accounts an institute connected itself, so the vendor bills them, not us. Their WhatsApp and email accounts aren't listed yet.
           </p>
         </CardHeader>
         <CardContent>
@@ -237,7 +256,7 @@ export function KeyAccountsTab() {
                   <TableHead>Vendor</TableHead>
                   <TableHead>Institute</TableHead>
                   <TableHead>Vendor account ID</TableHead>
-                  <TableHead>Stored in</TableHead>
+                  <TableHead>Kind</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -246,7 +265,7 @@ export function KeyAccountsTab() {
                     <TableCell className="font-medium">{vendorName(r.vendor)}</TableCell>
                     <TableCell>{r.institute_name ?? r.institute_id}</TableCell>
                     <TableCell className="font-mono text-xs">{r.account_ref ?? "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{r.credential}</TableCell>
+                    <TableCell className="text-xs">{instituteKeyKind(r.credential)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

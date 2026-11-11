@@ -17,6 +17,8 @@ export interface VendorBalance {
   spend_per_hour: number | null;
   message: string | null;
   checked_at: string;
+  /** Set on the Plivo master row: how many institute subaccounts draw on this one balance. */
+  shared_by?: number | null;
 }
 
 export const money = (amount: number | null | undefined, currency: string | null | undefined): string => {
@@ -78,10 +80,39 @@ export const agoLabel = (iso: string, now: number = Date.now()): string => {
   return `${hours} hour${hours === 1 ? "" : "s"} ago`;
 };
 
+/**
+ * Plivo subaccounts have no wallet of their own, so every one reports our master balance.
+ * Folds those into one row so the balance is shown and totalled once. Failed checks stay
+ * per institute. A row the server already folded passes through unchanged.
+ */
+export const collapseSharedPlivo = (rows: VendorBalance[]): VendorBalance[] => {
+  const readable = rows.filter((r) => r.vendor === "Plivo" && r.status === "ok");
+  if (!readable.length) return rows;
+  const shared = readable.reduce((n, r) => n + (r.shared_by ?? 1), 0);
+  const master: VendorBalance = {
+    ...readable[0],
+    account: "Vacademy master account",
+    institute_id: null,
+    institute_name: null,
+    shared_by: shared,
+    message: `Every institute's Plivo subaccount draws on this one balance (${shared} subaccount${shared === 1 ? "" : "s"}).`,
+  };
+  return [master, ...rows.filter((r) => !(r.vendor === "Plivo" && r.status === "ok"))];
+};
+
+/** Below this, an account is flagged so someone tops it up before calls or generations fail. */
+export const LOW_BALANCE: Record<string, number> = { USD: 5, INR: 500, EUR: 5, GBP: 5 };
+
+export const isLow = (row: Pick<VendorBalance, "status" | "balance" | "currency">): boolean => {
+  if (row.status !== "ok" || row.balance == null) return false;
+  const floor = LOW_BALANCE[(row.currency || "USD").toUpperCase()];
+  return floor != null && row.balance < floor;
+};
+
 /** Vendors with no balance API, and why, so the tab says what it leaves out instead of hiding it. */
 export const NOT_REPORTED: Array<{ vendors: string; reason: string }> = [
-  { vendors: "Sarvam, Serper, Mathpix, Smallest.ai", reason: "no balance API; only their own dashboards show it" },
+  { vendors: "Sarvam, Serper, Mathpix, Smallest.ai", reason: "they don't let us read the balance; check their own dashboards" },
   { vendors: "OpenAI, Gemini, Meta WhatsApp, AWS", reason: "billed to a card each month, so there is no balance to run out" },
   { vendors: "YouTube, Pexels, Pixabay", reason: "free daily quotas rather than a balance" },
-  { vendors: "WATI, CloudConvert", reason: "report a balance, but their keys sit in notification-service and media-service; next to add" },
+  { vendors: "WATI, CloudConvert", reason: "they report a balance, but we can't read it from here yet; coming next" },
 ];

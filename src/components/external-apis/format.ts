@@ -116,7 +116,7 @@ export const explainError = (error: unknown): string => {
   }
   if (status === 401) return "Your session has expired. Sign in again.";
   if (status === 403) {
-    return "This account is not allowed to see this. Ask for your user ID to be added to SUPER_ADMIN_USER_IDS.";
+    return "Your account does not have super-admin access to this. Ask an engineer to grant it.";
   }
   if (status === 404) return `This is not on the server yet, or the record no longer exists.${said}`;
   if (status === 408 || status === 504) return "This took too long to load. Try a shorter time range.";
@@ -130,3 +130,45 @@ export const explainError = (error: unknown): string => {
 /** Filter options from what is on screen, keeping the active filter when no row matches it. */
 export const optionsFrom = (values: Array<string | null | undefined>, selected?: string) =>
   [...new Set([...values, selected].filter((v): v is string => !!v))].sort();
+
+const SERVICE_NAMES: Record<string, string> = {
+  ai: "AI service",
+  ai_service: "AI service",
+  "admin-core": "Main app",
+  admin_core: "Main app",
+  admin_core_service: "Main app",
+  notification: "Messaging service",
+  notification_service: "Messaging service",
+  media: "File service",
+  media_service: "File service",
+  assessment: "Assessments",
+  community: "Community",
+  "voice-bot": "Voice bot",
+  auth: "Sign-in",
+};
+
+/** Our own services by what they do, not their code names. "ai, admin-core" becomes "AI service, Main app". */
+export const serviceName = (raw: string | null | undefined): string =>
+  !raw
+    ? "—"
+    : raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => SERVICE_NAMES[s.toLowerCase()] ?? humanize(s))
+        .join(", ");
+
+/** Where an institute's own credential is kept, in words. */
+export const instituteKeyKind = (credential: string): string =>
+  ({
+    ai_api_keys: "Their own AI key",
+    institute_payment_gateway_mapping: "Payment gateway",
+    institute_telephony_config: "Telephony account",
+  })[credential] ?? humanize(credential);
+
+/** A platform key by its label: a stored key keeps its label, an environment key is "Main key". */
+export const keyLabel = (credential: string): string => {
+  const stored = credential.match(/^llm_provider_keys:\s*(.+)$/);
+  if (stored) return `Stored key "${stored[1]}"`;
+  return /_KEYS$/.test(credential) ? "Key pool" : "Main key";
+};

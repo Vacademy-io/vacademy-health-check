@@ -650,3 +650,215 @@ export function useRefreshBalances() {
     },
   });
 }
+
+// --- Tab summaries. Aggregates only (counts and sums), under the SQL proxy rule at the top. ---
+
+const insightQuery = <Row>(name: string, hours: number, sql: string) =>
+  ({
+    queryKey: ["external-apis", "insight", name, hours],
+    queryFn: () => aiQuery<Row>(sql, [hours]),
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+  }) as const;
+
+export interface AiPeriodRow {
+  /** True for the selected window, false for the window of the same length before it. */
+  current: boolean;
+  calls: number;
+  cost_usd: number;
+  credits: number;
+  dropped_calls: number;
+  institutes: number;
+}
+
+export function useAiPeriods(hours: number) {
+  return useQuery(insightQuery<AiPeriodRow>("ai-periods", hours, `
+    SELECT occurred_at > now() - make_interval(hours => $1::int) AS current,
+           count(*)::int AS calls,
+           coalesce(sum(real_cost_usd), 0)::float8 AS cost_usd,
+           coalesce(sum(credits_charged - refunded_credits), 0)::float8 AS credits,
+           (count(*) FILTER (WHERE charge_status = 'DROPPED_INSUFFICIENT'))::int AS dropped_calls,
+           count(DISTINCT institute_id)::int AS institutes
+      FROM ai_usage_event
+     WHERE occurred_at > now() - make_interval(hours => $1::int * 2)
+     GROUP BY 1`));
+}
+
+export interface InstituteCostRow {
+  institute_id: string;
+  institute_name: string | null;
+  calls: number;
+  cost_usd: number;
+  credits: number;
+  dropped_calls: number;
+}
+
+export function useAiTopInstitutes(hours: number) {
+  return useQuery(insightQuery<InstituteCostRow>("ai-institutes", hours, `
+    SELECT e.institute_id::text AS institute_id, i.name AS institute_name,
+           count(*)::int AS calls,
+           coalesce(sum(e.real_cost_usd), 0)::float8 AS cost_usd,
+           coalesce(sum(e.credits_charged - e.refunded_credits), 0)::float8 AS credits,
+           (count(*) FILTER (WHERE e.charge_status = 'DROPPED_INSUFFICIENT'))::int AS dropped_calls
+      FROM ai_usage_event e
+      LEFT JOIN institutes i ON i.id = e.institute_id::text
+     WHERE e.occurred_at > now() - make_interval(hours => $1::int) AND e.institute_id IS NOT NULL
+     GROUP BY 1, 2
+     ORDER BY cost_usd DESC, credits DESC
+     LIMIT 8`));
+}
+
+export interface ChargeOutcomeRow {
+  charge_status: string;
+  calls: number;
+  cost_usd: number;
+  credits: number;
+}
+
+export function useChargeOutcomes(hours: number) {
+  return useQuery(insightQuery<ChargeOutcomeRow>("ai-charges", hours, `
+    SELECT charge_status, count(*)::int AS calls,
+           coalesce(sum(real_cost_usd), 0)::float8 AS cost_usd,
+           coalesce(sum(credits_charged - refunded_credits), 0)::float8 AS credits
+      FROM ai_usage_event
+     WHERE occurred_at > now() - make_interval(hours => $1::int)
+     GROUP BY 1
+     ORDER BY calls DESC`));
+}
+
+// telephony_call_log, payment_log and web_hook keep UTC in zoneless timestamps.
+const UTC_WINDOW = "(now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'";
+
+export interface TelephonyStatusRow {
+  provider: string;
+  status: string;
+  calls: number;
+  seconds: number;
+  /** Sum of the price the provider reported. Exotel reports one (INR); Plivo does not. */
+  price: number;
+  priced_calls: number;
+  billed_calls: number;
+}
+
+export function useTelephonySummary(hours: number) {
+  return useQuery(insightQuery<TelephonyStatusRow>("telephony", hours, `
+    SELECT provider_type AS provider, status, count(*)::int AS calls,
+           coalesce(sum(duration_seconds), 0)::float8 AS seconds,
+           coalesce(sum(price), 0)::float8 AS price,
+           (count(*) FILTER (WHERE price IS NOT NULL))::int AS priced_calls,
+           (count(*) FILTER (WHERE credits_billed_at IS NOT NULL))::int AS billed_calls
+      FROM telephony_call_log
+     WHERE created_at > ${UTC_WINDOW}
+     GROUP BY 1, 2`));
+}
+
+export interface TelephonyInstituteRow {
+  institute_id: string;
+  institute_name: string | null;
+  provider: string;
+  calls: number;
+  connected: number;
+  seconds: number;
+  price: number;
+}
+
+export function useTelephonyTopInstitutes(hours: number) {
+  return useQuery(insightQuery<TelephonyInstituteRow>("telephony-institutes", hours, `
+    SELECT t.institute_id, i.name AS institute_name, t.provider_type AS provider,
+           count(*)::int AS calls,
+           (count(*) FILTER (WHERE t.status = 'COMPLETED'))::int AS connected,
+           coalesce(sum(t.duration_seconds), 0)::float8 AS seconds,
+           coalesce(sum(t.price), 0)::float8 AS price
+      FROM telephony_call_log t
+      LEFT JOIN institutes i ON i.id = t.institute_id
+     WHERE t.created_at > ${UTC_WINDOW}
+     GROUP BY 1, 2, 3
+     ORDER BY seconds DESC, calls DESC
+     LIMIT 10`));
+}
+
+export interface PaymentSummaryRow {
+  vendor: string;
+  currency: string;
+  status: string;
+  payments: number;
+  amount: number;
+}
+
+export function usePaymentSummary(hours: number) {
+  return useQuery(insightQuery<PaymentSummaryRow>("payments", hours, `
+    SELECT coalesce(nullif(vendor, ''), 'unknown') AS vendor,
+           coalesce(upper(nullif(currency, '')), '') AS currency,
+           coalesce(nullif(payment_status, ''), 'UNKNOWN') AS status,
+           count(*)::int AS payments,
+           coalesce(sum(payment_amount), 0)::float8 AS amount
+      FROM payment_log
+     WHERE created_at > ${UTC_WINDOW}
+     GROUP BY 1, 2, 3`));
+}
+
+export interface WebhookSummaryRow {
+  vendor: string;
+  status: string;
+  events: number;
+}
+
+export function useWebhookSummary(hours: number) {
+  return useQuery(insightQuery<WebhookSummaryRow>("webhooks", hours, `
+    SELECT vendor, status, count(*)::int AS events
+      FROM web_hook
+     WHERE created_at > ${UTC_WINDOW}
+     GROUP BY 1, 2`));
+}
+
+export interface LoggedCallSummaryRow {
+  vendor: string;
+  operation: string;
+  calls: number;
+  failed: number;
+  cost: number;
+  currency: string | null;
+  avg_ms: number | null;
+}
+
+export function useLoggedCallSummary(hours: number) {
+  return useQuery(insightQuery<LoggedCallSummaryRow>("logged-calls", hours, `
+    SELECT vendor, operation, count(*)::int AS calls,
+           (count(*) FILTER (WHERE status = 'FAILED'))::int AS failed,
+           coalesce(sum(cost_amount), 0)::float8 AS cost,
+           max(cost_currency) AS currency,
+           avg(duration_ms)::float8 AS avg_ms
+      FROM external_api_call_log
+     WHERE occurred_at > now() - make_interval(hours => $1::int)
+     GROUP BY 1, 2
+     ORDER BY calls DESC`));
+}
+
+/** WATI bulk-send totals, read as page totals from the payload endpoint (one row per request). */
+export function useCommunicationTotals(hours: number) {
+  return useQuery({
+    queryKey: ["external-apis", "insight", "communication", hours],
+    queryFn: async () => {
+      const total = async (status?: string) => {
+        const { data } = await api.get<CommunicationLogPage>(
+          `${API_PREFIXES.NOTIFICATION}/external-communication-logs`,
+          { params: { hours, page: 0, size: 1, ...(status ? { status } : {}) } },
+        );
+        return data.totalElements ?? 0;
+      };
+      const [all, success, failed] = await Promise.all([total(), total("SUCCESS"), total("FAILED")]);
+      return { all, success, failed };
+    },
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+}
+
+/** This window and the one before it, for "up 20% on the 7 days before". */
+export function useAiComparison(hours: number) {
+  const periods = useAiPeriods(hours);
+  const rows = periods.data ?? [];
+  const empty = { current: false, calls: 0, cost_usd: 0, credits: 0, dropped_calls: 0, institutes: 0 };
+  const pick = (current: boolean): AiPeriodRow => rows.find((r) => r.current === current) ?? { ...empty, current };
+  return { now: pick(true), before: pick(false), ready: !!periods.data };
+}
