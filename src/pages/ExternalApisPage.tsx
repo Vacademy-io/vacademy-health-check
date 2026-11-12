@@ -4,6 +4,7 @@ import { Coins, DollarSign, Unplug, Zap } from "lucide-react";
 import { AllVendorsOverview } from "@/components/external-apis/AllVendorsOverview";
 import { BalancesTab } from "@/components/external-apis/BalancesTab";
 import { KeyAccountsTab } from "@/components/external-apis/KeyAccountsTab";
+import { MessagingOverview } from "@/components/external-apis/MessagingOverview";
 import { LoggedVendorsCard } from "@/components/external-apis/LoggedVendorsCard";
 import { NotificationLogCard } from "@/components/external-apis/NotificationLogCard";
 import { VendorLogCard } from "@/components/external-apis/VendorLogCard";
@@ -15,7 +16,6 @@ import { SpendBreakdownCharts } from "@/components/external-apis/SpendBreakdownC
 import {
   AiCallsSummary,
   LoggedCallsSummary,
-  MessagingSummary,
   PaymentsSummary,
   RecentCallsSummary,
   TelephonySummary,
@@ -532,7 +532,7 @@ export default function ExternalApisPage() {
           />
         </TabsContent>
         <TabsContent value="messaging" className="space-y-6">
-          <MessagingSummary hours={hours} />
+          <MessagingOverview hours={hours} />
           <MessagingLogsTab hours={hours} onWiden={onWiden} />
           <NotificationLogCard hours={hours} onWiden={onWiden} />
         </TabsContent>
@@ -546,6 +546,7 @@ export default function ExternalApisPage() {
             description="Every request to vendors that log each call (Serper image search today), failed ones included. Cost comes from the price entered under Keys & accounts."
             source="calls"
             hours={hours}
+            showHttpStatus
             operationLabel="Operation"
             amountLabel="Cost"
             showInstitute

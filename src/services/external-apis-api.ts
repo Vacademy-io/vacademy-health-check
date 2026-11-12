@@ -44,10 +44,12 @@ const vendorSql = (t = "") => `coalesce(
       (SELECT uc.label FROM ai_use_case_catalog uc WHERE uc.use_case = ${t || "ai_usage_event."}use_case),
       ${t}use_case, 'unknown'))`;
 
-async function aiQuery<Row>(sql: string, params: unknown[]): Promise<Row[]> {
-  const { data } = await api.post<{ rows: Row[] }>(QUERY_ENDPOINT, { db: AI_DB, sql, params });
+async function dbQuery<Row>(db: string, sql: string, params: unknown[]): Promise<Row[]> {
+  const { data } = await api.post<{ rows: Row[] }>(QUERY_ENDPOINT, { db, sql, params });
   return data.rows;
 }
+
+const aiQuery = <Row>(sql: string, params: unknown[]) => dbQuery<Row>(AI_DB, sql, params);
 
 export interface ProviderTotalsRow {
   provider: string;
@@ -312,6 +314,8 @@ export interface VendorLogRow {
   currency: string | null;
   duration_ms: number | null;
   credits_billed: boolean | null;
+  /** The vendor's HTTP status, for logged vendor calls. Null when there was no response. */
+  http_status?: number | null;
 }
 
 export interface VendorLogPage {
@@ -861,4 +865,143 @@ export function useAiComparison(hours: number) {
   const empty = { current: false, calls: 0, cost_usd: 0, credits: 0, dropped_calls: 0, institutes: 0 };
   const pick = (current: boolean): AiPeriodRow => rows.find((r) => r.current === current) ?? { ...empty, current };
   return { now: pick(true), before: pick(false), ready: !!periods.data };
+}
+
+export interface LoggedFailureRow {
+  vendor: string;
+  http_status: number | null;
+  failed: number;
+  last_at: string;
+}
+
+/** Failed logged calls by vendor and HTTP status, most frequent first. */
+export function useLoggedFailures(hours: number) {
+  return useQuery(insightQuery<LoggedFailureRow>("logged-failures", hours, `
+    SELECT vendor, http_status, count(*)::int AS failed, max(occurred_at) AS last_at
+      FROM external_api_call_log
+     WHERE occurred_at > now() - make_interval(hours => $1::int) AND status = 'FAILED'
+     GROUP BY 1, 2
+     ORDER BY failed DESC
+     LIMIT 50`));
+}
+
+// --- Messaging, read from notification-service's own table through the same proxy. ---
+// Aggregates only: never body, channel_id (the recipient), user_id or message_payload.
+
+const NOTIFICATION_DB = "notification_service";
+// notification_date is a zoneless timestamp holding UTC.
+const NL_WINDOW = "notification_date > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'";
+
+const messagingQuery = <Row>(name: string, hours: number, sql: string) =>
+  ({
+    queryKey: ["external-apis", "messaging", name, hours],
+    queryFn: () => dbQuery<Row>(NOTIFICATION_DB, sql, [hours]),
+    refetchInterval: 120_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+  }) as const;
+
+export interface MessageStatusRow {
+  /** EMAIL or WHATSAPP_MESSAGE_OUTGOING. */
+  channel: string;
+  /** SENT, DELIVERED, READ or FAILED from the WhatsApp status webhook; NO_STATUS when none arrived (always for email). */
+  status: string;
+  sends: number;
+  billable: number;
+}
+
+export function useMessageStatuses(hours: number) {
+  return useQuery(messagingQuery<MessageStatusRow>("statuses", hours, `
+    SELECT notification_type AS channel,
+           coalesce(nullif(delivery_status, ''), 'NO_STATUS') AS status,
+           count(*)::int AS sends,
+           (count(*) FILTER (WHERE pricing_billable))::int AS billable
+      FROM notification_log
+     WHERE notification_type IN ('EMAIL', 'WHATSAPP_MESSAGE_OUTGOING') AND ${NL_WINDOW}
+     GROUP BY 1, 2`));
+}
+
+export interface EmailEventRow {
+  /** DELIVERY, BOUNCE, COMPLAINT, OPEN, CLICK, SEND, ... as SES reports it. */
+  event: string;
+  events: number;
+}
+
+export function useEmailEvents(hours: number) {
+  // left(body, 30) and the window match idx_nl_email_event_window, so this is a range scan.
+  return useQuery(messagingQuery<EmailEventRow>("email-events", hours, `
+    SELECT upper(split_part(substr(left(body, 30), 14), E'\\n', 1)) AS event, count(*)::int AS events
+      FROM notification_log
+     WHERE notification_type = 'EMAIL_EVENT' AND ${NL_WINDOW} AND left(body, 30) LIKE 'Email Event: %'
+     GROUP BY 1`));
+}
+
+export interface WhatsAppErrorRow {
+  code: string;
+  failed: number;
+}
+
+export function useWhatsAppErrors(hours: number) {
+  return useQuery(messagingQuery<WhatsAppErrorRow>("wa-errors", hours, `
+    SELECT coalesce(nullif(delivery_error_code, ''), 'none') AS code, count(*)::int AS failed
+      FROM notification_log
+     WHERE notification_type = 'WHATSAPP_MESSAGE_OUTGOING' AND delivery_status = 'FAILED' AND ${NL_WINDOW}
+     GROUP BY 1
+     ORDER BY failed DESC
+     LIMIT 10`));
+}
+
+export interface WhatsAppPricingRow {
+  category: string;
+  messages: number;
+}
+
+/** Messages Meta says it bills for, by pricing category (marketing, utility, authentication, ...). */
+export function useWhatsAppPricing(hours: number) {
+  return useQuery(messagingQuery<WhatsAppPricingRow>("wa-pricing", hours, `
+    SELECT lower(coalesce(nullif(pricing_category, ''), 'unknown')) AS category, count(*)::int AS messages
+      FROM notification_log
+     WHERE notification_type = 'WHATSAPP_MESSAGE_OUTGOING' AND pricing_billable AND ${NL_WINDOW}
+     GROUP BY 1
+     ORDER BY messages DESC`));
+}
+
+export interface MessagingInstituteRow {
+  institute_id: string;
+  institute_name?: string | null;
+  emails: number;
+  whatsapp: number;
+  whatsapp_failed: number;
+  billable: number;
+}
+
+/** Institutes sending the most, with names looked up in admin-core (a different database). */
+export function useMessagingTopInstitutes(hours: number) {
+  return useQuery({
+    queryKey: ["external-apis", "messaging", "institutes", hours],
+    queryFn: async () => {
+      const rows = await dbQuery<MessagingInstituteRow>(NOTIFICATION_DB, `
+        SELECT institute_id,
+               (count(*) FILTER (WHERE notification_type = 'EMAIL'))::int AS emails,
+               (count(*) FILTER (WHERE notification_type = 'WHATSAPP_MESSAGE_OUTGOING'))::int AS whatsapp,
+               (count(*) FILTER (WHERE notification_type = 'WHATSAPP_MESSAGE_OUTGOING' AND delivery_status = 'FAILED'))::int AS whatsapp_failed,
+               (count(*) FILTER (WHERE pricing_billable))::int AS billable
+          FROM notification_log
+         WHERE notification_type IN ('EMAIL', 'WHATSAPP_MESSAGE_OUTGOING') AND ${NL_WINDOW}
+           AND institute_id IS NOT NULL AND institute_id <> ''
+         GROUP BY 1
+         ORDER BY count(*) DESC
+         LIMIT 10`, [hours]);
+      if (!rows.length) return rows;
+      const names = await aiQuery<{ id: string; name: string | null }>(
+        "SELECT id, name FROM institutes WHERE id = ANY($1::text[])",
+        [rows.map((r) => r.institute_id)],
+      ).catch(() => []);
+      const byId = new Map(names.map((n) => [n.id, n.name]));
+      return rows.map((r) => ({ ...r, institute_name: byId.get(r.institute_id) ?? null }));
+    },
+    refetchInterval: 120_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
 }

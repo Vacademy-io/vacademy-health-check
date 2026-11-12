@@ -11,6 +11,7 @@ import {
   type VendorLogSource,
 } from "@/services/external-apis-api";
 import { dateTime, humanize, optionsFrom, vendorName } from "./format";
+import { httpMeaning } from "./insights";
 import { EmptyNote, ErrorNote, FilterSelect, JsonBlock, Pager } from "./parts";
 
 const seconds = (ms: number | null) => (ms == null ? "—" : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`);
@@ -20,7 +21,7 @@ const money = (amount: number | null, currency: string | null) => {
   return `${currency ? `${currency} ` : ""}${amount.toFixed(digits)}`;
 };
 
-export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWiden, source, hours, operationLabel, amountLabel, showInstitute, showDuration, showCreditsBilled }: {
+export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWiden, source, hours, operationLabel, amountLabel, showInstitute, showDuration, showCreditsBilled, showHttpStatus }: {
   title: string;
   description: string;
   emptyWhat: string;
@@ -33,6 +34,8 @@ export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWide
   showInstitute?: boolean;
   showDuration?: boolean;
   showCreditsBilled?: boolean;
+  /** A status code column, for logged vendor calls. */
+  showHttpStatus?: boolean;
 }) {
   const [filters, setFilters] = useState<VendorLogFilters>({});
   const [page, setPage] = useState(0);
@@ -72,6 +75,7 @@ export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWide
                   <TableHead>Vendor</TableHead>
                   <TableHead>{operationLabel}</TableHead>
                   <TableHead>Status</TableHead>
+                  {showHttpStatus && <TableHead>Status code</TableHead>}
                   {showInstitute && <TableHead>Institute</TableHead>}
                   {showDuration && <TableHead className="text-right">Duration</TableHead>}
                   {amountLabel && <TableHead className="text-right">{amountLabel}</TableHead>}
@@ -85,7 +89,23 @@ export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWide
                     <TableCell className="whitespace-nowrap text-xs">{dateTime(r.occurred_at)}</TableCell>
                     <TableCell className="font-medium">{vendorName(r.vendor)}</TableCell>
                     <TableCell className="text-xs">{humanize(r.operation)}</TableCell>
-                    <TableCell><Badge variant="outline">{humanize(r.status)}</Badge></TableCell>
+                    <TableCell>
+                      <Badge variant={r.status === "FAILED" ? "destructive" : "outline"}>{humanize(r.status)}</Badge>
+                    </TableCell>
+                    {showHttpStatus && (
+                      <TableCell className="text-xs">
+                        {r.http_status === undefined ? (
+                          "—"
+                        ) : (
+                          <>
+                            <span className="tabular-nums">{r.http_status ?? "None"}</span>
+                            {(r.status === "FAILED" || (r.http_status ?? 0) >= 400) && (
+                              <div className="text-muted-foreground">{httpMeaning(r.http_status)}</div>
+                            )}
+                          </>
+                        )}
+                      </TableCell>
+                    )}
                     {showInstitute && <TableCell className="text-xs">{r.institute_name ?? r.institute_id ?? "—"}</TableCell>}
                     {showDuration && <TableCell className="text-right tabular-nums">{seconds(r.duration_ms)}</TableCell>}
                     {amountLabel && <TableCell className="text-right tabular-nums">{money(r.amount, r.currency)}</TableCell>}

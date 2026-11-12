@@ -8,20 +8,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   useAiPeriods,
   useChargeOutcomes,
-  useCommunicationTotals,
   useFeatureCosts,
   useLoggedCallSummary,
+  useLoggedFailures,
   usePaymentSummary,
   useTelephonySummary,
   useTelephonyTopInstitutes,
   useWebhookSummary,
 } from "@/services/external-apis-api";
 import { amountsLabel as amounts, money } from "./balances";
-import { chargeLabel, count, humanize, usd, vendorName } from "./format";
+import { chargeLabel, count, dateTime, humanize, usd, vendorName } from "./format";
 import {
   CONNECTED_CALL_STATUS,
   ENDED_CALL_STATUSES,
   groupSum,
+  httpMeaning,
   leader,
   minutes,
   pct,
@@ -278,33 +279,6 @@ export function PaymentsSummary({ hours }: { hours: number }) {
   );
 }
 
-// --- Messaging ---
-
-export function MessagingSummary({ hours }: { hours: number }) {
-  const totals = useCommunicationTotals(hours);
-  const t = totals.data;
-  if (totals.isError) return null;
-  return (
-    <div className="space-y-3">
-      <Tiles
-        loading={totals.isLoading}
-        items={[
-          { label: "WhatsApp bulk sends", value: count(t?.all), note: "Requests to WATI" },
-          { label: "Accepted by WATI", value: count(t?.success), note: t?.all ? `${pctLabel(pct(t.success, t.all))} of requests` : null },
-          { label: "Rejected", value: count(t?.failed), note: t?.all ? `${pctLabel(pct(t.failed, t.all))} of requests` : null, tone: t?.failed ? "warn" : undefined },
-          { label: "Still waiting", value: count(t ? Math.max(0, t.all - t.success - t.failed) : 0), note: "No answer from WATI yet" },
-        ]}
-      />
-      <Highlights
-        items={[
-          t && t.failed > 0 && `${count(t.failed)} bulk sends were rejected. Open one below to see WATI's reason, often an unapproved template or an expired token.`,
-          "Delivery of each email and WhatsApp message is per institute: pick one in the second table.",
-        ]}
-      />
-    </div>
-  );
-}
-
 // --- Other logged vendor calls ---
 
 export function LoggedCallsSummary({ hours }: { hours: number }) {
@@ -341,6 +315,7 @@ export function LoggedCallsSummary({ hours }: { hours: number }) {
           busiest && `Most used: ${vendorName(busiest.vendor)} ${humanize(busiest.operation).toLowerCase()}, ${count(busiest.calls)} calls.`,
         ]}
       />
+      <FailuresByStatus hours={hours} />
       {byVendor.length > 0 && <VendorBreakdown vendors={byVendor} />}
     </div>
   );
@@ -385,6 +360,57 @@ function VendorBreakdown({ vendors }: { vendors: Array<{ name: string; calls: nu
           <div className="pt-3 text-center">
             <Button variant="outline" size="sm" onClick={() => setAll((a) => !a)}>
               {all ? "Show fewer" : `Show all ${vendors.length} vendors`}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Why logged calls failed: each vendor's HTTP status, in words, most frequent first. */
+function FailuresByStatus({ hours }: { hours: number }) {
+  const failures = useLoggedFailures(hours);
+  const [all, setAll] = useState(false);
+  const rows = failures.data ?? [];
+  if (failures.isError) return <ErrorNote title="Could not load failure reasons" error={failures.error} />;
+  if (!rows.length) return null;
+  const shown = all ? rows : rows.slice(0, BREAKDOWN_ROWS);
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Why calls failed</CardTitle>
+        <p className="text-xs text-muted-foreground">Each vendor&apos;s answer code, most frequent first.</p>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Vendor</TableHead>
+                <TableHead>Status code</TableHead>
+                <TableHead>What it means</TableHead>
+                <TableHead className="text-right">Failed calls</TableHead>
+                <TableHead>Last seen</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shown.map((r) => (
+                <TableRow key={`${r.vendor}:${r.http_status}`}>
+                  <TableCell className="break-all font-medium">{vendorName(r.vendor)}</TableCell>
+                  <TableCell className="tabular-nums">{r.http_status ?? "None"}</TableCell>
+                  <TableCell className="text-xs">{httpMeaning(r.http_status)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{count(r.failed)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{dateTime(r.last_at)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        {rows.length > BREAKDOWN_ROWS && (
+          <div className="pt-3 text-center">
+            <Button variant="outline" size="sm" onClick={() => setAll((x) => !x)}>
+              {all ? "Show fewer" : `Show all ${rows.length}`}
             </Button>
           </div>
         )}

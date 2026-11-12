@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   useAiComparison,
-  useCommunicationTotals,
+  useEmailEvents,
+  useMessageStatuses,
   useLoggedCallSummary,
   usePaymentSummary,
   useTelephonySummary,
@@ -33,7 +34,8 @@ export function AllVendorsOverview({ hours, onOpen }: { hours: number; onOpen: (
   const pay = usePaymentSummary(hours);
   const hooks = useWebhookSummary(hours);
   const logged = useLoggedCallSummary(hours);
-  const wati = useCommunicationTotals(hours);
+  const messages = useMessageStatuses(hours);
+  const emailEvents = useEmailEvents(hours);
   const loading = !ready || tel.isLoading || pay.isLoading || hooks.isLoading || logged.isLoading;
   const period = periodWords(hours);
 
@@ -43,6 +45,8 @@ export function AllVendorsOverview({ hours, onOpen }: { hours: number; onOpen: (
   const loggedRows = logged.data ?? [];
   const paid = payRows.filter((r) => isPaid(r.status));
   const loggedCost = loggedRows.map((r) => ({ currency: r.currency, amount: r.cost }));
+  const msgRows = messages.data ?? [];
+  const billable = sumOf(msgRows, (r) => r.billable);
   const exotelCost = sumOf(telRows.filter((r) => r.provider === "EXOTEL"), (r) => r.price);
 
   const areas: Area[] = [
@@ -74,11 +78,16 @@ export function AllVendorsOverview({ hours, onOpen }: { hours: number; onOpen: (
     },
     {
       tab: "messaging",
-      name: "WhatsApp bulk sends",
-      calls: wati.data?.all ?? 0,
-      failed: wati.data?.failed ?? 0,
-      cost: "Not reported",
-      detail: wati.isError ? "Couldn't load" : "Through WATI",
+      name: "Email and WhatsApp",
+      calls: sumOf(msgRows, (r) => r.sends),
+      // WhatsApp messages Meta rejected, and emails that bounced.
+      failed:
+        sumOf(msgRows.filter((r) => r.channel === "WHATSAPP_MESSAGE_OUTGOING" && r.status === "FAILED"), (r) => r.sends) +
+        sumOf((emailEvents.data ?? []).filter((e) => e.event === "BOUNCE"), (e) => e.events),
+      cost: billable ? `${count(billable)} WhatsApp messages billed by Meta` : "Not reported",
+      detail: messages.isError
+        ? "Couldn't load"
+        : `${count(sumOf(msgRows.filter((r) => r.channel === "EMAIL"), (r) => r.sends))} emails, ${count(sumOf(msgRows.filter((r) => r.channel !== "EMAIL"), (r) => r.sends))} WhatsApp`,
     },
     {
       tab: "calls",
@@ -112,7 +121,7 @@ export function AllVendorsOverview({ hours, onOpen }: { hours: number; onOpen: (
             note: total ? `${pctLabel(pct(failed, total))} of calls${worst ? `, most in ${worst.row.name.toLowerCase()}` : ""}` : null,
             tone: failed ? "warn" : undefined,
           },
-          { label: "What we paid vendors", value: weCost, note: "Where the vendor reports a cost. Plivo and WATI don't." },
+          { label: "What we paid vendors", value: weCost, note: "Where the vendor reports a cost. Plivo and Meta don't send one per call." },
           { label: "Credits charged to institutes", value: credits(now.credits), note: changeLabel(now.credits, before.credits, period) },
         ]}
       />
