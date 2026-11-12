@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { BookOpen, ChevronDown, ChevronRight, Crown, Loader2, ServerOff, ShieldAlert, X } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronRight, Crown, Eye, Loader2, ServerOff, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { ToastStack, useToasts } from "@/components/shared/Toast";
 import { Toggle } from "@/components/shared/Toggle";
 import { cn } from "@/lib/utils";
 import { errorDetail } from "@/lib/eval-api-pricing";
-import { childrenByParent, grantedAncestor, pathOf, searchVisible, visibleQuestionCount } from "@/lib/content-library";
+import { childrenByParent, hiddenAncestor, pathOf, searchVisible, visibleQuestionCount } from "@/lib/content-library";
 import {
   contentLibraryHttpStatus,
   useContentLibraryTree,
@@ -19,8 +19,8 @@ import {
 import type { LibraryNode } from "@/types/content-library";
 
 /**
- * Content Library for one institute: which courses and topics it sees under
- * Content Library > Questions. Giving a course gives everything inside it.
+ * Content Library for one institute. It sees every course under Content Library >
+ * Questions unless one is hidden here. Hiding a course hides everything inside it.
  */
 export function ContentLibraryTab({ instituteId, instituteName }: { instituteId: string; instituteName: string }) {
   const tree = useContentLibraryTree();
@@ -34,7 +34,7 @@ export function ContentLibraryTab({ instituteId, instituteName }: { instituteId:
   const nodes = useMemo(() => tree.data?.nodes ?? [], [tree.data]);
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const children = useMemo(() => childrenByParent(nodes), [nodes]);
-  const granted = useMemo(() => new Set(access.data?.granted_node_ids ?? []), [access.data]);
+  const hidden = useMemo(() => new Set(access.data?.hidden_node_ids ?? []), [access.data]);
   const visible = useMemo(() => searchVisible(nodes, query), [nodes, query]);
 
   const error = tree.error ?? access.error;
@@ -104,7 +104,7 @@ export function ContentLibraryTab({ instituteId, instituteName }: { instituteId:
           <div>
             <p className="font-medium">{instituteName} owns the Content Library</p>
             <p className="text-muted-foreground">
-              It sees and edits every course ({nodes.length} topics). Give courses to other institutes from their pages.
+              It sees and edits every course ({nodes.length} topics). Hide courses from other institutes on their pages.
             </p>
           </div>
         </CardContent>
@@ -117,7 +117,8 @@ export function ContentLibraryTab({ instituteId, instituteName }: { instituteId:
     setAccess.mutate(
       { nodeId: node.id, on },
       {
-        onSuccess: () => push("success", on ? `Gave "${node.name}" to ${instituteName}` : `Took "${node.name}" back`),
+        onSuccess: () =>
+          push("success", on ? `${instituteName} sees "${node.name}" again` : `Hid "${node.name}" from ${instituteName}`),
         onError: (err) => push("error", errorDetail(err, "Could not save the change")),
         onSettled: () => setPending(null),
       }
@@ -132,8 +133,8 @@ export function ContentLibraryTab({ instituteId, instituteName }: { instituteId:
       return next;
     });
 
-  const grantedList = [...granted].filter((id) => byId.has(id));
-  const questionTotal = visibleQuestionCount(nodes, granted);
+  const hiddenList = [...hidden].filter((id) => byId.has(id));
+  const questionTotal = visibleQuestionCount(nodes, hidden);
 
   const renderLevel = (parentKey: string, depth: number): ReactNode =>
     (children.get(parentKey) ?? [])
@@ -141,16 +142,16 @@ export function ContentLibraryTab({ instituteId, instituteName }: { instituteId:
       .map((node) => {
         const kids = children.get(node.id) ?? [];
         const open = visible ? true : expanded.has(node.id);
-        const direct = granted.has(node.id);
-        const via = direct ? null : grantedAncestor(node.id, byId, granted);
+        const direct = hidden.has(node.id);
+        const via = direct ? null : hiddenAncestor(node.id, byId, hidden);
         const busy = pending === node.id;
         return (
           <div key={node.id}>
             <div
               className={cn(
                 "flex items-center gap-2 border-b py-2 pr-2 text-sm",
-                direct && "bg-primary/5",
-                via && "text-muted-foreground"
+                (direct || via) && "text-muted-foreground",
+                direct && "bg-muted/50"
               )}
               style={{ paddingLeft: `${depth * 20 + 8}px` }}
             >
@@ -170,23 +171,23 @@ export function ContentLibraryTab({ instituteId, instituteName }: { instituteId:
               <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                 {node.question_count ?? 0} questions
               </span>
-              {(node.access_count ?? 0) > 0 && (
+              {(node.hidden_count ?? 0) > 0 && (
                 <Badge variant="outline" className="hidden shrink-0 md:inline-flex">
-                  {node.access_count} institute{node.access_count === 1 ? "" : "s"}
+                  Hidden from {node.hidden_count} institute{node.hidden_count === 1 ? "" : "s"}
                 </Badge>
               )}
               {via ? (
-                <span className="shrink-0 text-xs" title={`Included with ${pathOf(via.id, byId)}`}>
-                  Included
+                <span className="shrink-0 text-xs" title={`Hidden with ${pathOf(via.id, byId)}`}>
+                  Hidden with course
                 </span>
               ) : busy ? (
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
               ) : null}
               <Toggle
-                checked={direct || !!via}
+                checked={!direct && !via}
                 disabled={!!via || setAccess.isPending}
                 onChange={(next) => toggle(node, next)}
-                label={`${direct ? "Take back" : "Give"} ${node.name}`}
+                label={`${direct ? "Show" : "Hide"} ${node.name}`}
               />
             </div>
             {open && kids.length > 0 && renderLevel(node.id, depth + 1)}
@@ -203,31 +204,34 @@ export function ContentLibraryTab({ instituteId, instituteName }: { instituteId:
             <BookOpen className="h-4 w-4" /> Content Library
           </CardTitle>
           <CardDescription>
-            Courses and topics {instituteName} sees under Content Library › Questions. Giving a course gives everything
-            inside it. With nothing given, the library is empty for this institute.
+            {instituteName} sees every course under Content Library › Questions unless it is hidden here. Turn a course
+            or topic off to hide it, with everything inside it.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {grantedList.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing given yet.</p>
+          {hiddenList.length === 0 ? (
+            <p className="text-sm">
+              Sees the whole library · <span className="font-medium">{questionTotal}</span> questions
+            </p>
           ) : (
             <>
               <p className="text-sm">
-                <span className="font-medium">{grantedList.length}</span> given ·{" "}
+                <span className="font-medium">{hiddenList.length}</span> hidden ·{" "}
                 <span className="font-medium">{questionTotal}</span> questions visible
               </p>
               <div className="flex flex-wrap gap-2">
-                {grantedList.map((id) => (
+                {hiddenList.map((id) => (
                   <Badge key={id} variant="secondary" className="gap-1 py-1 pl-2 pr-1">
                     {pathOf(id, byId)}
                     <button
                       type="button"
-                      onClick={() => toggle(byId.get(id)!, false)}
+                      onClick={() => toggle(byId.get(id)!, true)}
                       disabled={setAccess.isPending}
-                      aria-label={`Take back ${byId.get(id)!.name}`}
+                      aria-label={`Show ${byId.get(id)!.name} again`}
+                      title="Show again"
                       className="rounded-full p-0.5 hover:bg-background disabled:opacity-50"
                     >
-                      <X className="h-3 w-3" />
+                      <Eye className="h-3 w-3" />
                     </button>
                   </Badge>
                 ))}

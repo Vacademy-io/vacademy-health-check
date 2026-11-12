@@ -20,19 +20,19 @@ export function childrenByParent(nodes: LibraryNode[]): Map<string, LibraryNode[
 }
 
 /**
- * The nearest ancestor that was given, when a topic is included because a bigger topic
- * above it was given. Null when it is not, or when it was given itself.
+ * The nearest hidden ancestor, when a topic is hidden because a bigger topic above it is
+ * hidden. Null when none is, even if the topic is hidden itself.
  */
-export function grantedAncestor(
+export function hiddenAncestor(
   nodeId: string,
   byId: Map<string, LibraryNode>,
-  granted: Set<string>
+  hidden: Set<string>
 ): LibraryNode | null {
   const seen = new Set<string>();
   let current = byId.get(nodeId)?.parent_id ?? null;
   while (current && byId.has(current) && !seen.has(current)) {
     seen.add(current);
-    if (granted.has(current)) return byId.get(current) ?? null;
+    if (hidden.has(current)) return byId.get(current) ?? null;
     current = byId.get(current)?.parent_id ?? null;
   }
   return null;
@@ -72,14 +72,19 @@ export function searchVisible(nodes: LibraryNode[], query: string): Set<string> 
   return visible;
 }
 
-/** Questions an institute sees: each given topic's count, without counting a topic inside another twice. */
-export function visibleQuestionCount(nodes: LibraryNode[], granted: Set<string>): number {
+/**
+ * Questions an institute sees: the whole library minus each hidden topic's count, without
+ * taking off a topic inside another hidden topic twice. A topic's count includes the
+ * topics below it.
+ */
+export function visibleQuestionCount(nodes: LibraryNode[], hidden: Set<string>): number {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   let total = 0;
-  for (const id of granted) {
+  for (const top of childrenByParent(nodes).get("") ?? []) total += top.question_count ?? 0;
+  for (const id of hidden) {
     const node = byId.get(id);
-    if (!node || grantedAncestor(id, byId, granted)) continue;
-    total += node.question_count ?? 0;
+    if (!node || hiddenAncestor(id, byId, hidden)) continue;
+    total -= node.question_count ?? 0;
   }
-  return total;
+  return Math.max(0, total);
 }
