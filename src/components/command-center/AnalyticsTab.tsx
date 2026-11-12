@@ -68,8 +68,14 @@ export function AnalyticsTab() {
     });
     return { gaProducts: all, gaOk: ok, trafficSeries: series };
   }, [report]);
-  const visitors = gaOk.reduce((t, p) => t + p.totals.activeUsers, 0);
-  const leads = gaOk.reduce((t, p) => t + p.totals.leads, 0);
+  // Product filter: "all" or one product key; it narrows every Google Analytics section.
+  const [product, setProduct] = useState<string>("all");
+  const pick = <T extends { product: string }>(list: T[]) => (product === "all" ? list : list.filter((p) => p.product === product));
+  const shownAll = pick(gaProducts);
+  const shown = pick(gaOk);
+  const productName = product === "all" ? "All product sites" : label(product);
+  const visitors = shown.reduce((t, p) => t + p.totals.activeUsers, 0);
+  const leads = shown.reduce((t, p) => t + p.totals.leads, 0);
 
   const platformSeries = useMemo(() => {
     const active = new Map((activity.data?.daily_trends ?? []).map((t) => [t.date.slice(0, 10), t.unique_users]));
@@ -103,9 +109,29 @@ export function AnalyticsTab() {
         </div>
       </div>
 
+      {gaProducts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Product">
+          <span className="text-xs font-medium text-muted-foreground">Product:</span>
+          {["all", ...gaProducts.map((p) => p.product)].map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setProduct(key)}
+              aria-pressed={product === key}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium",
+                product === key ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
+              )}
+            >
+              {key === "all" ? "All products" : label(key)}
+            </button>
+          ))}
+        </div>
+      )}
+
       <Section title={`Last ${days} days at a glance`} description="Website numbers come from Google Analytics; accounts, trials and payments from the platform.">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <StatCard title="Website visitors" value={report?.configured ? num(visitors) : "—"} description="All product sites (GA users)" icon={Globe} />
+          <StatCard title="Website visitors" value={report?.configured ? num(visitors) : "—"} description={`${productName} (GA users)`} icon={Globe} />
           <StatCard title="Demo / lead requests" value={report?.configured ? num(leads) : "—"} description={`${pct(leads, visitors)} of visitors`} icon={MousePointerClick} />
           <StatCard title="Accounts created" value={platformLoading ? "…" : num(platform.totals.accounts)} description="New institutes" icon={Building2} />
           <StatCard title="Trials started" value={platformLoading ? "…" : num(platform.totals.trials)} description={`${num(onTrialNow)} on trial now`} icon={Sparkles} />
@@ -115,7 +141,10 @@ export function AnalyticsTab() {
       </Section>
 
       <SectionErrorBoundary title="Website traffic">
-        <Section title="Website traffic by product" description="Google Analytics users per day on each product's site.">
+        <Section
+          title={product === "all" ? "Website traffic by product" : `${label(product)} website traffic`}
+          description={product === "all" ? "Google Analytics users per day on each product's site." : `Google Analytics users per day on ${label(product)}'s site.`}
+        >
           {ga.isLoading ? (
             <Skeleton className="h-72 w-full" />
           ) : ga.isError ? (
@@ -124,8 +153,11 @@ export function AnalyticsTab() {
             <GaProblem title="Google Analytics isn't connected yet" detail={report.message} />
           ) : (
             <>
-              {gaProducts.filter((p) => p.error).map((p) => (
+              {shownAll.filter((p) => p.error).map((p) => (
                 <GaProblem key={p.product} title={`${label(p.product)}: Google Analytics returned an error`} detail={p.error} />
+              ))}
+              {shown.filter((p) => p.totals.activeUsers === 0).map((p) => (
+                <NoDataNotice key={p.product} product={p} days={days} />
               ))}
               <Card>
                 <CardContent className="pt-6">
@@ -136,17 +168,19 @@ export function AnalyticsTab() {
                       <YAxis tick={AXIS} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
                       <Tooltip contentStyle={TOOLTIP} labelFormatter={(v) => shortDate(String(v))} />
                       <Legend />
-                      {gaOk.map((p, i) => (
-                        <Line key={p.product} type="monotone" dataKey={p.product} name={label(p.product)} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
-                      ))}
+                      {gaOk.map((p, i) =>
+                        shown.includes(p) ? (
+                          <Line key={p.product} type="monotone" dataKey={p.product} name={label(p.product)} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
+                        ) : null
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
-              <ProductTable products={gaOk} />
+              <ProductTable products={shown} />
               <div className="grid gap-4 lg:grid-cols-2">
-                <SplitCard title="Devices" description="Users by device type, per product." products={gaOk} pick={(p) => p.devices} />
-                <SplitCard title="Where visitors come from" description="Top channels by users, per product." products={gaOk} pick={(p) => p.channels.slice(0, 4)} />
+                <SplitCard title="Devices" description="Users by device type." products={shown} pick={(p) => p.devices} />
+                <SplitCard title="Where visitors come from" description="Top channels by users." products={shown} pick={(p) => p.channels.slice(0, product === "all" ? 4 : 8)} />
               </div>
             </>
           )}
@@ -158,6 +192,11 @@ export function AnalyticsTab() {
           title="Accounts, trials and payments per day"
           description="From the platform, all products together: three products share one login, so these can't be split by product until each institute records its products."
         >
+          {product !== "all" && (
+            <p className="rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground">
+              The product filter applies to website numbers only. Accounts, trials, payments and active users below are all products together.
+            </p>
+          )}
           <Card>
             <CardContent className="pt-6">
               {platformLoading ? (
@@ -199,7 +238,7 @@ export function AnalyticsTab() {
               )}
             </CardContent>
           </Card>
-          <DailyTable rows={platformSeries} gaProducts={gaOk} />
+          <DailyTable rows={platformSeries} gaProducts={shown} />
         </Section>
       </SectionErrorBoundary>
     </div>
@@ -216,6 +255,37 @@ function GaProblem({ title, detail }: { title: string; detail: string | null | u
         <p className="mt-1">Setup steps: docs/command-center/GA_SETUP.md in this repository.</p>
       </div>
     </div>
+  );
+}
+
+/** A product whose site has sent Google Analytics nothing in the range: almost always the tag isn't on the site yet. */
+function NoDataNotice({ product, days }: { product: GaProductReport; days: number }) {
+  const site = product.hostnames[0] ?? `GA property ${product.propertyId}`;
+  return (
+    <div className="flex gap-2 rounded-md border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+      <div>
+        <p className="font-semibold">{label(product.product)}: not connected to Google Analytics yet</p>
+        <p className="mt-0.5">
+          No visits from {site} in the last {days} days. The site isn't sending data yet: the shared Google Analytics tag isn't on it, or it was added less
+          than a day ago (Google Analytics takes up to 24 hours to show new data).
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SiteStatus({ product }: { product: GaProductReport }) {
+  const live = product.totals.activeUsers > 0;
+  return (
+    <span
+      className={cn(
+        "ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+        live ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+      )}
+    >
+      {live ? "Connected" : "Not connected yet"}
+    </span>
   );
 }
 
@@ -242,6 +312,7 @@ function ProductTable({ products }: { products: GaProductReport[] }) {
               <tr key={p.product} className="border-b last:border-0">
                 <td className="py-2 pr-3">
                   <span className="font-medium">{label(p.product)}</span>
+                  <SiteStatus product={p} />
                   <span className="block text-[11px] text-muted-foreground">{p.hostnames.length ? p.hostnames.join(", ") : `GA property ${p.propertyId}`}</span>
                 </td>
                 <td className="px-2 py-2 text-right tabular-nums">{num(p.totals.activeUsers)}</td>
