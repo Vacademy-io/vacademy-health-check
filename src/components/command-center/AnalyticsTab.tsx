@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { AlertTriangle, Building2, Globe, IndianRupee, Loader2, MousePointerClick, Sparkles, Users } from "lucide-react";
+import { AlertTriangle, Building2, Globe, IndianRupee, Info, Loader2, MousePointerClick, Sparkles, Users } from "lucide-react";
 import { SectionErrorBoundary } from "@/components/shared/SectionErrorBoundary";
 import { StatCard } from "@/components/shared/StatCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -156,9 +156,7 @@ export function AnalyticsTab() {
               {shownAll.filter((p) => p.error).map((p) => (
                 <GaProblem key={p.product} title={`${label(p.product)}: Google Analytics returned an error`} detail={p.error} />
               ))}
-              {shown.filter((p) => p.totals.activeUsers === 0).map((p) => (
-                <NoDataNotice key={p.product} product={p} days={days} />
-              ))}
+              <NoDataNotice products={shown.filter((p) => p.totals.activeUsers === 0)} days={days} />
               <Card>
                 <CardContent className="pt-6">
                   <ResponsiveContainer width="100%" height={280}>
@@ -258,19 +256,20 @@ function GaProblem({ title, detail }: { title: string; detail: string | null | u
   );
 }
 
-/** A product whose site has sent Google Analytics nothing in the range: almost always the tag isn't on the site yet. */
-function NoDataNotice({ product, days }: { product: GaProductReport; days: number }) {
-  const site = product.hostnames[0] ?? `GA property ${product.propertyId}`;
+/**
+ * One short note for every product with no visits in the range. Either the tracking tag was added
+ * recently (a new GA property takes 24-48 hours to produce its first daily numbers) or it isn't on the site.
+ */
+function NoDataNotice({ products, days }: { products: GaProductReport[]; days: number }) {
+  if (products.length === 0) return null;
+  const sites = products.map((p) => `${label(p.product)} (${p.hostnames[0] ?? `GA property ${p.propertyId}`})`).join(", ");
   return (
-    <div className="flex gap-2 rounded-md border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200">
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-      <div>
-        <p className="font-semibold">{label(product.product)}: not connected to Google Analytics yet</p>
-        <p className="mt-0.5">
-          No visits from {site} in the last {days} days. The site isn't sending data yet: the shared Google Analytics tag isn't on it, or it was added less
-          than a day ago (Google Analytics takes up to 24 hours to show new data).
-        </p>
-      </div>
+    <div className="flex gap-2 rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+      <Info className="mt-0.5 h-4 w-4 shrink-0" />
+      <p>
+        <span className="font-semibold text-foreground">No data yet for {sites}</span> in the last {days} days. If the tracking tag was added in the last
+        two days, just wait: Google Analytics takes 24 to 48 hours to show the first daily numbers. If it has been longer, the tag isn't on that site.
+      </p>
     </div>
   );
 }
@@ -284,7 +283,7 @@ function SiteStatus({ product }: { product: GaProductReport }) {
         live ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
       )}
     >
-      {live ? "Connected" : "Not connected yet"}
+      {live ? "Receiving data" : "No data yet"}
     </span>
   );
 }
