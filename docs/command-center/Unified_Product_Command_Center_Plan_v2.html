@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unified Product Command Center v2</title>
+<style>
+  :root {
+    --ink: #1f2430; --muted: #5b6475; --line: #d9dde6; --head: #eef1fb;
+    --accent: #4f46e5; --accent-soft: #e0e3fd; --ok: #0f8a5f; --warn: #c26a00; --bad: #c62f3a;
+    --new: #fff7e0;
+  }
+  @page { size: A4; margin: 16mm 14mm 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 10.5pt/1.5 "Segoe UI", Arial, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 24pt; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 14px; }
+  h2 { color: var(--accent); font-size: 15pt; margin: 26px 0 8px; break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 16px 0 6px; break-after: avoid; }
+  p { margin: 6px 0; }
+  ul { margin: 4px 0 8px; padding-left: 20px; }
+  li { margin: 2px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 9.2pt; break-inside: auto; }
+  tr { break-inside: avoid; }
+  th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--head); font-weight: 600; }
+  code { font: 8.8pt Consolas, monospace; background: #f3f4f8; padding: 0 3px; border-radius: 3px; }
+  .lead { border-left: 3px solid var(--accent); padding: 8px 12px; background: #f7f8fe; }
+  .changed { background: var(--new); border: 1px solid #f0d99a; border-radius: 6px; padding: 8px 14px; }
+  .changed li { margin: 3px 0; }
+  .tag { display: inline-block; font-size: 8pt; font-weight: 600; padding: 0 5px; border-radius: 3px; background: var(--accent-soft); color: var(--accent); }
+  .gap { color: var(--bad); font-weight: 600; }
+  .note { color: var(--muted); font-size: 9pt; }
+  figure { margin: 10px 0 14px; break-inside: avoid; }
+  figcaption { font-weight: 600; font-size: 10pt; margin-bottom: 6px; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { font-family: "Segoe UI", Arial, sans-serif; }
+  .pb { break-before: page; }
+  footer { color: var(--muted); font-size: 8.5pt; margin-top: 24px; border-top: 1px solid var(--line); padding-top: 6px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Unified Product Command Center</h1>
+<p class="sub">Feature plan, v2 · Vacademy super admin portal · 3 November 2026</p>
+
+<p class="lead"><b>The plan:</b> add a Command Center module to the Vacademy super admin portal. It brings website traffic and
+funnel events from the four product sites together with logins, usage, AI token use and platform billing from the
+shared backend, into one analytics store. From the same screens you can create demos, start trials, and suspend,
+terminate or recreate accounts. v2 builds on what the portal and backend already have instead of rebuilding it.</p>
+
+<h2>0. What changed from v1</h2>
+<div class="changed">
+<ul>
+  <li><b>Product names corrected:</b> Vacademy.io, Voomsales, Telleo and Evalezy.</li>
+  <li><b>Reuse, don't rebuild:</b> Razorpay billing, demo provisioning, login/activity data, token metering and change history already exist (§1.3).</li>
+  <li><b>No second Razorpay webhook.</b> Revenue reads admin-core's platform billing, so there is one source of truth for payments.</li>
+  <li><b>Where things run:</b> the portal has no server, so ingestion runs in community-service (§2.1).</li>
+  <li><b>External connections listed one by one,</b> with what exists and what is missing, checked against the code on 3 Nov 2026 (§2.2).</li>
+  <li><b>Sign-in entry points:</b> Vacademy.io, Telleo and Evalezy share <code>dash.vacademy.io</code>; Voomsales signs in at <code>app.voomsales.com</code> (§2.3).</li>
+  <li><b>New prerequisite:</b> a product entitlements table. Today an institute can carry only one product (§2.2, §6).</li>
+  <li><b>GA4:</b> <code>user_id</code> is now the real user ID, with <code>institute_id</code> as a user property (§3).</li>
+  <li><b>Consent and retention</b> section added for the visitor cookie (§3.4).</li>
+  <li><b>Funnel corrected:</b> login clicks come from existing customers, so they're out of the funnel. Demo and trial are two branches (§4).</li>
+  <li><b>State machine fixed:</b> a new Expired state, plus missing edges such as Suspended → Active and Demo → Active (§5).</li>
+  <li><b>Actions split:</b> per-product actions vs account-level actions (§5).</li>
+  <li><b>Destructive actions</b> are limited to named usernames (§1.2).</li>
+  <li><b>Metric definitions tightened:</b> visitors, churn, trial-to-paid and MRR (§7).</li>
+  <li><b>Rollout reordered:</b> Revenue moves to Phase 1 because its data already exists (§8).</li>
+</ul>
+</div>
+
+<h2>1. Overview</h2>
+<p>Today each product site reports to its own analytics, usage sits in the backend, and billing sits in admin-core.
+Answering <i>"how many visitors became paying institutes this month, and on which product?"</i> means opening several
+tools and stitching the numbers together by hand.</p>
+
+<table>
+  <tr><th>Product</th><th>What it is</th><th>Website</th><th>Sign-in</th><th>Data the Command Center needs</th></tr>
+  <tr><td><b>Vacademy.io</b></td><td>LMS; base product, hosts the super admin portal</td><td>vacademy.io</td><td>dash.vacademy.io</td><td>Traffic, funnel clicks, logins, LMS usage, tokens</td></tr>
+  <tr><td><b>Voomsales</b></td><td>Sales CRM</td><td>voomsales.com</td><td>app.voomsales.com/login</td><td>Traffic, funnel clicks, logins, usage</td></tr>
+  <tr><td><b>Telleo</b></td><td>AI calling (also sold as an API at api.telleo.ai)</td><td>Own site</td><td>dash.vacademy.io</td><td>Traffic, funnel clicks, calls, tokens</td></tr>
+  <tr><td><b>Evalezy</b></td><td>Answer-sheet evaluation (also sold as an API at api.evalezy.com)</td><td>Own site</td><td>dash.vacademy.io</td><td>Traffic, funnel clicks, evaluations, tokens</td></tr>
+</table>
+<p class="note"><code>product</code> values used everywhere: <code>vacademy</code>, <code>voomsales</code>, <code>telleo</code>, <code>evalezy</code>. Vimotion is out of scope.</p>
+
+<h3>1.1 Decisions already made</h3>
+<ul>
+  <li><b>One institute ID</b> is shared across all four products. The account list and Account 360 key on it. Voomsales will move to Vacademy auth-service and the same institute IDs (§2.3).</li>
+  <li><b>Token usage is already tracked.</b> The Command Center reads it and doesn't rebuild it.</li>
+  <li><b>Razorpay</b> is the payment gateway, through the platform billing that already exists in admin-core.</li>
+</ul>
+
+<h3>1.2 Who can use it</h3>
+<p>The PM is the main user in v1, and there is no full role model. But the portal already admits every username on the
+<code>PORTAL_ALLOWED_USERS</code> allowlist, which is enforced by the portal's Cloudflare proxy. So <b>Suspend, Terminate and Recreate</b> are also
+limited to a short list of named usernames. Every destructive action needs typed confirmation and writes an audit entry.</p>
+
+<h3>1.3 Already built: reuse, don't rebuild</h3>
+<table>
+  <tr><th>Capability</th><th>Where it lives today</th><th>How the Command Center uses it</th></tr>
+  <tr><td>Platform billing via Razorpay: charges, payment links, mandates, mark paid, waive, refund, invoices, credit notes</td><td>admin-core platform billing; portal <code>plan-billing-api.ts</code>; HMAC-verified webhook <code>/payments/webhook/callback/razorpay-platform</code>; hourly reconcile jobs</td><td>Revenue screen and the Convert to paid action</td></tr>
+  <tr><td>Demo provisioning and expiry; login blocked when a demo expires</td><td>auth-service <code>/super-admin/v1/demo/provision</code>, <code>institute_trial</code> table, <code>TrialAccessGuard</code>; portal onboarding demo-accounts list</td><td>Create demo, Start / Extend trial</td></tr>
+  <tr><td>Logins, sessions, active users</td><td><code>user_session</code>, <code>user_activity_log</code>, <code>daily_user_activity_summary</code>; auth-service <code>/active-users</code>, <code>/activity-trends</code></td><td>DAU/WAU/MAU, last login, activation</td></tr>
+  <tr><td>AI token and credit usage</td><td><code>ai_usage_event</code> (use case, source service, credits, real cost), <code>ai_token_usage</code>, credits tables</td><td>Tokens per institute, per product</td></tr>
+  <tr><td>Per-institute feature switches</td><td>Institute modules and presets</td><td>Suspend a single product without blocking login</td></tr>
+  <tr><td>Lead tags <code>PROD / LEAD / TEST / FREE_TRIAL</code></td><td>Institute records</td><td>Mapped onto the new states, so there is one source of truth (§5)</td></tr>
+  <tr><td>Change history with reasons</td><td>Modules, pricing, plans, AI settings</td><td>Shown together in the Audit log screen</td></tr>
+</table>
+
+<h3>1.4 Out of scope for v1</h3>
+<ul>
+  <li>Rebuilding token metering or Razorpay integration.</li>
+  <li>Access for sales or support teams (add roles later if needed).</li>
+  <li>Customer-facing analytics for institutes, and Vimotion.</li>
+</ul>
+
+<h2>2. Architecture</h2>
+<p>The Command Center never queries GA4 or Razorpay live when a page opens. Website data is synced into one analytics
+store on a schedule, and backend data is read where it already lives. Dashboards load fast and every product is measured
+by the same definitions.</p>
+
+<figure>
+<figcaption>Sources feed one analytics store; the portal reads it and writes back lifecycle actions</figcaption>
+<svg viewBox="0 0 900 400" role="img" aria-label="Architecture: sources, ingestion, store, portal">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8a93a6"/></marker>
+  <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#4f46e5"/></marker></defs>
+  <g font-size="11" fill="#5b6475" font-weight="600"><text x="10" y="16">1. Sources</text><text x="235" y="16">2. Ingestion</text><text x="470" y="16">3. Store</text><text x="705" y="16">4. Super admin portal</text></g>
+  <g fill="#fff" stroke="#b9c0cf">
+    <rect x="10" y="30" width="190" height="64" rx="7"/><rect x="10" y="110" width="190" height="64" rx="7"/>
+    <rect x="10" y="190" width="190" height="84" rx="7"/><rect x="10" y="290" width="190" height="64" rx="7"/>
+    <rect x="235" y="30" width="190" height="64" rx="7"/><rect x="235" y="110" width="190" height="64" rx="7"/>
+    <rect x="235" y="190" width="190" height="84" rx="7"/><rect x="235" y="290" width="190" height="64" rx="7"/>
+  </g>
+  <g font-size="11.5" text-anchor="middle" fill="#1f2430">
+    <text x="105" y="54" font-weight="600">GA4 properties (x4)</text><text x="105" y="71" font-size="10" fill="#5b6475">vacademy.io, voomsales.com,</text><text x="105" y="84" font-size="10" fill="#5b6475">Telleo and Evalezy sites</text>
+    <text x="105" y="134" font-weight="600">Website tracker</text><text x="105" y="151" font-size="10" fill="#5b6475">JS snippet on all 4 sites,</text><text x="105" y="164" font-size="10" fill="#5b6475">CTA clicks, visitor_id, UTMs</text>
+    <text x="105" y="214" font-weight="600">Shared backend (existing)</text><text x="105" y="231" font-size="10" fill="#5b6475">sessions, activity, telephony,</text><text x="105" y="244" font-size="10" fill="#5b6475">evaluations, ai_usage_event,</text><text x="105" y="257" font-size="10" fill="#5b6475">demos / trials</text>
+    <text x="105" y="314" font-weight="600">Platform billing (existing)</text><text x="105" y="331" font-size="10" fill="#5b6475">admin-core; Razorpay webhook</text><text x="105" y="344" font-size="10" fill="#5b6475">+ hourly reconcile already run</text>
+    <text x="330" y="54" font-weight="600">GA4 Data API sync</text><text x="330" y="71" font-size="10" fill="#5b6475">community-service job; hourly</text><text x="330" y="84" font-size="10" fill="#5b6475">today, nightly full refresh</text>
+    <text x="330" y="134" font-weight="600">POST /public/v1/track</text><text x="330" y="151" font-size="10" fill="#5b6475">community-service, public,</text><text x="330" y="164" font-size="10" fill="#5b6475">rate-limited, bot-filtered</text>
+    <text x="330" y="214" font-weight="600">Read-only views</text><text x="330" y="231" font-size="10" fill="#5b6475">joined on institute_id;</text><text x="330" y="244" font-size="10" fill="#5b6475">use case → product mapping;</text><text x="330" y="257" font-size="10" fill="#5b6475">nightly daily aggregates</text>
+    <text x="330" y="314" font-weight="600">Read billing APIs</text><text x="330" y="331" font-size="10" fill="#5b6475">no new webhook receiver;</text><text x="330" y="344" font-size="10" fill="#5b6475">one payment source of truth</text>
+  </g>
+  <rect x="470" y="30" width="190" height="324" rx="9" fill="#f3f4f8" stroke="#b9c0cf"/>
+  <text x="565" y="54" text-anchor="middle" font-size="12" font-weight="700">analytics schema</text>
+  <g fill="#fff" stroke="#c9cfdb"><rect x="490" y="72" width="150" height="40" rx="5"/><rect x="490" y="124" width="150" height="40" rx="5"/><rect x="490" y="176" width="150" height="40" rx="5"/><rect x="490" y="228" width="150" height="40" rx="5"/><rect x="490" y="280" width="150" height="40" rx="5"/></g>
+  <g font-size="10.5" text-anchor="middle"><text x="565" y="96">web_events, visitors</text><text x="565" y="148">ga4_daily</text><text x="565" y="200">usage_daily</text><text x="565" y="252">product_entitlements</text><text x="565" y="304">lifecycle_events</text></g>
+  <rect x="705" y="30" width="185" height="324" rx="9" fill="#fff" stroke="#4f46e5" stroke-width="2"/>
+  <g fill="#fff" stroke="#4f46e5"><rect x="725" y="48" width="145" height="28" rx="5"/><rect x="725" y="84" width="145" height="28" rx="5"/><rect x="725" y="120" width="145" height="28" rx="5"/><rect x="725" y="156" width="145" height="28" rx="5"/><rect x="725" y="192" width="145" height="28" rx="5"/><rect x="725" y="228" width="145" height="28" rx="5"/><rect x="725" y="264" width="145" height="28" rx="5"/><rect x="725" y="300" width="145" height="28" rx="5"/></g>
+  <g font-size="10.5" text-anchor="middle"><text x="797" y="66">Overview</text><text x="797" y="102">Funnels &amp; traffic</text><text x="797" y="138">Accounts list</text><text x="797" y="174">Account 360</text><text x="797" y="210">Demos &amp; trials</text><text x="797" y="246">Revenue</text><text x="797" y="282">Alerts</text><text x="797" y="318">Audit log</text></g>
+  <g stroke="#8a93a6" stroke-width="1.4" marker-end="url(#a)"><line x1="200" y1="62" x2="233" y2="62"/><line x1="200" y1="142" x2="233" y2="142"/><line x1="200" y1="232" x2="233" y2="232"/><line x1="200" y1="322" x2="233" y2="322"/>
+  <line x1="425" y1="62" x2="468" y2="100"/><line x1="425" y1="142" x2="468" y2="142"/><line x1="425" y1="232" x2="468" y2="210"/></g>
+  <line x1="425" y1="322" x2="703" y2="322" stroke="#8a93a6" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#a)"/>
+  <text x="585" y="340" font-size="9.5" fill="#5b6475" text-anchor="middle">read directly</text>
+  <line x1="660" y1="150" x2="703" y2="150" stroke="#4f46e5" stroke-width="1.6" marker-end="url(#b)"/><text x="681" y="143" font-size="9.5" fill="#4f46e5" text-anchor="middle">reads</text>
+  <line x1="705" y1="240" x2="662" y2="240" stroke="#4f46e5" stroke-width="1.6" marker-end="url(#b)"/><text x="683" y="234" font-size="9.5" fill="#4f46e5" text-anchor="middle">actions</text>
+  <text x="450" y="388" font-size="10" fill="#5b6475" text-anchor="middle">Lifecycle actions call existing auth-service / admin-core endpoints and write lifecycle_events plus an audit entry.</text>
+</svg>
+</figure>
+
+<h3>2.1 Where ingestion runs</h3>
+<p>The portal is a static app behind a Cloudflare Pages proxy and has no server of its own. The GA4 sync job, the
+<code>/track</code> endpoint and the nightly aggregates run in <b>community-service</b>:</p>
+<ul>
+  <li>It already hosts the public onboarding, pricing and status endpoints, allow-listed in <code>CommunityApplicationSecurityConfig</code>.</li>
+  <li>It can use the <code>@Scheduled</code> + ShedLock pattern already used in admin-core.</li>
+</ul>
+<p><b>Store:</b> a separate <code>analytics</code> schema in the existing Postgres. Raw events move to ClickHouse or BigQuery
+only if volume makes dashboards slow.</p>
+
+<h3>2.2 External connections: what exists and what's missing</h3>
+<p class="note">Checked against the backend and site repositories on 3 November 2026.</p>
+<table>
+  <tr><th style="width:15%">Connection</th><th style="width:30%">How</th><th style="width:25%">Exists today</th><th style="width:30%">Gap / owner</th></tr>
+  <tr><td><b>GA4</b> (4 properties)</td><td>GA4 Data API with one Google service account added as Viewer on each property</td><td>Voomsales GA4 <code>G-5VXCVMX3EH</code>; vacademy.io loads GA4 inside GTM <code>GTM-5C4DDJ6W</code></td><td><span class="gap">No GA4 code in the backend.</span> Telleo and Evalezy marketing sites aren't in any local repo, so owners and GA4 IDs are unknown. Need the property ID behind the GTM container.</td></tr>
+  <tr><td><b>Website tracker</b></td><td>Snippet on 4 sites posts to <code>/community-service/public/v1/track</code></td><td>Public endpoint pattern only</td><td>New endpoint with rate limiting and bot filtering; snippet added to 4 site repos.</td></tr>
+  <tr><td><b>Visitor → institute</b></td><td>Pass <code>visitor_id</code> + first-touch UTMs in CTA links; save them on lead submit and signup</td><td>Voomsales and Vidyayatan forms already post to <code>admin-core-service/open/v1/audience/lead/submit</code></td><td><span class="gap">vacademy.io "Book a demo" opens a Google Calendar link,</span> so no demo request reaches the backend. Replace it with the lead form. No site captures incoming UTMs yet.</td></tr>
+  <tr><td><b>Logins / activity</b></td><td>Read existing session and activity tables</td><td>Yes, keyed by institute_id</td><td>No product dimension: a login at dash.vacademy.io doesn't say which product (see §2.3).</td></tr>
+  <tr><td><b>Product per institute</b></td><td>New <code>product_entitlements</code> table (institute, product, state)</td><td><code>institutes.product</code> holds a single value (<code>vacademy</code> or <code>vimotion</code>)</td><td><span class="gap">Biggest gap.</span> The multi-product institute doesn't exist in the data yet. This is a Phase 0 backend change.</td></tr>
+  <tr><td><b>Token usage</b></td><td>Read <code>ai_usage_event</code>; map use case → product</td><td>Rich data keyed by institute_id</td><td>No product column. The use case → product mapping is kept in the portal's Metering catalogue.</td></tr>
+  <tr><td><b>Payments</b></td><td>Read admin-core platform billing</td><td>Verified Razorpay webhook (payment.*, order.paid, token.*); hourly reconcile for AI subscriptions and credit packs</td><td><span class="gap">Only AI plans and credit packs are billed here;</span> core LMS subscription revenue isn't recorded. No <code>subscription.*</code> / <code>payment_link.*</code> handlers. Don't include per-institute student payments, which are the institutes' own money.</td></tr>
+  <tr><td><b>Demo / trial / suspend</b></td><td>Reuse demo provisioning, <code>institute_trial</code>, <code>TrialAccessGuard</code></td><td>Demo, expiry, login block on expiry</td><td><span class="gap">No institute-level suspend or terminate</span> (only per-user deactivate). Add an institute status checked at login.</td></tr>
+  <tr><td><b>Telleo / Evalezy usage</b></td><td>Read telephony (admin-core) and open_evaluation (assessment-service)</td><td>Both live in the shared backend</td><td>Confirm API customers are institutes with the same institute_id.</td></tr>
+  <tr><td><b>Cookie consent</b></td><td>Site-wide banner + GA Consent Mode before <code>visitor_id</code> is set</td><td>Banner on 4 vacademy.io use-case pages only</td><td>Missing on every other site.</td></tr>
+</table>
+<p><b>Access to collect in Phase 0:</b></p>
+<ul>
+  <li>A Google service account, with Viewer access on each GA4 property (including the one inside the GTM container).</li>
+  <li>Named owners for the Telleo and Evalezy site repos.</li>
+  <li>No new Razorpay keys: the platform credentials are already stored in admin-core.</li>
+</ul>
+
+<h3>2.3 Sign-in entry points</h3>
+<ul>
+  <li><b>Vacademy.io, Telleo and Evalezy sign in at <code>dash.vacademy.io</code>:</b> one login and one institute ID for three products.
+    <ul>
+      <li>The login can't say which product it's for. Product is decided in two ways:
+        <ul>
+          <li><b>Arrival:</b> each site's Login link carries <code>?product=…&amp;visitor_id=…</code>, and the dashboard stores it on the session.</li>
+          <li><b>Feature use:</b> calls = Telleo, evaluations = Evalezy, LMS activity = Vacademy.io. Per-product activity and activation use this.</li>
+        </ul>
+      </li>
+      <li>Only one app needs instrumenting for these three products. It already sends a <code>Login Success</code> event to Amplitude; add a product property.</li>
+      <li>A suspended product can't block login, because the login is shared. Instead, its features are switched off through institute modules.</li>
+    </ul>
+  </li>
+  <li><b>Voomsales signs in at <code>app.voomsales.com/login</code>.</b>
+    <ul>
+      <li>In its current code the login is front-end only (it doesn't check credentials), and the CRM screens use a mock institute.</li>
+      <li><b>Decided:</b> Voomsales will authenticate through Vacademy auth-service with the same institute IDs.</li>
+      <li>Until then, Voomsales contributes website traffic and demo leads only. Accounts, logins, usage and lifecycle actions start working once it's wired.</li>
+    </ul>
+  </li>
+</ul>
+
+<h2>3. Event tracking plan</h2>
+<p>All four sites and products send the <b>same event names with the same parameters</b>, which is what makes a combined funnel possible.</p>
+<table>
+  <tr><th>Event</th><th>Fires when</th><th>Where</th></tr>
+  <tr><td><code>page_view</code> / <code>session_start</code></td><td>Visitor lands on any page</td><td>All marketing sites (GA4 default + tracker)</td></tr>
+  <tr><td><code>cta_login_click</code></td><td>Login button clicked</td><td>All marketing sites (returning-customer metric, not the funnel)</td></tr>
+  <tr><td><code>cta_book_demo_click</code></td><td>Book a demo clicked</td><td>All marketing sites</td></tr>
+  <tr><td><code>demo_form_submit</code></td><td>Demo lead accepted by the backend lead-submit endpoint</td><td>Server side</td></tr>
+  <tr><td><code>cta_trial_click</code></td><td>Start free trial clicked</td><td>All marketing sites</td></tr>
+  <tr><td><code>trial_signup_complete</code></td><td>Trial account created</td><td>Server side</td></tr>
+  <tr><td><code>login_success</code></td><td>User logs in</td><td>Server side, from existing session data</td></tr>
+  <tr><td><code>feature_used</code></td><td>Key action: course published, lead added, call made, sheet evaluated</td><td>Server side</td></tr>
+  <tr><td><code>pricing_view</code> / <code>checkout_start</code></td><td>Pricing page seen / payment link opened</td><td>Sites and in-app billing</td></tr>
+  <tr><td><code>payment_success</code> / <code>payment_failed</code></td><td>Platform billing records the result</td><td>Server side (admin-core)</td></tr>
+</table>
+<p class="note">vacademy.io already sends <code>demo_request</code> to GTM, and Voomsales sends <code>generate_lead</code>. Rename both to the standard names, or map them in GA4.</p>
+
+<h3>3.1 Parameters on every event</h3>
+<p><b>product</b> (<code>vacademy</code>, <code>voomsales</code>, <code>telleo</code>, <code>evalezy</code>), <b>visitor_id</b>, <b>institute_id</b> (once known),
+<b>page_path</b>, <b>utm_source / utm_medium / utm_campaign</b>, <b>device</b>, <b>country / state</b>.</p>
+
+<h3>3.2 Linking a website visitor to an institute</h3>
+<p>The sites are on separate domains (vacademy.io, voomsales.com and the Telleo and Evalezy sites), so they can't share a cookie. Instead:</p>
+<ul>
+  <li><b>First visit:</b> after consent, the tracker sets a first-party <code>visitor_id</code> cookie and keeps the first-touch UTM values.</li>
+  <li><b>CTA click:</b> Login, Book a demo and Start trial links carry <code>visitor_id</code>, <code>product</code> and the UTMs as URL parameters, to <code>dash.vacademy.io</code> or <code>app.voomsales.com</code>.</li>
+  <li><b>Lead submit or signup:</b> the backend saves <code>visitor_id</code> against the new institute ID. From then on, every earlier visit is attributed to that institute.</li>
+</ul>
+
+<h3>3.3 GA4 identity</h3>
+<p>Set GA4 <code>user_id</code> to the real user ID, and send <code>institute_id</code> as a <b>user property</b>. (v1 used the institute ID as the user ID,
+which would merge every user in an institute into one GA4 "user".) Don't send personal data such as emails or phone numbers to GA4.</p>
+
+<h3>3.4 Consent and retention</h3>
+<ul>
+  <li><b>Consent banner:</b> a site-wide banner on all four sites, with GA Consent Mode. <code>visitor_id</code> is set only after consent.</li>
+  <li><b>Retention:</b> raw web events are kept for 13 months; daily aggregates are kept indefinitely.</li>
+  <li><b>Visitors who never sign up:</b> their visitor records are deleted after 13 months.</li>
+  <li><b>Legal review:</b> wording and data handling are reviewed against India's DPDP Act 2023 before launch.</li>
+</ul>
+
+<h2>4. Dashboard modules</h2>
+<p>Eight screens in the super admin portal. Every screen has a product filter (All, Vacademy.io, Voomsales, Telleo, Evalezy) and a date range.</p>
+<table>
+  <tr><th>Module</th><th>What you see</th><th>What you can do</th></tr>
+  <tr><td>Overview</td><td>Visitors, demo requests, trial starts, active trials, paid institutes, MRR, today's active users; each with change vs. last period</td><td>Click any number to drill into its list</td></tr>
+  <tr><td>Funnels &amp; traffic</td><td>Funnel from visit to paid (below); traffic by source, campaign, landing page and day; returning-customer login clicks</td><td>Compare products side by side; export CSV</td></tr>
+  <tr><td>Accounts list</td><td>Every institute: state per product, plan, last login, 7-day active users, tokens used</td><td>Search, filter, sort; bulk extend trial</td></tr>
+  <tr><td>Account 360</td><td>One institute: timeline of visits, signup, logins, feature use, tokens, charges, admin actions</td><td>All lifecycle actions (§5)</td></tr>
+  <tr><td>Demos &amp; trials</td><td>All demo and trial accounts, days left, activation status, last activity</td><td>Create demo, start / extend trial, convert, expire</td></tr>
+  <tr><td>Revenue</td><td>MRR, new vs. churned, failed charges, plan mix, revenue by product, from admin-core platform billing (includes marked-paid charges, excludes waived)</td><td>Open the billing record; resend payment link</td></tr>
+  <tr><td>Alerts</td><td>Trials ending in 3 days without activation, failed charges, accounts inactive for 14 days, traffic drops</td><td>Mark handled; jump to account</td></tr>
+  <tr><td>Audit log</td><td>Every Command Center action, together with existing module / pricing / plan change history</td><td>Filter and export</td></tr>
+</table>
+
+<figure>
+<figcaption>One funnel, with two branches; filterable by product, date range and UTM source</figcaption>
+<svg viewBox="0 0 900 300" role="img" aria-label="Funnel: visit, CTA click, demo or trial, activated, paid">
+  <defs><marker id="f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8a93a6"/></marker></defs>
+  <g fill="#c7cdfb"><rect x="40" y="10" width="520" height="38" rx="6"/><rect x="80" y="64" width="440" height="38" rx="6"/>
+  <rect x="80" y="122" width="205" height="38" rx="6"/><rect x="315" y="122" width="205" height="38" rx="6"/><rect x="150" y="180" width="300" height="38" rx="6"/></g>
+  <rect x="215" y="238" width="170" height="38" rx="6" fill="#4f46e5"/>
+  <g font-size="12" font-weight="600" text-anchor="middle" fill="#1f2430"><text x="300" y="34">Website visit</text><text x="300" y="88">CTA click: Book a demo or Start trial</text>
+  <text x="182" y="146">Demo requested</text><text x="417" y="146">Trial started</text><text x="300" y="204">Activated</text><text x="300" y="262" fill="#fff">Paid</text></g>
+  <g stroke="#8a93a6" stroke-width="1.3" marker-end="url(#f)"><line x1="230" y1="160" x2="260" y2="178"/><line x1="370" y1="160" x2="340" y2="178"/></g>
+  <g font-size="10.5" fill="#5b6475"><text x="590" y="24" font-weight="600" fill="#1f2430">Counted by</text>
+  <text x="590" y="40">visitor_id (tracker); GA4 users for reference</text><text x="590" y="88">cta_book_demo_click or cta_trial_click</text>
+  <text x="590" y="140">demo_form_submit | trial_signup_complete</text><text x="590" y="204">active on 3+ separate days in first 7</text><text x="590" y="262">first platform charge marked paid</text></g>
+</svg>
+<p class="note">Each stage shows its count and the percentage that moves to the next stage. A demo can also convert straight to paid.</p>
+</figure>
+
+<h2>5. Account lifecycle</h2>
+<p>Each institute has a <b>state per product</b>, because an institute can be paid on Vacademy.io while trialling Telleo.</p>
+<figure>
+<figcaption>One state machine, per product</figcaption>
+<svg viewBox="0 0 900 380" role="img" aria-label="Lifecycle state machine">
+  <defs><marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8a93a6"/></marker></defs>
+  <g stroke-width="1.5">
+    <rect x="20" y="150" width="160" height="52" rx="7" fill="#fff" stroke="#9aa2b3"/>
+    <rect x="235" y="30" width="160" height="52" rx="7" fill="#fff" stroke="#9aa2b3"/>
+    <rect x="235" y="262" width="160" height="52" rx="7" fill="#fff7e8" stroke="#c26a00"/>
+    <rect x="455" y="30" width="160" height="52" rx="7" fill="#eaf7f1" stroke="#0f8a5f"/>
+    <rect x="455" y="262" width="160" height="52" rx="7" fill="#fff7e8" stroke="#c26a00" stroke-dasharray="5 3"/>
+    <rect x="690" y="30" width="160" height="52" rx="7" fill="#fff7e8" stroke="#c26a00"/>
+    <rect x="690" y="150" width="160" height="52" rx="7" fill="#fdeeee" stroke="#c62f3a"/>
+    <rect x="690" y="300" width="160" height="52" rx="7" fill="#fdeeee" stroke="#c62f3a"/>
+    <rect x="20" y="300" width="160" height="52" rx="7" fill="#fff" stroke="#9aa2b3"/>
+  </g>
+  <g text-anchor="middle" font-size="12" font-weight="600">
+    <text x="100" y="172">Lead</text><text x="315" y="52">Demo</text><text x="315" y="284">Trial</text><text x="535" y="52" fill="#0f8a5f">Active (paid)</text>
+    <text x="535" y="284">Expired <tspan font-size="9" fill="#c26a00">NEW</tspan></text><text x="770" y="52">Past due</text><text x="770" y="172" fill="#c62f3a">Suspended</text>
+    <text x="770" y="322" fill="#c62f3a">Terminated</text><text x="100" y="322">Recreated</text>
+  </g>
+  <g text-anchor="middle" font-size="9.5" fill="#5b6475">
+    <text x="100" y="189">visitor / lead form</text><text x="315" y="69">sandbox, auto-expires</text><text x="315" y="301">time-limited, real data</text>
+    <text x="535" y="69">platform charge paid</text><text x="535" y="301">read-only, data kept</text><text x="770" y="69">charge failed, in grace</text>
+    <text x="770" y="189">features off, data kept</text><text x="770" y="339">soft delete, hold period</text><text x="100" y="339">same ID, old data archived</text>
+  </g>
+  <g stroke="#8a93a6" stroke-width="1.3" fill="none" marker-end="url(#s)">
+    <line x1="180" y1="162" x2="233" y2="72"/><line x1="180" y1="192" x2="233" y2="280"/>
+    <line x1="315" y1="82" x2="315" y2="260"/><line x1="395" y1="50" x2="453" y2="50"/>
+    <line x1="380" y1="262" x2="480" y2="84"/><line x1="395" y1="280" x2="453" y2="280"/>
+    <line x1="455" y1="300" x2="397" y2="300"/>
+    <line x1="615" y1="46" x2="688" y2="46"/><line x1="690" y1="66" x2="617" y2="66"/>
+    <line x1="770" y1="82" x2="770" y2="148"/><line x1="690" y1="166" x2="590" y2="84"/>
+    <line x1="770" y1="202" x2="770" y2="298"/><line x1="600" y1="314" x2="688" y2="326"/>
+    <line x1="690" y1="344" x2="182" y2="344"/><line x1="100" y1="300" x2="100" y2="204"/>
+  </g>
+  <g font-size="9.5" fill="#4b5263">
+    <text x="138" y="112">create demo</text><text x="200" y="228">start trial</text><text x="322" y="170">convert</text>
+    <text x="408" y="44">pays</text><text x="420" y="160">pays</text><text x="400" y="274">ends unpaid</text><text x="405" y="316">reopen</text>
+    <text x="635" y="40">fails</text><text x="628" y="80">retry ok</text><text x="778" y="120">grace ends</text>
+    <text x="585" y="130">pays / unsuspend</text><text x="778" y="255">terminate</text><text x="600" y="342" text-anchor="end">hold ends / admin</text>
+    <text x="440" y="358">recreate</text><text x="94" y="256" text-anchor="end">re-enters as</text>
+  </g>
+</svg>
+</figure>
+
+<h3>5.1 Mapping existing data</h3>
+<ul>
+  <li><b>Lead tags:</b> <code>LEAD</code> → Lead, <code>FREE_TRIAL</code> → Trial, <code>PROD</code> → Active. <code>TEST</code> accounts are excluded from every metric. After migration the tag is derived from the state, so there is one source of truth.</li>
+  <li><b>Existing demos</b> in <code>institute_trial</code> become Demo state for <code>vacademy</code>.</li>
+</ul>
+
+<h3>5.2 Actions</h3>
+<table>
+  <tr><th>Action</th><th>Scope</th><th>What it does</th><th>Safeguard</th></tr>
+  <tr><td>Create demo</td><td>Per product</td><td>Existing demo provisioning, from a template per product (sample courses, leads, calls, sheets), assigned to a prospect email</td><td>Auto-expires after N days</td></tr>
+  <tr><td>Start trial</td><td>Per product</td><td>Enables the product with a trial end date and usage caps</td><td>Trial length set per product</td></tr>
+  <tr><td>Extend trial</td><td>Per product</td><td>Moves the end date</td><td>Reason required and logged</td></tr>
+  <tr><td>Convert to paid</td><td>Per product</td><td>Sends a platform billing payment link</td><td>Only a paid charge flips the state to Active</td></tr>
+  <tr><td>Suspend product</td><td>Per product</td><td>Switches the product's features off through institute modules; login still works for other products</td><td>Reversible in one click</td></tr>
+  <tr><td>Suspend account</td><td>Account</td><td>Blocks login for the institute (new institute status checked at login)</td><td>Named users only; typed confirmation</td></tr>
+  <tr><td>Terminate</td><td>Account</td><td>Soft delete; data held, then purged. Lists every product it affects before confirming</td><td>Type the institute name; named users only</td></tr>
+  <tr><td>Recreate</td><td>Account</td><td>New clean account under the same institute ID. Old data is moved to an archive keyed by archive ID, so it never mixes with new data</td><td>Confirmation + audit entry</td></tr>
+  <tr><td>Reset demo</td><td>Per product</td><td>Restores the demo template data</td><td>Demo accounts only</td></tr>
+</table>
+
+<h2>6. Data model</h2>
+<p>New tables go in the <code>analytics</code> schema; existing tables are read, not changed. The one exception is the Phase 0 entitlements change.</p>
+<table>
+  <tr><th>Table</th><th>Key columns</th><th>Purpose</th></tr>
+  <tr><td>product_entitlements <span class="tag">prerequisite</span></td><td>institute_id, product, state, plan, trial_ends_at, created_by</td><td>Current state per product; replaces the single <code>institutes.product</code> value</td></tr>
+  <tr><td>lifecycle_events</td><td>institute_id, product, from_state, to_state, reason, actor, at</td><td>History behind the state machine; feeds the Audit log</td></tr>
+  <tr><td>visitors</td><td>visitor_id, first_utm_*, first_seen_at, institute_id</td><td>Visitor-to-institute link</td></tr>
+  <tr><td>web_events</td><td>visitor_id, product, event, page_path, utm_*, at</td><td>First-party funnel events</td></tr>
+  <tr><td>ga4_daily</td><td>date, product, source, medium, campaign, sessions, users, key events</td><td>Synced GA4 aggregates</td></tr>
+  <tr><td>usage_daily</td><td>date, institute_id, product, active_users, sessions, minutes, tokens</td><td>Nightly rollup from existing session, activity and <code>ai_usage_event</code> data</td></tr>
+  <tr><td>use_case_product_map</td><td>use_case, product</td><td>Gives token usage a product</td></tr>
+</table>
+<p class="note">Dropped from v1:</p>
+<ul class="note">
+  <li><code>subscriptions / payments</code>: read from admin-core platform billing instead.</li>
+  <li>A separate <code>admin_audit_log</code>: replaced by <code>lifecycle_events</code> plus the existing change history.</li>
+  <li><code>product_events</code> for logins: logins already exist in the session tables.</li>
+</ul>
+
+<h2>7. Metrics glossary</h2>
+<p>One definition for every number, used on every screen.</p>
+<table>
+  <tr><th>Metric</th><th>Definition</th></tr>
+  <tr><td>Visitors</td><td>Unique <code>visitor_id</code>s on a product site in the period. GA4 users are shown alongside for reference only; they will differ because of ad blockers and consent.</td></tr>
+  <tr><td>CTA click rate</td><td>Visitors who clicked Book a demo or Start trial, divided by visitors</td></tr>
+  <tr><td>Returning-customer clicks</td><td>Visitors who clicked Login (outside the funnel)</td></tr>
+  <tr><td>Demo requests</td><td><code>demo_form_submit</code> events accepted by the backend</td></tr>
+  <tr><td>Trial starts</td><td><code>trial_signup_complete</code> events</td></tr>
+  <tr><td>Activated trial</td><td>Trial institute with activity in that product on 3 or more separate days in its first 7 days</td></tr>
+  <tr><td>Trial-to-paid rate</td><td>Trials whose product reaches Active within 14 days <b>after</b> the trial end date, divided by trials that ended in the period</td></tr>
+  <tr><td>DAU / WAU / MAU</td><td>Users with a session in the last 1 / 7 / 30 days. Per product: users with feature use in that product.</td></tr>
+  <tr><td>Avg session length</td><td>Mean minutes from login to last activity, per session (from <code>user_session</code>)</td></tr>
+  <tr><td>Tokens per institute</td><td>From <code>ai_usage_event</code>, per product (via use case mapping), per period</td></tr>
+  <tr><td>MRR</td><td>Sum of active monthly subscription values in platform billing (annual plans / 12). Includes manually marked-paid charges; excludes waived charges.</td></tr>
+  <tr><td>Churn</td><td>Products moving from Active to Terminated, or to Suspended past the grace period, divided by Active at the start of the period. Past-due accounts still in grace don't count.</td></tr>
+</table>
+<p class="note">Thresholds such as "3 days in 7" are starting points; tune them after a month of data.</p>
+
+<h2>8. Rollout</h2>
+<p>Visibility ships first. Revenue moves up to Phase 1 because its data already exists.</p>
+<figure>
+<figcaption>About 16 weeks for one small team (suggested)</figcaption>
+<svg viewBox="0 0 900 230" role="img" aria-label="Rollout phases">
+  <g fill="#f3f4f8" stroke="#b9c0cf"><rect x="5" y="5" width="168" height="160" rx="8"/><rect x="186" y="5" width="168" height="160" rx="8" fill="#eef0fe" stroke="#4f46e5"/><rect x="367" y="5" width="168" height="160" rx="8"/><rect x="548" y="5" width="168" height="160" rx="8"/><rect x="729" y="5" width="168" height="160" rx="8"/></g>
+  <g font-size="12.5" font-weight="700"><text x="17" y="28">Phase 0</text><text x="198" y="28">Phase 1</text><text x="379" y="28">Phase 2</text><text x="560" y="28">Phase 3</text><text x="741" y="28">Phase 4</text></g>
+  <g font-size="10" fill="#5b6475"><text x="17" y="44">Weeks 1–2</text><text x="198" y="44">Weeks 3–6</text><text x="379" y="44">Weeks 7–10</text><text x="560" y="44">Weeks 11–14</text><text x="741" y="44">Weeks 15–16</text></g>
+  <g font-size="10.2">
+    <text x="17" y="66">GA4 access collected</text><text x="17" y="82">Event names locked</text><text x="17" y="98">product_entitlements</text><text x="17" y="114">Ingestion host agreed</text><text x="17" y="130">Lead tag ↔ state map</text><text x="17" y="146">Consent approach</text>
+    <text x="198" y="66">GA4 sync + funnels</text><text x="198" y="82">Traffic dashboard</text><text x="198" y="98">Accounts list</text><text x="198" y="114">Revenue (existing</text><text x="198" y="130">  platform billing)</text><text x="198" y="146">Overview</text>
+    <text x="379" y="66">Account 360</text><text x="379" y="82">Demo / trial actions</text><text x="379" y="98">(existing provisioning)</text><text x="379" y="114">Suspend / terminate /</text><text x="379" y="130">  recreate</text>
+    <text x="560" y="66">Tracker + /track</text><text x="560" y="82">Visitor-to-account</text><text x="560" y="98">  stitching</text><text x="560" y="114">BigQuery export</text>
+    <text x="741" y="66">Alerts</text><text x="741" y="82">Health score</text><text x="741" y="98">Weekly PM digest</text>
+  </g>
+  <g fill="#4f46e5"><path d="M180,190 l7,-7 l7,7 l-7,7z"/><path d="M361,190 l7,-7 l7,7 l-7,7z"/><path d="M542,190 l7,-7 l7,7 l-7,7z"/><path d="M723,190 l7,-7 l7,7 l-7,7z"/></g>
+  <g font-size="9.8" fill="#5b6475" text-anchor="middle"><text x="187" y="214">access + entitlements</text><text x="368" y="214">funnel + MRR numbers</text><text x="549" y="214">actions audited</text><text x="730" y="214">visits stitch to accounts</text></g>
+</svg>
+</figure>
+
+<h3>Dependencies</h3>
+<ul>
+  <li><b>Backend (Phase 0):</b> the <code>product_entitlements</code> table, and an institute status checked at login for account suspend.</li>
+  <li><b>GA4 access:</b> property IDs and Viewer access for the service account, including the GA4 property inside the vacademy.io GTM container.</li>
+  <li><b>Site work on all four sites:</b> tracker snippet, standard CTA event names, CTA links that carry <code>visitor_id</code>/<code>product</code>/UTMs, and a consent banner.</li>
+  <li><b>Owners:</b> named owners for the Telleo and Evalezy sites.</li>
+  <li><b>vacademy.io demo form:</b> "Book a demo" posts to the backend lead endpoint instead of only opening Google Calendar.</li>
+  <li><b>Voomsales:</b> the login uses Vacademy auth-service and real institute IDs instead of the mock institute.</li>
+  <li><b>Revenue coverage:</b> core LMS subscriptions are billed through platform billing. Until they are, Revenue covers AI plans and credit packs only.</li>
+  <li><b>Demo templates:</b> one template institute per product, with realistic sample data (Phase 2).</li>
+</ul>
+
+<h3>Open questions</h3>
+<ul>
+  <li>Trial length and usage caps per product (for example, 14 days and a token cap on Telleo)?</li>
+  <li>How long is an Expired trial kept before it can be terminated, and how long is terminated data held before purge? (30 days is the default.)</li>
+  <li>Should prospects be able to self-serve a demo from the website, or is demo creation PM-only?</li>
+  <li>Which plans and prices go into platform billing first, and are any annual?</li>
+  <li>Which usernames may run Suspend account, Terminate and Recreate?</li>
+  <li>Are Telleo and Evalezy API customers always institutes with a Vacademy institute ID, or can an API key belong to someone else?</li>
+  <li>Ingestion host: community-service (proposed) or Cloudflare cron triggers?</li>
+</ul>
+
+<footer>Unified Product Command Center · Feature plan v2 · 3 November 2026</footer>
+</main>
+</body>
+</html>

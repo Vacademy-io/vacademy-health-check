@@ -15,6 +15,8 @@
  * allowlist is a misconfiguration, and guessing a default would silently
  * reopen the portal.
  */
+import { GA_ROUTE, handleGaRequest, verifyWithBackend } from "../server/ga-report";
+
 const LOGIN_PATH = "/auth-service/v1/login-root";
 const REFRESH_PATH = "/auth-service/v1/refresh-token";
 
@@ -64,6 +66,22 @@ function denied(reason) {
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   const path = url.pathname;
+
+  // Google Analytics for the Command Center. Answered here, not proxied: the GA service-account
+  // key lives in this Worker's secrets (GA_SERVICE_ACCOUNT_JSON, GA_PRODUCTS). Same allowlist as
+  // every other call, then the backend must accept the token, because this route never reaches
+  // a service that would verify its signature.
+  if (path === GA_ROUTE) {
+    const allowed = allowedUsers(context.env);
+    if (allowed.size === 0) return denied("allowlist_not_configured");
+    const auth = context.request.headers.get("Authorization") || "";
+    const claims = decodeJwtPayload(auth.replace(/^bearer\s+/i, "").trim());
+    const username = claims && claims.username;
+    if (!username || !allowed.has(String(username).trim().toLowerCase())) return denied("token_not_allowed");
+    return handleGaRequest(context.request, context.env, (bearer, clientId) =>
+      verifyWithBackend(bearer, "https://backend-stage.vacademy.io", clientId)
+    );
+  }
 
   const SERVICES = [
     "/auth-service",

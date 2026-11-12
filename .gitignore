@@ -30,3 +30,6 @@ temp_interactive_push.bat
 # credential belongs in a server-side env var, never in one of these files.
 .env
 .env.*
+
+# Google Analytics service-account key for local dev (see docs/command-center/GA_SETUP.md)
+secrets/
