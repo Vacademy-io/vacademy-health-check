@@ -32,17 +32,17 @@ export function useInstituteLibraryAccess(instituteId: string) {
   });
 }
 
-/** Gives (on = true) or takes back one course or topic. */
+/** Shows (on = true) or hides one course or topic, with everything below it. */
 export function useSetLibraryAccess(instituteId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ nodeId, on }: { nodeId: string; on: boolean }) => {
-      const path = `${API_PREFIXES.CONTENT_LIBRARY}/institutes/${enc(instituteId)}/${on ? "grant" : "revoke"}`;
+      const path = `${API_PREFIXES.CONTENT_LIBRARY}/institutes/${enc(instituteId)}/${on ? "show" : "hide"}`;
       await api.post(path, { node_id: nodeId });
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: contentLibraryKeys.institute(instituteId) });
-      // Access counts on the tree change too.
+      // Hidden counts on the tree change too.
       qc.invalidateQueries({ queryKey: contentLibraryKeys.tree });
     },
   });

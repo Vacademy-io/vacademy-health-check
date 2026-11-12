@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   childrenByParent,
-  grantedAncestor,
+  hiddenAncestor,
   pathOf,
   searchVisible,
   visibleQuestionCount,
@@ -34,12 +34,12 @@ test("children are grouped by parent, sorted by display order; an orphan goes to
   assert.deepEqual(map.get("c10")!.map((x) => x.id), ["sci"]);
 });
 
-test("a topic inside a given course is included through its nearest given ancestor", () => {
-  const granted = new Set(["ncert"]);
-  assert.equal(grantedAncestor("acid", byId, granted)?.id, "ncert");
-  assert.equal(grantedAncestor("ncert", byId, granted), null);
-  assert.equal(grantedAncestor("jee", byId, granted), null);
-  assert.equal(grantedAncestor("acid", byId, new Set(["ncert", "c10"]))?.id, "c10");
+test("a topic inside a hidden course is hidden through its nearest hidden ancestor", () => {
+  const hidden = new Set(["ncert"]);
+  assert.equal(hiddenAncestor("acid", byId, hidden)?.id, "ncert");
+  assert.equal(hiddenAncestor("ncert", byId, hidden), null);
+  assert.equal(hiddenAncestor("jee", byId, hidden), null);
+  assert.equal(hiddenAncestor("acid", byId, new Set(["ncert", "c10"]))?.id, "c10");
 });
 
 test("path joins names from the course down", () => {
@@ -53,8 +53,13 @@ test("search keeps matches and their ancestors; blank search shows everything", 
   assert.equal(searchVisible(NODES, "zzz")!.size, 0);
 });
 
-test("visible questions do not count a topic inside another given topic twice", () => {
-  assert.equal(visibleQuestionCount(NODES, new Set(["ncert", "sci", "jee"])), 352);
-  assert.equal(visibleQuestionCount(NODES, new Set(["sci"])), 261);
-  assert.equal(visibleQuestionCount(NODES, new Set(["deleted"])), 0);
+test("with nothing hidden an institute sees every question of the library", () => {
+  assert.equal(visibleQuestionCount(NODES, new Set()), 353);
+  assert.equal(visibleQuestionCount(NODES, new Set(["deleted"])), 353);
+});
+
+test("hidden topics come off once, even when one sits inside another", () => {
+  assert.equal(visibleQuestionCount(NODES, new Set(["sci"])), 92);
+  assert.equal(visibleQuestionCount(NODES, new Set(["ncert", "sci"])), 52);
+  assert.equal(visibleQuestionCount(NODES, new Set(["ncert", "jee", "orphan"])), 0);
 });
