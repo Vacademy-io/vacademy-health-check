@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { AuthGuard } from "@/components/layout/AppLayout";
 
@@ -49,6 +49,7 @@ const RoadmapAdminPage = lazy(() => import("@/pages/RoadmapAdminPage"));
 const TrainingVideosAdminPage = lazy(() => import("@/pages/TrainingVideosAdminPage"));
 const AppRegistrationPage = lazy(() => import("@/pages/AppRegistrationPage"));
 const AppDetailPage = lazy(() => import("@/pages/AppDetailPage"));
+const CommandCenterPage = lazy(() => import("@/pages/CommandCenterPage"));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
 function PageLoader() {
@@ -113,6 +114,9 @@ function App() {
           <Route path="vimotion/invite-codes" element={<VimotionInviteCodesPage />} />
           <Route path="vimotion/stats" element={<VimotionStatsPage />} />
           <Route path="onboarding" element={<OnboardingAdminPage />} />
+          <Route path="command-center" element={<CommandCenterPage />} />
+          <Route path="command-center/accounts" element={<Navigate to="/command-center?tab=overview" replace />} />
+          <Route path="command-center/revenue" element={<Navigate to="/command-center?tab=revenue" replace />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
