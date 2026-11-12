@@ -16,7 +16,7 @@ import {
   useTelephonyTopInstitutes,
   useWebhookSummary,
 } from "@/services/external-apis-api";
-import { money } from "./balances";
+import { amountsLabel as amounts, money } from "./balances";
 import { chargeLabel, count, humanize, usd, vendorName } from "./format";
 import {
   CONNECTED_CALL_STATUS,
@@ -35,12 +35,6 @@ const shortList = (parts: string[], keep = 3): string | null =>
   !parts.length ? null : parts.length <= keep ? parts.join(" · ") : `${parts.slice(0, keep).join(" · ")} and ${parts.length - keep} more`;
 
 const sumOf = <T,>(rows: T[], pick: (r: T) => number) => rows.reduce((n, r) => n + pick(r), 0);
-
-/** "₹1,200 · $30": amounts per currency, never added across currencies. */
-const amounts = (rows: Array<{ currency: string | null; amount: number }>): string => {
-  const byCurrency = groupSum(rows.filter((r) => r.amount), (r) => (r.currency || "").toUpperCase(), (r) => r.amount);
-  return byCurrency.length ? byCurrency.map((c) => (c.key ? money(c.total, c.key) : c.total.toFixed(2))).join(" · ") : "—";
-};
 
 // --- Recent calls ---
 

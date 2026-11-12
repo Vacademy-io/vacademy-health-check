@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Coins, DollarSign, Unplug, Zap } from "lucide-react";
+import { AllVendorsOverview } from "@/components/external-apis/AllVendorsOverview";
 import { BalancesTab } from "@/components/external-apis/BalancesTab";
 import { KeyAccountsTab } from "@/components/external-apis/KeyAccountsTab";
 import { LoggedVendorsCard } from "@/components/external-apis/LoggedVendorsCard";
@@ -59,7 +60,7 @@ const CHARGE_STATUSES = [
   "POSTED", "DROPPED_INSUFFICIENT", "SKIPPED_NO_INSTITUTE", "NOT_APPLICABLE", "REFUNDED", "PARTIAL_REFUND",
 ];
 
-function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }) {
+function OverviewTab({ hours, onWiden, onOpen }: { hours: number; onWiden?: () => void; onOpen: (tab: string) => void }) {
   const totals = useProviderTotals(hours);
   const rows = totals.data ?? [];
   const sum = (pick: (r: (typeof rows)[number]) => number) => rows.reduce((acc, r) => acc + pick(r), 0);
@@ -79,12 +80,21 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
 
   return (
     <div className="space-y-6">
+      <AllVendorsOverview hours={hours} onOpen={onOpen} />
+
+      <div className="border-t pt-6">
+        <h2 className="text-base font-semibold">AI and metered features</h2>
+        <p className="text-xs text-muted-foreground">
+          Everything we meter and charge credits for: AI generation, the voice bot, AI calling and similar features.
+        </p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {totals.isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)
         ) : (
           <>
-            <StatCard title="AI calls" value={count(sum((r) => r.calls))} description={change((r) => r.calls)} icon={Zap} />
+            <StatCard title="Metered calls" value={count(sum((r) => r.calls))} description={change((r) => r.calls)} icon={Zap} />
             <StatCard
               title="Vendor cost"
               value={usd(sum((r) => r.cost_usd))}
@@ -111,7 +121,7 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
       {rows.length > 0 && <FeatureCostCard hours={hours} onWiden={onWiden} />}
 
       <Card>
-        <CardHeader><CardTitle className="text-base">By vendor</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Metered usage by vendor</CardTitle></CardHeader>
         <CardContent>
           {totals.isLoading ? (
             <Skeleton className="h-48 w-full" />
@@ -148,7 +158,7 @@ function OverviewTab({ hours, onWiden }: { hours: number; onWiden?: () => void }
           <p className="mt-3 text-xs text-muted-foreground">
             {likelyVendor > 0 && `${count(likelyVendor)} older calls didn't record their vendor, so "(likely)" is our best guess. `}
             {noVendor > 0 && `${count(noVendor)} calls didn't record their vendor, so they are named by feature. `}
-            This covers AI only. Telephony, payments and messaging have their own tabs.
+            This covers metered features only. The summary at the top covers every outside service.
           </p>
         </CardContent>
       </Card>
@@ -472,7 +482,7 @@ export default function ExternalApisPage() {
           <TabsTrigger value="keys">Keys &amp; accounts</TabsTrigger>
           <TabsTrigger value="vendors">All vendors</TabsTrigger>
         </TabsList>
-        <TabsContent value="overview"><OverviewTab hours={hours} onWiden={onWiden} /></TabsContent>
+        <TabsContent value="overview"><OverviewTab hours={hours} onWiden={onWiden} onOpen={setTab} /></TabsContent>
         <TabsContent value="balances"><BalancesTab hours={hours} /></TabsContent>
         <TabsContent value="recent" className="space-y-6">
           <RecentCallsSummary hours={hours} />

@@ -107,7 +107,10 @@ export function BalancesTab({ hours }: { hours: number }) {
   const notSetUp = ours.filter((r) => r.status === "not_set_up");
   const instituteTotals = totalsByCurrency(institutes);
 
-  const nameOf = (r: VendorBalance) => r.institute_name ?? r.institute_id ?? r.account ?? r.vendor;
+  // An institute's account by the institute; ours by the vendor, with the key only to tell two apart.
+  const nameOf = (r: VendorBalance) =>
+    r.institute_name ?? r.institute_id ?? (r.account && r.vendor !== "Plivo" ? `${r.vendor} (${r.account})` : r.vendor);
+  const lowest = ours.find((r) => r.status === "ok" && r.balance != null) ?? null;
   const listNames = (rows: VendorBalance[]) =>
     rows.slice(0, 5).map(nameOf).join(", ") + (rows.length > 5 ? ` and ${rows.length - 5} more` : "");
 
@@ -131,12 +134,21 @@ export function BalancesTab({ hours }: { hours: number }) {
       <Tiles
         loading={loading}
         items={[
-          {
-            label: "Runs out first",
-            value: shortest ? shortest.row.vendor : "—",
-            note: shortest ? `In ${daysWords(shortest.runway!.days)}` : "No account has recorded spend to measure against",
-            tone: shortest && shortest.runway!.days < 7 ? "warn" : undefined,
-          },
+          shortest
+            ? {
+                label: "Runs out first",
+                value: shortest.row.vendor,
+                note: `In ${daysWords(shortest.runway!.days)}, ${money(shortest.row.balance, shortest.row.currency)} left`,
+                tone: shortest.runway!.days < 7 ? "warn" : undefined,
+              }
+            : {
+                label: "Lowest balance",
+                value: lowest ? money(lowest.balance, lowest.currency) : "—",
+                note: lowest
+                  ? `${lowest.vendor}. We don't record its spend, so how long it lasts isn't known.`
+                  : "No balance could be read",
+                tone: lowest && isLow(lowest) ? "warn" : undefined,
+              },
           {
             label: "Our accounts running low",
             value: String(lowOurs.length),
