@@ -127,6 +127,9 @@ export function AnalyticsTab() {
               {gaProducts.filter((p) => p.error).map((p) => (
                 <GaProblem key={p.product} title={`${label(p.product)}: Google Analytics returned an error`} detail={p.error} />
               ))}
+              {gaOk.filter((p) => p.totals.activeUsers === 0).map((p) => (
+                <NoDataNotice key={p.product} product={p} days={days} />
+              ))}
               <Card>
                 <CardContent className="pt-6">
                   <ResponsiveContainer width="100%" height={280}>
@@ -219,6 +222,37 @@ function GaProblem({ title, detail }: { title: string; detail: string | null | u
   );
 }
 
+/** A product whose site has sent Google Analytics nothing in the range: almost always the tag isn't on the site yet. */
+function NoDataNotice({ product, days }: { product: GaProductReport; days: number }) {
+  const site = product.hostnames[0] ?? `GA property ${product.propertyId}`;
+  return (
+    <div className="flex gap-2 rounded-md border border-amber-300/60 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+      <div>
+        <p className="font-semibold">{label(product.product)}: not connected to Google Analytics yet</p>
+        <p className="mt-0.5">
+          No visits from {site} in the last {days} days. The site isn't sending data yet: the shared Google Analytics tag isn't on it, or it was added less
+          than a day ago (Google Analytics takes up to 24 hours to show new data).
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SiteStatus({ product }: { product: GaProductReport }) {
+  const live = product.totals.activeUsers > 0;
+  return (
+    <span
+      className={cn(
+        "ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+        live ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+      )}
+    >
+      {live ? "Connected" : "Not connected yet"}
+    </span>
+  );
+}
+
 function ProductTable({ products }: { products: GaProductReport[] }) {
   if (products.length === 0) return null;
   return (
@@ -242,6 +276,7 @@ function ProductTable({ products }: { products: GaProductReport[] }) {
               <tr key={p.product} className="border-b last:border-0">
                 <td className="py-2 pr-3">
                   <span className="font-medium">{label(p.product)}</span>
+                  <SiteStatus product={p} />
                   <span className="block text-[11px] text-muted-foreground">{p.hostnames.length ? p.hostnames.join(", ") : `GA property ${p.propertyId}`}</span>
                 </td>
                 <td className="px-2 py-2 text-right tabular-nums">{num(p.totals.activeUsers)}</td>
