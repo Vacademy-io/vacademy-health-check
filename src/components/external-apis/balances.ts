@@ -116,3 +116,18 @@ export const NOT_REPORTED: Array<{ vendors: string; reason: string }> = [
   { vendors: "YouTube, Pexels, Pixabay", reason: "free daily quotas rather than a balance" },
   { vendors: "WATI, CloudConvert", reason: "they report a balance, but we can't read it from here yet; coming next" },
 ];
+
+/** "₹1,200 · $30": amounts per currency, never added across currencies. Zero amounts are left out. */
+export const amountsLabel = (rows: Array<{ currency: string | null; amount: number }>): string => {
+  const totals = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.amount) continue;
+    const code = (r.currency || "").toUpperCase();
+    totals.set(code, (totals.get(code) ?? 0) + r.amount);
+  }
+  if (!totals.size) return "—";
+  return [...totals]
+    .sort((a, b) => b[1] - a[1])
+    .map(([code, total]) => (code ? money(total, code) : total.toFixed(2)))
+    .join(" · ");
+};
