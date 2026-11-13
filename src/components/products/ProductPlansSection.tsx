@@ -7,9 +7,8 @@ import type { ProductPlan } from "@/services/products-api";
 import { MAX_PLANS, plansProblem } from "./plans";
 
 /**
- * The paid plans a product's website shows: price, credits and users per plan, how long a plan lasts
- * and what an extra credit costs. Plans cannot be bought online yet; the website's plan buttons start
- * the free trial.
+ * The paid plans of a product, in one place: what its website shows (price, credits, users, length,
+ * extra credit price) and, on Save, what its storefront sells (see ProductOnlineSale).
  */
 export function ProductPlansSection({
   displayName,
@@ -17,6 +16,7 @@ export function ProductPlansSection({
   months,
   extra,
   onChange,
+  onlineSale,
   saveRow,
 }: {
   displayName: string;
@@ -24,6 +24,8 @@ export function ProductPlansSection({
   months: number | null | undefined;
   extra: number | null | undefined;
   onChange: (patch: { plans?: ProductPlan[]; plan_validity_months?: number | null; extra_credit_price_inr?: number | null }) => void;
+  /** What is on sale right now, and what Save will change there. */
+  onlineSale?: ReactNode;
   saveRow: ReactNode;
 }) {
   const list = plans ?? [];
@@ -35,10 +37,10 @@ export function ProductPlansSection({
   return (
     <section className="space-y-3">
       <div>
-        <h3 className="text-sm font-semibold">Plans on the website</h3>
+        <h3 className="text-sm font-semibold">Plans</h3>
         <p className="text-xs text-muted-foreground">
-          What the {displayName} website shows on its pricing page. Prices are in rupees before GST, for one plan
-          period. Plans cannot be bought online yet: their buttons start the free trial.
+          What {displayName} sells: its website shows these plans and buyers pay these prices. Prices are in rupees
+          before GST, for one plan period. Change a price here and Save: the website and the checkout both follow.
         </p>
       </div>
       {list.map((plan, i) => (
@@ -129,6 +131,7 @@ export function ProductPlansSection({
           </p>
         </div>
       </div>
+      {onlineSale}
       {problem && (
         <p role="alert" className="text-sm text-destructive">
           {problem}
