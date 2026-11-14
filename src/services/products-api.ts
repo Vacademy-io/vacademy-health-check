@@ -21,6 +21,10 @@ export interface ProductConfig {
   demo_credits: number | null;
   /** Credits the one-screen demo page (/demo: name, email, phone) opens with. Empty uses demo_credits. */
   demo_portal_credits?: number | null;
+  /** Institute whose CRM gets every instant-demo sign-up as a lead. Empty: no lead. */
+  demo_leads_institute_id?: string | null;
+  /** That lead list's name. Empty: "Product <name> ( Instant - Demo )". */
+  demo_leads_list_name?: string | null;
   signup_alert_emails: string | null;
   signup_alert_whatsapp: string | null;
   signup_alert_template: string | null;

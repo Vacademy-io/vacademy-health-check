@@ -200,6 +200,26 @@ function ProductCard({ product }: { product: ProductConfig }) {
                     />
                   </Field>
                 </div>
+                <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Demo leads go to institute"
+                    hint="Institute id whose CRM gets every demo-page sign-up as a lead. Saving creates the list."
+                  >
+                    <Input
+                      aria-label="Demo leads institute id"
+                      placeholder="ca3c4734-…"
+                      value={form.demo_leads_institute_id ?? ""}
+                      onChange={(e) => set("demo_leads_institute_id", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Demo leads list name" hint={`Empty: "Product ${product.display_name} ( Instant - Demo )"`}>
+                    <Input
+                      aria-label="Demo leads list name"
+                      value={form.demo_leads_list_name ?? ""}
+                      onChange={(e) => set("demo_leads_list_name", e.target.value)}
+                    />
+                  </Field>
+                </div>
                 {creditsValid ? (
                   <p className="text-sm text-muted-foreground">
                     {product.demo_credits == null
