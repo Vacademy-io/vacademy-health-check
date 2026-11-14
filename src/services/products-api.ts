@@ -12,6 +12,8 @@ export interface ProductConfig {
   contact_email: string | null;
   theme_color: string | null;
   logo_url: string | null;
+  /** Public https PNG/JPG at the top of the product's mails. */
+  email_logo_url?: string | null;
   app_path: string;
   login_url: string | null;
   trial_days: number;

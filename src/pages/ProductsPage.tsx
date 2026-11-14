@@ -375,6 +375,9 @@ function ProductCard({ product }: { product: ProductConfig }) {
             <Field label="Logo URL">
               <Input aria-label="Logo URL" {...text("logo_url")} />
             </Field>
+            <Field label="Logo in emails" hint="Public https PNG or JPG (SVG does not show in Gmail). Empty: a letter tile.">
+              <Input aria-label="Logo in emails" placeholder="https://evalezy.com/icon-192.png" {...text("email_logo_url")} />
+            </Field>
           </div>
         </section>
 
