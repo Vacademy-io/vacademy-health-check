@@ -19,6 +19,8 @@ export interface ProductConfig {
   return_hosts: string | null;
   /** Credits a new institute opens with. Empty keeps the platform's default. */
   demo_credits: number | null;
+  /** Credits the one-screen demo page (/demo: name, email, phone) opens with. Empty uses demo_credits. */
+  demo_portal_credits?: number | null;
   signup_alert_emails: string | null;
   signup_alert_whatsapp: string | null;
   signup_alert_template: string | null;

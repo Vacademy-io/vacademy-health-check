@@ -63,7 +63,9 @@ function ProductCard({ product }: { product: ProductConfig }) {
       set(key, e.target.value as ProductConfig[typeof key]),
   });
   const dirty = JSON.stringify(form) !== JSON.stringify(product);
-  const creditsValid = signupCreditsValid(form.demo_credits, product.demo_credits);
+  const creditsValid =
+    signupCreditsValid(form.demo_credits, product.demo_credits) &&
+    signupCreditsValid(form.demo_portal_credits ?? null, product.demo_portal_credits ?? null);
   const plansValid = plansProblem(form.plans, form.plan_validity_months, form.extra_credit_price_inr) === null;
   // The storefront must sell what the form says; null = this ai-service cannot (not deployed yet).
   const needsSync =
@@ -177,6 +179,24 @@ function ProductCard({ product }: { product: ProductConfig }) {
                       aria-label="Credits for each new sign-up"
                       value={form.demo_credits ?? ""}
                       onChange={(e) => set("demo_credits", e.target.value === "" ? null : Number(e.target.value))}
+                    />
+                  </Field>
+                </div>
+                <div className="max-w-xs">
+                  <Field
+                    label="Credits on the demo page"
+                    hint="The one-screen demo (/demo: name, email, phone, no code). Empty uses the number above."
+                  >
+                    <Input
+                      type="number"
+                      min={0}
+                      max={MAX_SIGNUP_CREDITS}
+                      step={1}
+                      aria-label="Credits on the demo page"
+                      value={form.demo_portal_credits ?? ""}
+                      onChange={(e) =>
+                        set("demo_portal_credits", e.target.value === "" ? null : Number(e.target.value))
+                      }
                     />
                   </Field>
                 </div>
