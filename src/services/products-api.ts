@@ -45,7 +45,7 @@ export interface ProductConfig {
 export type { ProductPlan } from "@/components/products/plans";
 import type { ProductPlan } from "@/components/products/plans";
 
-export type TrialStatus = "ON_TRIAL" | "EXPIRED" | "PAID" | "NOT_ON_TRIAL";
+export type TrialStatus = "ON_TRIAL" | "EXPIRED" | "PAID" | "NOT_ON_TRIAL" | "PAYMENT_PENDING";
 
 export interface ProductInstitute {
   id: string;

@@ -28,6 +28,7 @@ const STATUS: Record<TrialStatus, { label: string; variant: "secondary" | "outli
   EXPIRED: { label: "Trial ended", variant: "destructive" },
   PAID: { label: "Paid", variant: "outline" },
   NOT_ON_TRIAL: { label: "No trial", variant: "outline" },
+  PAYMENT_PENDING: { label: "Payment pending", variant: "destructive" },
 };
 
 const FILTERS: { value: string; label: string }[] = [
@@ -35,6 +36,7 @@ const FILTERS: { value: string; label: string }[] = [
   { value: "ON_TRIAL", label: "On trial" },
   { value: "EXPIRED", label: "Trial ended" },
   { value: "PAID", label: "Paid" },
+  { value: "PAYMENT_PENDING", label: "Payment pending" },
 ];
 
 const dateText = (value: string | null) =>
