@@ -12,6 +12,8 @@ export interface ProductConfig {
   contact_email: string | null;
   theme_color: string | null;
   logo_url: string | null;
+  /** Public https PNG/JPG at the top of the product's mails. */
+  email_logo_url?: string | null;
   app_path: string;
   login_url: string | null;
   trial_days: number;
@@ -19,6 +21,12 @@ export interface ProductConfig {
   return_hosts: string | null;
   /** Credits a new institute opens with. Empty keeps the platform's default. */
   demo_credits: number | null;
+  /** Credits the one-screen demo page (/demo: name, email, phone) opens with. Empty uses demo_credits. */
+  demo_portal_credits?: number | null;
+  /** Institute whose CRM gets every instant-demo sign-up as a lead. Empty: no lead. */
+  demo_leads_institute_id?: string | null;
+  /** That lead list's name. Empty: "Product <name> ( Instant - Demo )". */
+  demo_leads_list_name?: string | null;
   signup_alert_emails: string | null;
   signup_alert_whatsapp: string | null;
   signup_alert_template: string | null;
@@ -37,7 +45,7 @@ export interface ProductConfig {
 export type { ProductPlan } from "@/components/products/plans";
 import type { ProductPlan } from "@/components/products/plans";
 
-export type TrialStatus = "ON_TRIAL" | "EXPIRED" | "PAID" | "NOT_ON_TRIAL";
+export type TrialStatus = "ON_TRIAL" | "EXPIRED" | "PAID" | "NOT_ON_TRIAL" | "PAYMENT_PENDING";
 
 export interface ProductInstitute {
   id: string;
