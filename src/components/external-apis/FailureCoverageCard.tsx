@@ -34,6 +34,8 @@ const SOURCES: Source[] = [
 ];
 
 const ELSEWHERE = [
+  "Only the third-party APIs we have integrated are recorded (Sarvam, OpenRouter, Plivo, Razorpay and the rest on the All vendors tab). Websites the AI service reads for lead research and course content are not APIs and are left out.",
+  "A failed call keeps what we sent and what the vendor answered, with keys, tokens, phone numbers and emails hidden. Open a row to see them.",
   "Email and WhatsApp sends are not part of this page.",
   "Payment and webhook failures: the Payments tab.",
   "Telephony call outcomes (busy, no answer, failed): the Telephony tab.",

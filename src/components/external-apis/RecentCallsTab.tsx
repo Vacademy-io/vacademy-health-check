@@ -68,8 +68,16 @@ function CallDetail({ call }: { call: RecentCallRow }) {
         <Skeleton className="h-32 w-full" />
       ) : (
         <>
-          <JsonBlock title="Payload" body={bodies.data.payload} empty="No payload stored" />
-          <JsonBlock title="Response" body={bodies.data.response} empty="No response stored" />
+          <JsonBlock
+            title={source === "calls" ? "What we sent" : "Payload"}
+            body={bodies.data.payload}
+            empty={source === "calls" ? "Not kept: bodies are kept for failed calls only" : "No payload stored"}
+          />
+          <JsonBlock
+            title={source === "calls" ? "What the vendor answered" : "Response"}
+            body={bodies.data.response}
+            empty={source === "calls" ? "Not kept: bodies are kept for failed calls only" : "No response stored"}
+          />
         </>
       )}
     </div>

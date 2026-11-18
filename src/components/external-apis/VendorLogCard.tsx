@@ -142,8 +142,19 @@ export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWide
             <Skeleton className="h-48 w-full" />
           ) : (
             <div className="space-y-4">
-              <JsonBlock title="Payload" body={detail.data.payload} empty="No payload stored" />
-              <JsonBlock title="Response" body={detail.data.response} empty="No response stored" />
+              <JsonBlock
+                title={source === "calls" ? "What we sent" : "Payload"}
+                body={detail.data.payload}
+                empty={source === "calls" ? "Not kept: bodies are kept for failed calls only" : "No payload stored"}
+              />
+              <JsonBlock
+                title={source === "calls" ? "What the vendor answered" : "Response"}
+                body={detail.data.response}
+                empty={source === "calls" ? "Not kept: bodies are kept for failed calls only" : "No response stored"}
+              />
+              {source === "calls" && (
+                <p className="text-xs text-muted-foreground">Keys, tokens, phone numbers and emails are hidden before anything is kept.</p>
+              )}
             </div>
           )}
         </DialogContent>
