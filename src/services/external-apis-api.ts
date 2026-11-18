@@ -3,6 +3,7 @@ import api from "@/lib/axios";
 import { API_PREFIXES } from "@/lib/constants";
 import type { SpendBreakdownRow } from "@/types/external-apis";
 import type { VendorBalance } from "@/components/external-apis/balances";
+import { INTEGRATED_VENDORS } from "@/components/external-apis/format";
 
 // Two sources, on purpose:
 // - AI call metadata and cost come from ai_usage_event through the analytics-api SQL proxy,
@@ -45,6 +46,20 @@ const vendorSql = (t = "") => `coalesce(
     'none:' || coalesce(
       (SELECT uc.label FROM ai_use_case_catalog uc WHERE uc.use_case = ${t || "ai_usage_event."}use_case),
       ${t}use_case, 'unknown'))`;
+
+
+/**
+ * True for rows of integrated vendors. The AI service's automatic recording used to log every
+ * host an HTTP client reached (institutes' websites fetched for lead research); those are not
+ * third-party APIs. The voice bot and admin_core only ever write integrated vendors.
+ */
+const integratedSql = (alias: string) => {
+  const v = `lower(${alias}.vendor)`;
+  const domains = INTEGRATED_VENDORS.flatMap((x) => x.domains)
+    .map((d) => `${v} = '${d}' OR ${v} LIKE '%.${d}'`)
+    .join(" OR ");
+  return `(coalesce(${alias}.source_service, 'ai') <> 'ai' OR ${v} IN ('serper') OR ${domains})`;
+};
 
 async function dbQuery<Row>(db: string, sql: string, params: unknown[]): Promise<Row[]> {
   const { data } = await api.post<{ rows: Row[] }>(QUERY_ENDPOINT, { db, sql, params });
@@ -361,7 +376,7 @@ SELECT f.*, i.name AS institute_name
             l.duration_ms::float8, NULL::float8, l.error_message
        FROM external_api_call_log l
       WHERE ($2::text IS NULL OR $2::text = 'calls') AND ($3::boolean IS NOT TRUE OR l.status = 'FAILED')
-        AND l.occurred_at > now() - make_interval(hours => $1::int)
+        AND l.occurred_at > now() - make_interval(hours => $1::int) AND ${integratedSql("l")}
       ORDER BY l.occurred_at DESC LIMIT $4::int)
     UNION ALL
     (SELECT 'telephony', t.id::text, t.created_at AT TIME ZONE 'UTC', t.provider_type, t.direction, NULL, t.status,
@@ -738,8 +753,8 @@ export function useLoggedCallSummary(hours: number) {
            coalesce(sum(cost_amount), 0)::float8 AS cost,
            cost_currency AS currency,
            avg(duration_ms)::float8 AS avg_ms
-      FROM external_api_call_log
-     WHERE occurred_at > now() - make_interval(hours => $1::int)
+      FROM external_api_call_log l
+     WHERE occurred_at > now() - make_interval(hours => $1::int) AND ${integratedSql("l")}
      GROUP BY 1, 2, 6
      ORDER BY calls DESC`));
 }
@@ -771,8 +786,8 @@ export function useLoggedFailures(hours: number) {
     SELECT vendor, http_status,
            CASE WHEN http_status IS NULL THEN left(coalesce(error_message, ''), 120) ELSE '' END AS reason,
            count(*)::int AS failed, max(occurred_at) AS last_at
-      FROM external_api_call_log
-     WHERE occurred_at > now() - make_interval(hours => $1::int) AND status = 'FAILED'
+      FROM external_api_call_log l
+     WHERE occurred_at > now() - make_interval(hours => $1::int) AND status = 'FAILED' AND ${integratedSql("l")}
      GROUP BY 1, 2, 3
      ORDER BY failed DESC
      LIMIT 50`));
@@ -833,7 +848,7 @@ export function useRecentCallCount(hours: number, filters: RecentCallFilters) {
                AND e.occurred_at > now() - make_interval(hours => $1::int))
          + (SELECT count(*) FROM external_api_call_log l
              WHERE ($2::text IS NULL OR $2::text = 'calls') AND ($3::boolean IS NOT TRUE OR l.status = 'FAILED')
-               AND l.occurred_at > now() - make_interval(hours => $1::int))
+               AND l.occurred_at > now() - make_interval(hours => $1::int) AND ${integratedSql("l")})
          + (SELECT count(*) FROM telephony_call_log t
              WHERE ($2::text IS NULL OR $2::text = 'telephony')
                AND ($3::boolean IS NOT TRUE OR t.status ILIKE '%fail%' OR t.status ILIKE '%error%')
@@ -868,8 +883,8 @@ export function useFailureSources(hours: number) {
   return useQuery(insightQuery<FailureSourceRow>("failure-sources", hours, `
     SELECT coalesce(source_service, 'ai') AS source_service, count(*)::int AS calls,
            (count(*) FILTER (WHERE status = 'FAILED'))::int AS failed, max(occurred_at) AS last_at
-      FROM external_api_call_log
-     WHERE occurred_at > now() - make_interval(hours => $1::int)
+      FROM external_api_call_log l
+     WHERE occurred_at > now() - make_interval(hours => $1::int) AND ${integratedSql("l")}
      GROUP BY 1`));
 }
 
@@ -877,7 +892,7 @@ const VENDOR_COLUMN: Record<VendorLogSource, { table: string; vendor: string; ti
   telephony: { table: "telephony_call_log", vendor: "provider_type", time: "created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'" },
   payments: { table: "payment_log", vendor: "vendor", time: "created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'" },
   webhooks: { table: "web_hook", vendor: "vendor", time: "created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'" },
-  calls: { table: "external_api_call_log", vendor: "vendor", time: "occurred_at > now() - make_interval(hours => $1::int)" },
+  calls: { table: "external_api_call_log l", vendor: "vendor", time: `occurred_at > now() - make_interval(hours => $1::int) AND ${integratedSql("l")}` },
 };
 
 /** Every vendor in a log over the whole window, so a filter never loses options when paging. */

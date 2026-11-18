@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { VENDOR_LOG_NAMES } from "@/lib/external-api-catalog";
 import { useLoggedVendors, useSetAutoCapture } from "@/services/external-apis-api";
-import { count, dateTime, serviceName, vendorName } from "./format";
+import { count, dateTime, integratedVendor, serviceName, vendorName } from "./format";
 import { EmptyNote, ErrorNote, Pager } from "./parts";
 import { slicePage, usePage } from "./usePage";
 
@@ -16,7 +16,10 @@ export function LoggedVendorsCard({ hours, onWiden }: { hours: number; onWiden?:
   const logged = useLoggedVendors(hours);
   const setAutoCapture = useSetAutoCapture();
   // The endpoint returns every vendor ever seen; only those with calls in this window are shown.
-  const vendors = (logged.data?.vendors ?? []).filter((v) => v.calls > 0);
+  // Integrated vendors with calls in this window. Other hosts (websites fetched for lead
+  // research) were logged by the old automatic recording and are not third-party APIs.
+  const vendors = (logged.data?.vendors ?? []).filter(
+    (v) => v.calls > 0 && (v.vendor === "serper" || integratedVendor(v.vendor) != null));
   const [page, setPage] = usePage([hours, vendors.length]);
   const view = slicePage(vendors, page, 25);
   const autoCapture = logged.data?.auto_capture ?? false;

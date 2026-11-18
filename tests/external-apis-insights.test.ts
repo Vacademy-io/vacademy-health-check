@@ -90,3 +90,15 @@ test("status codes in words", async () => {
   assert.equal(httpMeaning(418), "Request refused");
   assert.equal(httpMeaning(599), "Vendor error");
 });
+
+test("only integrated vendors count, shown by name", async () => {
+  const { integratedVendor, vendorName } = await import("../src/components/external-apis/format.ts");
+  assert.equal(integratedVendor("api.sarvam.ai"), "Sarvam");
+  assert.equal(integratedVendor("live-server.wati.io"), "WATI");
+  assert.equal(integratedVendor("queue.fal.run"), "fal.ai");
+  for (const site of ["sayajihotels.com", "www.linkedin.com", "harilalventures.in", "cloudflare-dns.com"]) {
+    assert.equal(integratedVendor(site), null, site);
+  }
+  assert.equal(vendorName("tts.navana.ai"), "Navana");
+  assert.equal(vendorName("bedrock (AWS)"), "AWS Bedrock");
+});

@@ -55,6 +55,64 @@ export const NO_VENDOR = "none";
 export const NO_VENDOR_PREFIX = "none:";
 
 /** A vendor as people call it. Hosts stay as they are, since they are already precise. */
+/**
+ * The third-party APIs the platform has integrated, by the hosts they answer on. Only these
+ * are shown as vendor calls: any other site an HTTP client reached (an institute's website
+ * fetched for lead research) is not an integration. Same list in ai_service integrated_vendors.py,
+ * voice_bot vendor_failures.py and admin_core IntegratedVendors.java.
+ */
+export const INTEGRATED_VENDORS: Array<{ name: string; domains: string[] }> = [
+  { name: "OpenRouter", domains: ["openrouter.ai"] },
+  { name: "Isoquant", domains: ["api.isoquant.ai"] },
+  { name: "Anthropic", domains: ["api.anthropic.com"] },
+  { name: "OpenAI", domains: ["api.openai.com"] },
+  { name: "Google AI", domains: ["generativelanguage.googleapis.com", "aiplatform.googleapis.com"] },
+  { name: "Parallel", domains: ["api.parallel.ai"] },
+  { name: "Sarvam", domains: ["api.sarvam.ai"] },
+  { name: "Smallest.ai", domains: ["smallest.ai"] },
+  { name: "Navana", domains: ["navana.ai"] },
+  { name: "Rumik", domains: ["rumik.ai"] },
+  { name: "Deepgram", domains: ["deepgram.com"] },
+  { name: "Google speech", domains: ["texttospeech.googleapis.com", "speech.googleapis.com"] },
+  { name: "Edge TTS", domains: ["speech.platform.bing.com"] },
+  { name: "fal.ai", domains: ["fal.run", "fal.ai", "fal.media"] },
+  { name: "RunPod", domains: ["runpod.ai", "runpod.io"] },
+  { name: "Spatius", domains: ["spatius.ai"] },
+  { name: "Mathpix", domains: ["api.mathpix.com"] },
+  { name: "DocConverter", domains: ["api.docconverter.pro"] },
+  { name: "CloudConvert", domains: ["cloudconvert.com"] },
+  { name: "Serper", domains: ["google.serper.dev"] },
+  { name: "Pexels", domains: ["api.pexels.com"] },
+  { name: "Pixabay", domains: ["pixabay.com"] },
+  { name: "Google APIs", domains: ["www.googleapis.com", "oauth2.googleapis.com", "meet.googleapis.com", "workspaceevents.googleapis.com"] },
+  { name: "Plivo", domains: ["api.plivo.com"] },
+  { name: "Exotel", domains: ["exotel.com", "exotel.in"] },
+  { name: "Vonage / Airtel", domains: ["api.vonage.com", "api.nexmo.com"] },
+  { name: "Aavtaar", domains: ["aavtaar.ai"] },
+  { name: "Razorpay", domains: ["api.razorpay.com"] },
+  { name: "Cashfree", domains: ["api.cashfree.com", "sandbox.cashfree.com"] },
+  { name: "Stripe", domains: ["api.stripe.com"] },
+  { name: "PhonePe", domains: ["api.phonepe.com", "api-preprod.phonepe.com"] },
+  { name: "PayPal", domains: ["api.paypal.com", "api-m.paypal.com", "api.sandbox.paypal.com", "api-m.sandbox.paypal.com"] },
+  { name: "Eway", domains: ["ewaypayments.com"] },
+  { name: "WATI", domains: ["wati.io"] },
+  { name: "Meta", domains: ["graph.facebook.com"] },
+  { name: "Zoom", domains: ["api.zoom.us", "zoom.us"] },
+  { name: "Zoho", domains: ["zohoapis.in", "zohoapis.com", "zoho.in"] },
+  { name: "Cloudflare", domains: ["api.cloudflare.com"] },
+  { name: "FX rates", domains: ["open.er-api.com"] },
+];
+
+/** The integrated vendor a host belongs to, or null when it is not an integration. */
+export const integratedVendor = (host: string | null | undefined): string | null => {
+  const h = (host ?? "").trim().toLowerCase().replace(/\.$/, "");
+  if (!h) return null;
+  for (const v of INTEGRATED_VENDORS) {
+    if (v.domains.some((d) => h === d || h.endsWith(`.${d}`))) return v.name;
+  }
+  return null;
+};
+
 export const vendorName = (raw: string | null | undefined): string => {
   if (!raw || raw === NO_VENDOR || raw === "unknown") return "Vendor not tracked";
   if (raw.startsWith(NO_VENDOR_PREFIX)) return `${raw.slice(NO_VENDOR_PREFIX.length)} (vendor not tracked)`;
@@ -66,6 +124,9 @@ export const vendorName = (raw: string | null | undefined): string => {
   }
   const known = VENDOR_NAMES[raw.toLowerCase()];
   if (known) return known;
+  const integrated = integratedVendor(raw);
+  if (integrated) return integrated;
+  if (raw === "bedrock (AWS)") return "AWS Bedrock";
   return /^[A-Z_]+$/.test(raw) ? raw.split("_").map(titleCase).join(" ") : raw;
 };
 
