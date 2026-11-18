@@ -1,7 +1,8 @@
 // Live vendor balances: the shape both services return, and how the Balances tab shows them.
 // No imports, so the Node tests can load this file directly.
 
-export type BalanceStatus = "ok" | "not_set_up" | "error";
+/** unknown: nothing has used the account recently, so whether it works is not known. */
+export type BalanceStatus = "ok" | "not_set_up" | "error" | "unknown";
 
 export interface VendorBalance {
   vendor: string;
@@ -10,8 +11,13 @@ export interface VendorBalance {
   institute_id: string | null;
   institute_name: string | null;
   status: BalanceStatus;
-  /** account_balance: money left with the vendor. key_limit: what one key may still spend under its cap. */
-  kind: "account_balance" | "key_limit";
+  /**
+   * account_balance: money left with the vendor. key_limit: what one key may still spend under its cap.
+   * account_status: no figure, only whether the account works (Sarvam has no balance API).
+   */
+  kind: "account_balance" | "key_limit" | "account_status";
+  /** For account_status: "Working", "Out of credits", ... */
+  state_label?: string | null;
   balance: number | null;
   currency: string | null;
   spend_per_hour: number | null;
@@ -24,8 +30,13 @@ export interface VendorBalance {
 export const money = (amount: number | null | undefined, currency: string | null | undefined): string => {
   if (amount == null) return "—";
   const code = (currency || "USD").toUpperCase();
+  // A fraction of a cent (one AI call) keeps enough digits to be read; anything else shows cents.
+  const tiny = amount !== 0 && Math.abs(amount) < 0.01;
   try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: code, maximumFractionDigits: 2 }).format(amount);
+    return new Intl.NumberFormat("en-US", {
+      style: "currency", currency: code,
+      minimumFractionDigits: 2, maximumFractionDigits: tiny ? 6 : 2,
+    }).format(amount);
   } catch {
     // An unknown currency code: show it beside the number rather than fail.
     return `${amount.toFixed(2)} ${code}`;
@@ -45,13 +56,20 @@ export const runwayLabel = (days: number | null): string | null => {
   return `About ${whole} day${whole === 1 ? "" : "s"} left at the current spend`;
 };
 
-const STATUS_ORDER: Record<BalanceStatus, number> = { ok: 0, error: 1, not_set_up: 2 };
+const STATUS_ORDER: Record<BalanceStatus, number> = { ok: 0, error: 1, unknown: 2, not_set_up: 3 };
 
-/** Readable balances first, lowest first so the account closest to running out is on top; then failures. */
+/**
+ * How close a balance is to its currency's alert level (1 = at it), so $10 and ₹600 compare fairly:
+ * plain numbers would put $10 below ₹600. A currency with no alert level counts its raw amount.
+ */
+const relativeLevel = (r: VendorBalance): number =>
+  r.balance == null ? Infinity : r.balance / (LOW_BALANCE[(r.currency || "USD").toUpperCase()] ?? 1);
+
+/** Readable balances first, closest to running out first (relative to each currency's alert level); then failures. */
 export const sortBalances = (rows: VendorBalance[]): VendorBalance[] =>
   [...rows].sort((a, b) =>
     STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
-    || (a.balance ?? Infinity) - (b.balance ?? Infinity)
+    || relativeLevel(a) - relativeLevel(b)
     || a.vendor.localeCompare(b.vendor)
     || (a.institute_name ?? a.account ?? "").localeCompare(b.institute_name ?? b.account ?? ""));
 
@@ -111,7 +129,8 @@ export const isLow = (row: Pick<VendorBalance, "status" | "balance" | "currency"
 
 /** Vendors with no balance API, and why, so the tab says what it leaves out instead of hiding it. */
 export const NOT_REPORTED: Array<{ vendors: string; reason: string }> = [
-  { vendors: "Sarvam, Serper, Mathpix, Smallest.ai", reason: "they don't let us read the balance; check their own dashboards" },
+  { vendors: "Serper, Mathpix, Smallest.ai", reason: "they don't let us read the balance; check their own dashboards" },
+  { vendors: "Sarvam (amount)", reason: "no balance API: the card above says whether it works, from the voice bot's last calls" },
   { vendors: "OpenAI, Gemini, Meta WhatsApp, AWS", reason: "billed to a card each month, so there is no balance to run out" },
   { vendors: "YouTube, Pexels, Pixabay", reason: "free daily quotas rather than a balance" },
   { vendors: "WATI, CloudConvert", reason: "they report a balance, but we can't read it from here yet; coming next" },
@@ -128,6 +147,6 @@ export const amountsLabel = (rows: Array<{ currency: string | null; amount: numb
   if (!totals.size) return "—";
   return [...totals]
     .sort((a, b) => b[1] - a[1])
-    .map(([code, total]) => (code ? money(total, code) : total.toFixed(2)))
+    .map(([code, total]) => (code ? money(total, code) : `${total.toFixed(2)} (currency not recorded)`))
     .join(" · ");
 };

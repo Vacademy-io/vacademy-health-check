@@ -47,33 +47,50 @@ export function RecentCallsSummary({ hours }: { hours: number }) {
   const logged = useLoggedCallSummary(hours);
   const loading = ai.isLoading || tel.isLoading || pay.isLoading || hooks.isLoading || logged.isLoading;
 
-  const sources = [
-    { name: "AI", calls: ai.data?.find((r) => r.current)?.calls ?? 0, failed: 0 },
-    { name: "Telephony", calls: sumOf(tel.data ?? [], (r) => r.calls), failed: sumOf((tel.data ?? []).filter((r) => r.status === "FAILED"), (r) => r.calls) },
-    { name: "Payments", calls: sumOf(pay.data ?? [], (r) => r.payments), failed: sumOf((pay.data ?? []).filter((r) => r.status.toUpperCase().includes("FAIL")), (r) => r.payments) },
-    { name: "Webhooks", calls: sumOf(hooks.data ?? [], (r) => r.events), failed: sumOf((hooks.data ?? []).filter((r) => r.status === "FAILED"), (r) => r.events) },
-    { name: "Other vendor calls", calls: sumOf(logged.data ?? [], (r) => r.calls), failed: sumOf(logged.data ?? [], (r) => r.failed) },
+  const all = [
+    // AI calls are written only when they succeed: no failure count to give.
+    { name: "AI", calls: ai.data?.find((r) => r.current)?.calls ?? 0, failed: null as number | null, q: ai },
+    { name: "Telephony", calls: sumOf(tel.data ?? [], (r) => r.calls), failed: sumOf((tel.data ?? []).filter((r) => r.status === "FAILED"), (r) => r.calls), q: tel },
+    { name: "Payments", calls: sumOf(pay.data ?? [], (r) => r.payments), failed: sumOf((pay.data ?? []).filter((r) => r.status.toUpperCase().includes("FAIL")), (r) => r.payments), q: pay },
+    { name: "Webhooks", calls: sumOf(hooks.data ?? [], (r) => r.events), failed: sumOf((hooks.data ?? []).filter((r) => r.status === "FAILED"), (r) => r.events), q: hooks },
+    { name: "Vendor calls & failures", calls: sumOf(logged.data ?? [], (r) => r.calls), failed: sumOf(logged.data ?? [], (r) => r.failed), q: logged },
   ];
+  const broken = all.filter((s) => s.q.isError);
+  const sources = all.filter((s) => !s.q.isError);
   const total = sumOf(sources, (s) => s.calls);
-  const failed = sumOf(sources, (s) => s.failed);
-  const worst = leader(sources, (s) => s.failed);
+  const withFailures = sources.filter((s) => s.failed != null);
+  const failed = sumOf(withFailures, (s) => s.failed ?? 0);
+  const failedOf = sumOf(withFailures, (s) => s.calls);
+  const worst = leader(withFailures, (s) => s.failed ?? 0);
   const busiest = leader(sources, (s) => s.calls);
 
   return (
     <div className="space-y-3">
+      {broken.length > 0 && (
+        <ErrorNote
+          title={`${broken.map((s) => s.name).join(", ")} couldn't load, so ${broken.length === 1 ? "it is" : "they are"} left out of these totals`}
+          error={broken[0].q.error}
+          onRetry={() => broken.forEach((s) => s.q.refetch())}
+        />
+      )}
       <Tiles
         loading={loading}
         items={[
           { label: "Calls recorded", value: count(total), note: `In the last ${periodWords(hours)}` },
-          { label: "Failed", value: count(failed), note: total ? `${pctLabel(pct(failed, total))} of all calls` : null, tone: failed ? "warn" : undefined },
+          {
+            label: "Failed",
+            value: count(failed),
+            note: failedOf ? `${pctLabel(pct(failed, failedOf))} of the calls that record failures (not AI)` : null,
+            tone: failed ? "warn" : undefined,
+          },
           { label: "Busiest", value: busiest ? busiest.row.name : "—", note: busiest ? `${count(busiest.row.calls)} calls, ${pctLabel(busiest.share)}` : null },
-          { label: "Most failures", value: worst ? worst.row.name : "None", note: worst ? `${count(worst.row.failed)} failed` : "Nothing failed" },
+          { label: "Most failures", value: worst ? worst.row.name : "None", note: worst ? `${count(worst.row.failed ?? 0)} failed` : "Nothing failed" },
         ]}
       />
       <Highlights
         items={[
           worst && worst.row.calls > 0 &&
-            `${pctLabel(pct(worst.row.failed, worst.row.calls))} of ${worst.row.name.toLowerCase()} failed. Use "Show failures only" below to see which ones and why.`,
+            `${pctLabel(pct(worst.row.failed ?? 0, worst.row.calls))} of ${worst.row.name.toLowerCase()} failed. Use "Show failures only" below to see which ones and why.`,
           "AI calls are only recorded once they succeed, so AI failures don't appear here.",
         ]}
       />
@@ -93,8 +110,18 @@ export function AiCallsSummary({ hours }: { hours: number }) {
   const of = (statuses: string[]) => rows.filter((r) => statuses.includes(r.charge_status));
   const charged = of(["POSTED", "PARTIAL_REFUND"]);
   const unpaid = of(NOT_PAID);
+  // A billing gap leaves a call unbilled under another status; it counts as "not paid for",
+  // the same definition the Overview's "Calls we didn't charge for" uses.
+  const gapRows = rows.filter((r) => !NOT_PAID.includes(r.charge_status));
+  const gapCalls = sumOf(gapRows, (r) => r.gap_calls);
+  const gapCost = sumOf(gapRows, (r) => r.gap_cost_usd);
+  const unpaidCalls = sumOf(unpaid, (r) => r.calls) + gapCalls;
+  const unpaidCost = sumOf(unpaid, (r) => r.cost_usd) + gapCost;
   const free = of(["NOT_APPLICABLE"]);
-  const refunded = of(["REFUNDED", "PARTIAL_REFUND"]);
+  const freeCalls = sumOf(free, (r) => r.calls - r.gap_calls);
+  const freeCost = sumOf(free, (r) => r.cost_usd - r.gap_cost_usd);
+  const refunded = of(["REFUNDED"]);
+  const partly = sumOf(of(["PARTIAL_REFUND"]), (r) => r.calls);
   const byModel = groupSum((features.data ?? []).filter((r) => r.model_id), (r) => r.model_id!, (r) => r.cost_usd);
   const modelTotal = sumOf(byModel, (m) => m.total);
 
@@ -106,20 +133,26 @@ export function AiCallsSummary({ hours }: { hours: number }) {
         loading={outcomes.isLoading}
         items={[
           { label: "Charged to institutes", value: count(sumOf(charged, (r) => r.calls)), note: total ? `${pctLabel(pct(sumOf(charged, (r) => r.calls), total))} of AI calls` : null },
-          { label: "Free by design", value: count(sumOf(free, (r) => r.calls)), note: "Features we don't charge credits for" },
+          { label: "Free by design", value: count(freeCalls), note: "Features we don't charge credits for" },
           {
             label: "Ran but not paid for",
-            value: count(sumOf(unpaid, (r) => r.calls)),
-            note: `${usd(sumOf(unpaid, (r) => r.cost_usd))} vendor cost we absorbed`,
-            tone: sumOf(unpaid, (r) => r.calls) ? "warn" : undefined,
+            value: count(unpaidCalls),
+            note: `${usd(unpaidCost)} vendor cost we absorbed: out of credits, no institute, or a billing gap`,
+            tone: unpaidCalls ? "warn" : undefined,
           },
-          { label: "Refunded", value: count(sumOf(refunded, (r) => r.calls)), note: "Credits given back after a failure" },
+          {
+            label: "Refunded",
+            value: count(sumOf(refunded, (r) => r.calls)),
+            note: partly ? `Credits given back in full; ${count(partly)} more partly refunded (counted as charged)` : "Credits given back after a failure",
+          },
         ]}
       />
       <Highlights
         items={[
           ...unpaid.map((r) => r.calls > 0 && `${chargeLabel(r.charge_status)}: ${count(r.calls)} calls costing us ${usd(r.cost_usd)}.`),
-          sumOf(free, (r) => r.cost_usd) > 0 && `Free features cost ${usd(sumOf(free, (r) => r.cost_usd))} at the vendor in this period.`,
+          gapCalls > 0 && `Billing gap: ${count(gapCalls)} calls ran without a charge, costing us ${usd(gapCost)}.`,
+          freeCost > 0 && `Free features cost ${usd(freeCost)} at the vendor in this period.`,
+          "AI calls are recorded only when they succeed, so failed AI calls aren't counted here.",
           byModel[0] && byModel[0].total > 0 &&
             `The most expensive model is ${byModel[0].key}, at ${usd(byModel[0].total)} (${pctLabel(pct(byModel[0].total, modelTotal))} of model spend).`,
         ]}
@@ -182,7 +215,7 @@ export function TelephonySummary({ hours }: { hours: number }) {
       {(top.data ?? []).length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Institutes calling the most</CardTitle>
+            <CardTitle className="text-sm font-medium">Institutes with the most talk time</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -201,7 +234,11 @@ export function TelephonySummary({ hours }: { hours: number }) {
                   {(top.data ?? []).map((r) => (
                     <TableRow key={`${r.institute_id}:${r.provider}`}>
                       <TableCell>
-                        <Link className="font-medium hover:underline" to={`/institutes/${r.institute_id}`}>{r.institute_name ?? r.institute_id}</Link>
+                        {r.institute_id ? (
+                          <Link className="font-medium hover:underline" to={`/institutes/${r.institute_id}`}>{r.institute_name ?? r.institute_id}</Link>
+                        ) : (
+                          <span className="text-muted-foreground">No institute recorded</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs">{vendorName(r.provider)}</TableCell>
                       <TableCell className="text-right tabular-nums">{count(r.calls)}</TableCell>
@@ -286,7 +323,9 @@ export function LoggedCallsSummary({ hours }: { hours: number }) {
   const rows = summary.data ?? [];
   const total = sumOf(rows, (r) => r.calls);
   const failed = sumOf(rows, (r) => r.failed);
-  const avgMs = total ? sumOf(rows, (r) => (r.avg_ms ?? 0) * r.calls) / total : null;
+  const timed = rows.filter((r) => r.avg_ms != null);
+  const timedCalls = sumOf(timed, (r) => r.calls);
+  const avgMs = timedCalls ? sumOf(timed, (r) => (r.avg_ms ?? 0) * r.calls) / timedCalls : null;
   const byVendor = groupSum(rows, (r) => r.vendor, (r) => r.calls).map((v) => ({
     name: v.key,
     calls: v.total,
@@ -373,14 +412,16 @@ function FailuresByStatus({ hours }: { hours: number }) {
   const failures = useLoggedFailures(hours);
   const [all, setAll] = useState(false);
   const rows = failures.data ?? [];
-  if (failures.isError) return <ErrorNote title="Could not load failure reasons" error={failures.error} />;
+  if (failures.isError) return <ErrorNote title="Could not load failure reasons" error={failures.error} onRetry={() => failures.refetch()} />;
   if (!rows.length) return null;
   const shown = all ? rows : rows.slice(0, BREAKDOWN_ROWS);
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">Why calls failed</CardTitle>
-        <p className="text-xs text-muted-foreground">Each vendor&apos;s answer code, most frequent first.</p>
+        <p className="text-xs text-muted-foreground">
+          Each vendor&apos;s answer code, or what went wrong when there was no answer. The 50 most frequent, most frequent first.
+        </p>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -396,10 +437,10 @@ function FailuresByStatus({ hours }: { hours: number }) {
             </TableHeader>
             <TableBody>
               {shown.map((r) => (
-                <TableRow key={`${r.vendor}:${r.http_status}`}>
+                <TableRow key={`${r.vendor}:${r.http_status}:${r.reason}`}>
                   <TableCell className="break-all font-medium">{vendorName(r.vendor)}</TableCell>
                   <TableCell className="tabular-nums">{r.http_status ?? "None"}</TableCell>
-                  <TableCell className="text-xs">{httpMeaning(r.http_status)}</TableCell>
+                  <TableCell className="text-xs">{r.http_status == null && r.reason ? r.reason : httpMeaning(r.http_status)}</TableCell>
                   <TableCell className="text-right tabular-nums">{count(r.failed)}</TableCell>
                   <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{dateTime(r.last_at)}</TableCell>
                 </TableRow>
@@ -410,7 +451,7 @@ function FailuresByStatus({ hours }: { hours: number }) {
         {rows.length > BREAKDOWN_ROWS && (
           <div className="pt-3 text-center">
             <Button variant="outline" size="sm" onClick={() => setAll((x) => !x)}>
-              {all ? "Show fewer" : `Show all ${rows.length}`}
+              {all ? "Show fewer" : `Show all ${rows.length} reasons`}
             </Button>
           </div>
         )}

@@ -1,5 +1,11 @@
+/** US dollars the same way balances.money writes them: $1,234.56, and $0.000123 for a fraction of a cent. */
 export const usd = (n: number | null | undefined) =>
-  n == null ? "—" : `$${n.toFixed(n !== 0 && n < 0.01 ? 6 : 2)}`;
+  n == null
+    ? "—"
+    : new Intl.NumberFormat("en-US", {
+        style: "currency", currency: "USD", minimumFractionDigits: 2,
+        maximumFractionDigits: n !== 0 && Math.abs(n) < 0.01 ? 6 : 2,
+      }).format(n);
 
 export const credits = (n: number | null | undefined) =>
   Number(n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,6 +39,7 @@ const VENDOR_NAMES: Record<string, string> = {
   whatsapp: "WhatsApp",
   email: "Email",
   voice_bot: "Voice bot stack",
+  vacademy_ai: "Vacademy AI calling (Plivo)",
   speech: "Speech vendor",
   stock_media: "Pexels, Pixabay",
 };
@@ -64,7 +71,7 @@ export const vendorName = (raw: string | null | undefined): string => {
 
 const SOURCE_LABELS: Record<string, string> = {
   ai: "AI call",
-  calls: "Logged vendor call",
+  calls: "Vendor call",
   telephony: "Telephony",
   payments: "Payment",
   webhooks: "Webhook",

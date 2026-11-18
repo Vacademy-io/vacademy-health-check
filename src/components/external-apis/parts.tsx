@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,12 +55,59 @@ export function FilterSelect({ value, onChange, label, options, format }: {
   );
 }
 
-export function Pager({ page, hasNext, onPage }: { page: number; hasNext: boolean; onPage: (p: number) => void }) {
+/**
+ * Page controls: where you are, how many pages and rows there are, first/previous/next/last,
+ * and a box to jump straight to a page. `totalPages` unknown (still counting) falls back to hasNext.
+ */
+export function Pager({ page, totalPages, total, hasNext, onPage }: {
+  page: number;
+  totalPages?: number | null;
+  total?: number | null;
+  hasNext?: boolean;
+  onPage: (p: number) => void;
+}) {
+  const [jump, setJump] = useState("");
+  const jumpId = useId();
+  const pages = totalPages ?? null;
+  const last = pages != null ? Math.max(0, pages - 1) : null;
+  const canNext = last != null ? page < last : !!hasNext;
+  const go = (p: number) => onPage(Math.max(0, last != null ? Math.min(p, last) : p));
+  const submit = () => {
+    const n = Number(jump);
+    if (Number.isInteger(n) && n >= 1) go(n - 1);
+    setJump("");
+  };
+  if (pages != null && pages <= 1 && page === 0) {
+    return total != null ? <p className="pt-3 text-right text-xs text-muted-foreground">{total.toLocaleString()} rows</p> : null;
+  }
   return (
-    <div className="flex items-center justify-end gap-2 pt-3 text-xs text-muted-foreground">
-      <span>Page {page + 1}</span>
-      <Button variant="outline" size="sm" disabled={page === 0} onClick={() => onPage(page - 1)}>Previous</Button>
-      <Button variant="outline" size="sm" disabled={!hasNext} onClick={() => onPage(page + 1)}>Next</Button>
+    <div className="flex flex-wrap items-center justify-end gap-2 pt-3 text-xs text-muted-foreground">
+      <span>
+        Page {(page + 1).toLocaleString()}
+        {pages != null && ` of ${pages.toLocaleString()}`}
+        {total != null && ` · ${total.toLocaleString()} rows`}
+      </span>
+      <Button variant="outline" size="sm" disabled={page === 0} onClick={() => go(0)} aria-label="First page">First</Button>
+      <Button variant="outline" size="sm" disabled={page === 0} onClick={() => go(page - 1)}>Previous</Button>
+      <Button variant="outline" size="sm" disabled={!canNext} onClick={() => go(page + 1)}>Next</Button>
+      {last != null && (
+        <Button variant="outline" size="sm" disabled={page >= last} onClick={() => go(last)} aria-label="Last page">Last</Button>
+      )}
+      <form
+        className="flex items-center gap-1"
+        onSubmit={(e) => { e.preventDefault(); submit(); }}
+      >
+        <label htmlFor={jumpId} className="sr-only">Go to page</label>
+        <input
+          id={jumpId}
+          inputMode="numeric"
+          placeholder="Page"
+          value={jump}
+          onChange={(e) => setJump(e.target.value.replace(/[^0-9]/g, ""))}
+          className="h-8 w-16 rounded-md border bg-background px-2 text-xs text-foreground"
+        />
+        <Button type="submit" variant="outline" size="sm" disabled={!jump}>Go</Button>
+      </form>
     </div>
   );
 }
@@ -123,7 +170,7 @@ export function Highlights({ items, title = "What stands out" }: { items: Array<
     <div className="rounded-lg border bg-muted/40 p-4">
       <p className="mb-2 text-sm font-medium">{title}</p>
       <ul className="list-disc space-y-1 pl-5 text-sm">
-        {lines.map((l) => <li key={l}>{l}</li>)}
+        {lines.map((l, i) => <li key={`${i}:${l}`}>{l}</li>)}
       </ul>
     </div>
   );

@@ -17,7 +17,8 @@ import {
   type PlatformKeyRow,
 } from "@/services/external-apis-api";
 import { instituteKeyKind, keyLabel, serviceName, vendorName } from "./format";
-import { EmptyNote, ErrorNote, Highlights, Tiles } from "./parts";
+import { EmptyNote, ErrorNote, Highlights, Pager, Tiles } from "./parts";
+import { slicePage, usePage } from "./usePage";
 
 const SOURCE_LABELS: Record<OwnerSource, string> = {
   stored: "Recorded on the key",
@@ -162,6 +163,7 @@ function DetailsDialog({ row, units, currencies, onClose }: {
 export function KeyAccountsTab() {
   const accounts = useKeyAccounts();
   const [editing, setEditing] = useState<PlatformKeyRow | null>(null);
+  const [keyPage, setKeyPage] = usePage(accounts.data?.institute_keys.length ?? 0);
 
   if (accounts.isError) {
     return <ErrorNote title="Could not load keys and accounts" error={accounts.error} onRetry={() => accounts.refetch()} />;
@@ -175,6 +177,8 @@ export function KeyAccountsTab() {
   const missing = platform.filter((r) => r.configured === false);
   const unknownOwner = platform.filter((r) => r.configured !== false && !r.owner);
   const instituteCount = new Set(institute.map((r) => r.institute_id)).size;
+  const keyView = slicePage(institute, keyPage, 25);
+  const unknownVendors = [...new Set(unknownOwner.map((r) => vendorName(r.vendor)))];
 
   return (
     <div className="space-y-6">
@@ -189,7 +193,7 @@ export function KeyAccountsTab() {
       <Highlights
         items={[
           unknownOwner.length > 0 &&
-            `${unknownOwner.length} key${unknownOwner.length === 1 ? " has" : "s have"} no known account (${[...new Set(unknownOwner.map((r) => vendorName(r.vendor)))].slice(0, 6).join(", ")}). Fill them in with "Edit details" so each vendor bill can be matched to a key.`,
+            `${unknownOwner.length} key${unknownOwner.length === 1 ? " has" : "s have"} no known account (${unknownVendors.slice(0, 6).join(", ")}${unknownVendors.length > 6 ? ` and ${unknownVendors.length - 6} more` : ""}). Fill them in with "Edit details" so each vendor bill can be matched to a key.`,
           missing.length > 0 && `Not set up: ${missing.map((r) => vendorName(r.vendor)).join(", ")}. Features that need them won't work.`,
         ]}
       />
@@ -250,6 +254,7 @@ export function KeyAccountsTab() {
         </CardHeader>
         <CardContent>
           {institute.length ? (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -260,7 +265,7 @@ export function KeyAccountsTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {institute.map((r) => (
+                {keyView.rows.map((r) => (
                   <TableRow key={`${r.credential}:${r.vendor}:${r.institute_id}`}>
                     <TableCell className="font-medium">{vendorName(r.vendor)}</TableCell>
                     <TableCell>{r.institute_name ?? r.institute_id}</TableCell>
@@ -270,6 +275,8 @@ export function KeyAccountsTab() {
                 ))}
               </TableBody>
             </Table>
+            <Pager page={keyView.page} totalPages={keyView.totalPages} total={keyView.total} onPage={setKeyPage} />
+            </>
           ) : (
             <EmptyNote what="institute has its own keys set up" />
           )}

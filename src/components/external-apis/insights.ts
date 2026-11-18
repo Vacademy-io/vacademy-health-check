@@ -108,30 +108,3 @@ export const httpMeaning = (code: number | null | undefined): string => {
   if (code >= 400) return "Request refused";
   return "Unexpected response";
 };
-
-const WHATSAPP_ERRORS: Record<string, string> = {
-  "131026": "Number isn't on WhatsApp or can't receive messages",
-  "131042": "Payment problem on the WhatsApp Business account",
-  "131047": "Outside the 24-hour window: needs an approved template",
-  "131048": "Blocked for spam: too many people reported or blocked",
-  "131049": "Meta held a marketing message back to protect engagement",
-  "131050": "The person opted out of marketing messages",
-  "131051": "Message type not supported",
-  "131053": "Media couldn't be uploaded",
-  "131056": "Too many messages to the same number too fast",
-  "131000": "Something went wrong at Meta",
-  "130429": "Rate limit reached",
-  "130472": "Held back by a Meta experiment",
-  "132000": "Template variables don't match the template",
-  "132001": "Template doesn't exist or isn't approved in this language",
-  "132007": "Template content breaks WhatsApp policy",
-  "132012": "Template variables are in the wrong format",
-  "132015": "Template paused for low quality",
-  "132016": "Template disabled for low quality",
-  "133010": "Phone number not registered on WhatsApp Business",
-  "368": "Account temporarily blocked for policy violations",
-  "470": "Outside the 24-hour window: needs an approved template",
-  "none": "No reason given",
-};
-
-export const whatsappErrorMeaning = (code: string): string => WHATSAPP_ERRORS[code] ?? "See Meta's error code list";
