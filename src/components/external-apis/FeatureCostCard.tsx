@@ -4,14 +4,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFeatureCosts } from "@/services/external-apis-api";
 import { count, credits, humanize, optionsFrom, usd, vendorName } from "./format";
-import { EmptyNote, ErrorNote, FilterSelect } from "./parts";
+import { EmptyNote, ErrorNote, FilterSelect, Pager } from "./parts";
+import { slicePage, usePage } from "./usePage";
+
+const FEATURE_COST_LIMIT = 300;
 
 /** Answers "what is this cost for, and who is charging us for it?" one row per feature, vendor and model. */
 export function FeatureCostCard({ hours, onWiden }: { hours: number; onWiden?: () => void }) {
   const costs = useFeatureCosts(hours);
   const [area, setArea] = useState<string | undefined>();
   const all = costs.data ?? [];
-  const rows = area ? all.filter((r) => r.feature_group === area) : all;
+  const filtered = area ? all.filter((r) => r.feature_group === area) : all;
+  const [page, setPage] = usePage([hours, area]);
+  const view = slicePage(filtered, page, 10);
+  const rows = view.rows;
 
   return (
     <Card>
@@ -36,6 +42,7 @@ export function FeatureCostCard({ hours, onWiden }: { hours: number; onWiden?: (
         ) : costs.isLoading ? (
           <Skeleton className="h-48 w-full" />
         ) : rows.length ? (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -49,7 +56,7 @@ export function FeatureCostCard({ hours, onWiden }: { hours: number; onWiden?: (
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={`${r.use_case}:${r.vendor}:${r.model_id ?? ""}`}>
+                <TableRow key={`${r.use_case}:${r.feature_group}:${r.vendor}:${r.model_id ?? ""}`}>
                   <TableCell>
                     <div className="font-medium">{r.feature}</div>
                     <div className="text-xs capitalize text-muted-foreground">{humanize(r.feature_group)}</div>
@@ -68,6 +75,13 @@ export function FeatureCostCard({ hours, onWiden }: { hours: number; onWiden?: (
               ))}
             </TableBody>
           </Table>
+          <Pager page={view.page} totalPages={view.totalPages} total={view.total} onPage={setPage} />
+          {all.length >= FEATURE_COST_LIMIT && (
+            <p className="pt-2 text-xs text-muted-foreground">
+              Showing the {FEATURE_COST_LIMIT} most expensive feature, vendor and model combinations; the rest cost less.
+            </p>
+          )}
+          </>
         ) : (
           <EmptyNote what="AI calls" hours={hours} onWiden={onWiden} />
         )}

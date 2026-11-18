@@ -12,12 +12,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { errorText } from "@/components/products/errors";
 import { ProductAlertsSection } from "@/components/products/ProductAlertsSection";
 import { ProductPlansSection } from "@/components/products/ProductPlansSection";
-import { ProductOnlineSale } from "@/components/products/ProductOnlineSale";
-import { newPlans, plansNeedSync, plansProblem } from "@/components/products/plans";
+import { plansProblem } from "@/components/products/plans";
 import { ProductPricingTab } from "@/components/products/ProductPricingTab";
 import { ProductSignupsTab } from "@/components/products/ProductSignupsTab";
 import { useProducts, useUpdateProduct, type ProductConfig } from "@/services/products-api";
-import { useProductStorefront, useSyncProductPlans, type ProductStorefront } from "@/services/product-plans-api";
 
 type Status = { kind: "saved" | "error"; text: string } | null;
 
@@ -41,17 +39,8 @@ function ProductCard({ product }: { product: ProductConfig }) {
   const [form, setForm] = useState(product);
   const [status, setStatus] = useState<Status>(null);
   const update = useUpdateProduct();
-  const storefront = useProductStorefront(product.product_key);
-  const sync = useSyncProductPlans(product.product_key);
-  const [picked, setFeatures] = useState<string[] | null>(null);
-  const [migrate, setMigrate] = useState(false);
-  // Plans go on sale only from the Pricing tab: Save on another tab saves just the settings, as before.
-  const [tab, setTab] = useState("signups");
 
   useEffect(() => setForm(product), [product]);
-  // Until someone ticks, new plans' credits pay for what the product's plans on sale already cover.
-  const features =
-    picked ?? [...new Set((storefront.data?.plans ?? []).flatMap((p) => p.published?.features ?? []))];
 
   const set = <K extends keyof ProductConfig>(key: K, value: ProductConfig[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -63,55 +52,19 @@ function ProductCard({ product }: { product: ProductConfig }) {
       set(key, e.target.value as ProductConfig[typeof key]),
   });
   const dirty = JSON.stringify(form) !== JSON.stringify(product);
-  const creditsValid =
-    signupCreditsValid(form.demo_credits, product.demo_credits) &&
-    signupCreditsValid(form.demo_portal_credits ?? null, product.demo_portal_credits ?? null);
+  const creditsValid = signupCreditsValid(form.demo_credits, product.demo_credits);
   const plansValid = plansProblem(form.plans, form.plan_validity_months, form.extra_credit_price_inr) === null;
-  // The storefront must sell what the form says; null = this ai-service cannot (not deployed yet).
-  const needsSync =
-    tab === "pricing" && !!storefront.data && plansNeedSync(form.plans, storefront.data.plans, form.plan_validity_months);
-  const syncValid = !needsSync || newPlans(form.plans, storefront.data?.plans).length === 0 || features.length > 0;
-  const busy = update.isPending || sync.isPending;
 
-  const describe = (out: ProductStorefront) => {
-    const n = out.changes?.length ?? 0;
-    return n ? ` Plans on sale updated (${n} change${n === 1 ? "" : "s"}).` : "";
-  };
-  const syncPlans = (prefix: string) =>
-    sync.mutate(
-      {
-        plans: (form.plans ?? []).map((p) => ({ key: p.key.trim(), name: p.name.trim(), price_inr: p.price_inr, credits: p.credits })),
-        period_months: form.plan_validity_months ?? 12,
-        allowance_features: features,
-        migrate_existing_at_renewal: migrate,
-        reason: `Products → ${product.display_name} → Pricing`,
-      },
-      {
-        onSuccess: (out) => setStatus({ kind: "saved", text: `${prefix}${describe(out)}` }),
-        onError: (error) =>
-          setStatus({ kind: "error", text: `${prefix} But the plans on sale were not updated: ${errorText(error)}` }),
-      }
-    );
-
-  const save = () => {
-    if (!dirty) return needsSync && syncPlans("Settings unchanged.");
+  const save = () =>
     update.mutate(form, {
-      onSuccess: () => {
-        const done = "Saved. Every service picks it up within a minute.";
-        if (needsSync) syncPlans(done);
-        else setStatus({ kind: "saved", text: done });
-      },
+      onSuccess: () => setStatus({ kind: "saved", text: "Saved. Every service picks it up within a minute." }),
       onError: (error) => setStatus({ kind: "error", text: errorText(error) }),
     });
-  };
 
   const saveRow = (
         <div className="flex flex-wrap items-center gap-3">
-          <Button
-            onClick={save}
-            disabled={(!dirty && !needsSync) || !creditsValid || !plansValid || !syncValid || busy}
-          >
-            {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button onClick={save} disabled={!dirty || !creditsValid || !plansValid || update.isPending}>
+            {update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save
           </Button>
           {status && (
@@ -143,13 +96,7 @@ function ProductCard({ product }: { product: ProductConfig }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs
-          value={tab}
-          onValueChange={(v) => {
-            setTab(v);
-            setStatus(null);
-          }}
-        >
+        <Tabs defaultValue="signups" onValueChange={() => setStatus(null)}>
           <TabsList className="mb-4 flex h-auto flex-wrap justify-start">
             <TabsTrigger value="signups">Sign-ups</TabsTrigger>
             <TabsTrigger value="settings">Trial and mail</TabsTrigger>
@@ -182,44 +129,6 @@ function ProductCard({ product }: { product: ProductConfig }) {
                     />
                   </Field>
                 </div>
-                <div className="max-w-xs">
-                  <Field
-                    label="Credits on the demo page"
-                    hint="The one-screen demo (/demo: name, email, phone, no code). Empty uses the number above."
-                  >
-                    <Input
-                      type="number"
-                      min={0}
-                      max={MAX_SIGNUP_CREDITS}
-                      step={1}
-                      aria-label="Credits on the demo page"
-                      value={form.demo_portal_credits ?? ""}
-                      onChange={(e) =>
-                        set("demo_portal_credits", e.target.value === "" ? null : Number(e.target.value))
-                      }
-                    />
-                  </Field>
-                </div>
-                <div className="grid max-w-2xl gap-3 sm:grid-cols-2">
-                  <Field
-                    label="Demo leads go to institute"
-                    hint="Institute id whose CRM gets every demo-page sign-up as a lead. Saving creates the list."
-                  >
-                    <Input
-                      aria-label="Demo leads institute id"
-                      placeholder="ca3c4734-…"
-                      value={form.demo_leads_institute_id ?? ""}
-                      onChange={(e) => set("demo_leads_institute_id", e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Demo leads list name" hint={`Empty: "Product ${product.display_name} ( Instant - Demo )"`}>
-                    <Input
-                      aria-label="Demo leads list name"
-                      value={form.demo_leads_list_name ?? ""}
-                      onChange={(e) => set("demo_leads_list_name", e.target.value)}
-                    />
-                  </Field>
-                </div>
                 {creditsValid ? (
                   <p className="text-sm text-muted-foreground">
                     {product.demo_credits == null
@@ -241,25 +150,6 @@ function ProductCard({ product }: { product: ProductConfig }) {
                   setForm((f) => ({ ...f, ...patch }));
                   setStatus(null);
                 }}
-                onlineSale={
-                  <ProductOnlineSale
-                    displayName={product.display_name}
-                    plans={form.plans ?? []}
-                    months={form.plan_validity_months}
-                    extra={form.extra_credit_price_inr}
-                    storefront={storefront.data}
-                    loading={storefront.isLoading}
-                    features={features}
-                    onFeatures={setFeatures}
-                    migrate={migrate}
-                    onMigrate={setMigrate}
-                    onExtra={(v) => {
-                      setForm((f) => ({ ...f, extra_credit_price_inr: v }));
-                      setStatus(null);
-                    }}
-                    onRefresh={() => void storefront.refetch()}
-                  />
-                }
                 saveRow={saveRow}
               />
             </ProductPricingTab>
@@ -374,9 +264,6 @@ function ProductCard({ product }: { product: ProductConfig }) {
             </Field>
             <Field label="Logo URL">
               <Input aria-label="Logo URL" {...text("logo_url")} />
-            </Field>
-            <Field label="Logo in emails" hint="Public https PNG or JPG (SVG does not show in Gmail). Empty: a letter tile.">
-              <Input aria-label="Logo in emails" placeholder="https://evalezy.com/icon-192.png" {...text("email_logo_url")} />
             </Field>
           </div>
         </section>

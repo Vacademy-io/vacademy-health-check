@@ -82,3 +82,29 @@ export const minutes = (seconds: number): string => {
 /** Telephony statuses that mean the call is over, and of those, the one where someone talked. */
 export const ENDED_CALL_STATUSES = ["COMPLETED", "NO_ANSWER", "BUSY", "FAILED", "CANCELLED"];
 export const CONNECTED_CALL_STATUS = "COMPLETED";
+
+const HTTP_MEANINGS: Record<number, string> = {
+  400: "Bad request: the vendor rejected what we sent",
+  401: "Key refused: missing, wrong or expired",
+  402: "Out of credit with the vendor",
+  403: "Not allowed: the key lacks access",
+  404: "Not found",
+  408: "Vendor timed out",
+  409: "Conflict with an earlier request",
+  413: "Request too large",
+  422: "Vendor couldn't process the input",
+  429: "Rate limited: too many requests",
+  500: "Vendor error",
+  502: "Vendor unreachable (bad gateway)",
+  503: "Vendor unavailable",
+  504: "Vendor timed out",
+};
+
+/** An HTTP status in words. No status means the request never got an answer. */
+export const httpMeaning = (code: number | null | undefined): string => {
+  if (code == null) return "No answer: network error or our own timeout";
+  if (HTTP_MEANINGS[code]) return HTTP_MEANINGS[code];
+  if (code >= 500) return "Vendor error";
+  if (code >= 400) return "Request refused";
+  return "Unexpected response";
+};

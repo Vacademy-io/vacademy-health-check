@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   useAiComparison,
   useAiTopInstitutes,
+  useChargeOutcomes,
   useFeatureCosts,
   type ProviderTotalsRow,
 } from "@/services/external-apis-api";
@@ -17,6 +18,7 @@ export function OverviewHighlights({ hours, providers }: { hours: number; provid
   const { now } = useAiComparison(hours);
   const features = useFeatureCosts(hours);
   const institutes = useAiTopInstitutes(hours);
+  const outcomes = useChargeOutcomes(hours);
 
   const cost = providers.reduce((n, r) => n + r.cost_usd, 0);
   const calls = providers.reduce((n, r) => n + r.calls, 0);
@@ -26,6 +28,11 @@ export function OverviewHighlights({ hours, providers }: { hours: number; provid
   const topFeature = byFeature[0];
   const topInstitute = leader(institutes.data ?? [], (r) => r.cost_usd);
   const period = periodWords(hours);
+  // Margin per credit from charged calls only: free and unpaid usage earn no credits, so
+  // dividing all spend by credits would overstate what each credit costs us.
+  const charged = (outcomes.data ?? []).filter((r) => r.charge_status === "POSTED" || r.charge_status === "PARTIAL_REFUND");
+  const chargedCost = charged.reduce((n, r) => n + r.cost_usd, 0);
+  const chargedCredits = charged.reduce((n, r) => n + r.credits, 0);
 
   return (
     <Highlights
@@ -36,8 +43,8 @@ export function OverviewHighlights({ hours, providers }: { hours: number; provid
           `The most expensive feature is ${topFeature.key}, at ${usd(topFeature.total)} (${pctLabel(pct(topFeature.total, cost))} of the total).`,
         topInstitute &&
           `${topInstitute.row.institute_name ?? "One institute"} used the most: ${usd(topInstitute.row.cost_usd)} of vendor cost, ${credits(topInstitute.row.credits)} credits charged.`,
-        now.credits > 0 && cost > 0 &&
-          `Every 100 credits charged to institutes cost us ${usd((cost / now.credits) * 100)} at the vendor.`,
+        chargedCredits > 0 && chargedCost > 0 &&
+          `On the calls we charged for, every 100 credits cost us ${usd((chargedCost / chargedCredits) * 100)} at the vendor.`,
         now.dropped_calls > 0 &&
           `${count(now.dropped_calls)} AI calls in the last ${period} ran but weren't charged, because the institute was out of credits.`,
         calls > 0 && (pct(unpriced, calls) ?? 0) >= 5 &&

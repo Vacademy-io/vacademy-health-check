@@ -25,6 +25,8 @@ const ROUTE_MAP_SQL = `(SELECT (setting_value #>> '{}')::jsonb FROM ai_platform_
 const vendorSql = (t = "") => `coalesce(
     nullif(${t}provider, ''),
     nullif(${t}router, ''),
+    CASE WHEN ${t}model_id ~* '^((sarvam|smallest|navana|elevenlabs|rumik|deepgram|edge)([:-]|$)|google:)'
+         THEN lower(substring(${t}model_id from '^[A-Za-z]+')) END,
     CASE WHEN ${t}model_id IS NOT NULL AND ${t}prompt_tokens + ${t}completion_tokens > 0 THEN 'likely:' ||
       CASE WHEN ${t}byo_key THEN 'openrouter'
            ELSE coalesce(${ROUTE_MAP_SQL} -> ${t}model_id ->> 'router', ${ROUTE_MAP_SQL} ->> ${t}model_id, 'openrouter')
@@ -44,10 +46,12 @@ const vendorSql = (t = "") => `coalesce(
       (SELECT uc.label FROM ai_use_case_catalog uc WHERE uc.use_case = ${t || "ai_usage_event."}use_case),
       ${t}use_case, 'unknown'))`;
 
-async function aiQuery<Row>(sql: string, params: unknown[]): Promise<Row[]> {
-  const { data } = await api.post<{ rows: Row[] }>(QUERY_ENDPOINT, { db: AI_DB, sql, params });
+async function dbQuery<Row>(db: string, sql: string, params: unknown[]): Promise<Row[]> {
+  const { data } = await api.post<{ rows: Row[] }>(QUERY_ENDPOINT, { db, sql, params });
   return data.rows;
 }
+
+const aiQuery = <Row>(sql: string, params: unknown[]) => dbQuery<Row>(AI_DB, sql, params);
 
 export interface ProviderTotalsRow {
   provider: string;
@@ -59,6 +63,7 @@ export interface ProviderTotalsRow {
   tokens: number;
   unbilled_calls: number;
   dropped_calls: number;
+  skipped_calls: number;
 }
 
 export function useProviderTotals(hours: number) {
@@ -73,7 +78,8 @@ export function useProviderTotals(hours: number) {
                 coalesce(sum(credits_charged - refunded_credits), 0)::float8 AS credits,
                 coalesce(sum(prompt_tokens + completion_tokens), 0)::float8 AS tokens,
                 (count(*) FILTER (WHERE free_reason = 'UNBILLED_GAP'))::int AS unbilled_calls,
-                (count(*) FILTER (WHERE charge_status = 'DROPPED_INSUFFICIENT'))::int AS dropped_calls
+                (count(*) FILTER (WHERE charge_status = 'DROPPED_INSUFFICIENT'))::int AS dropped_calls,
+                (count(*) FILTER (WHERE charge_status = 'SKIPPED_NO_INSTITUTE'))::int AS skipped_calls
            FROM ai_usage_event
           WHERE occurred_at > now() - make_interval(hours => $1::int)
           GROUP BY 1
@@ -218,34 +224,6 @@ export function useAiCalls(hours: number, filters: AiCallFilters, page: number) 
   });
 }
 
-export interface CommunicationLogSummary {
-  id: string;
-  source: "WHATSAPP" | "EMAIL";
-  sourceId: string | null;
-  status: "INITIATED" | "SUCCESS" | "FAILED";
-  errorMessage: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CommunicationLogPage {
-  content: CommunicationLogSummary[];
-  totalElements: number;
-  totalPages: number;
-  page: number;
-}
-
-export interface CommunicationLogDetail {
-  summary: CommunicationLogSummary;
-  payload: string | null;
-  response: string | null;
-}
-
-export interface CommunicationLogFilters {
-  source?: string;
-  status?: string;
-}
-
 export interface LoggedVendor {
   vendor: string;
   source_service: string;
@@ -282,21 +260,6 @@ export function useSetAutoCapture() {
   });
 }
 
-export function useCommunicationLogs(hours: number, filters: CommunicationLogFilters, page: number) {
-  return useQuery({
-    queryKey: ["external-apis", "communication-logs", hours, filters, page],
-    queryFn: async () => {
-      const { data } = await api.get<CommunicationLogPage>(
-        `${API_PREFIXES.NOTIFICATION}/external-communication-logs`,
-        { params: { hours, page, size: 50, ...filters } },
-      );
-      return data;
-    },
-    placeholderData: keepPreviousData,
-    retry: false,
-  });
-}
-
 export type VendorLogSource = "telephony" | "payments" | "webhooks" | "calls";
 
 export interface VendorLogRow {
@@ -312,6 +275,8 @@ export interface VendorLogRow {
   currency: string | null;
   duration_ms: number | null;
   credits_billed: boolean | null;
+  /** The vendor's HTTP status, for logged vendor calls. Null when there was no response. */
+  http_status?: number | null;
 }
 
 export interface VendorLogPage {
@@ -400,7 +365,8 @@ SELECT f.*, i.name AS institute_name
       ORDER BY l.occurred_at DESC LIMIT $4::int)
     UNION ALL
     (SELECT 'telephony', t.id::text, t.created_at AT TIME ZONE 'UTC', t.provider_type, t.direction, NULL, t.status,
-            t.status ILIKE '%fail%' OR t.status ILIKE '%error%', t.institute_id, t.price::float8, NULL,
+            t.status ILIKE '%fail%' OR t.status ILIKE '%error%', t.institute_id, t.price::float8,
+            CASE WHEN t.provider_type = 'EXOTEL' THEN 'INR' END,
             NULL::float8, t.duration_seconds * 1000.0, NULL::float8, t.termination_reason
        FROM telephony_call_log t
       WHERE ($2::text IS NULL OR $2::text = 'telephony')
@@ -452,52 +418,6 @@ export function useVendorLogDetail(source: VendorLogSource, id: string | null) {
     queryFn: async () => {
       const { data } = await api.get<{ payload: string | null; response: string | null }>(
         `${API_PREFIXES.ADMIN_CORE}/external-apis/logs/${source}/${id}`,
-      );
-      return data;
-    },
-    enabled: id != null,
-    retry: false,
-  });
-}
-
-export interface NotificationLogSummary {
-  id: string;
-  notificationType: string;
-  source: string | null;
-  instituteId: string | null;
-  deliveryStatus: string | null;
-  deliveryErrorCode: string | null;
-  deliveryErrorMessage: string | null;
-  notificationDate: string | null;
-}
-
-export function useNotificationLogs(
-  instituteId: string | undefined,
-  hours: number,
-  notificationType: string | undefined,
-  page: number,
-) {
-  return useQuery({
-    queryKey: ["external-apis", "notification-logs", instituteId, hours, notificationType, page],
-    queryFn: async () => {
-      const { data } = await api.get<{ content: NotificationLogSummary[]; totalPages: number }>(
-        `${API_PREFIXES.NOTIFICATION}/notification-logs`,
-        { params: { instituteId, hours, notificationType, page, size: 50 } },
-      );
-      return data;
-    },
-    enabled: !!instituteId,
-    placeholderData: keepPreviousData,
-    retry: false,
-  });
-}
-
-export function useNotificationLogDetail(id: string | null) {
-  return useQuery({
-    queryKey: ["external-apis", "notification-log", id],
-    queryFn: async () => {
-      const { data } = await api.get<{ payload: string | null; body: string | null }>(
-        `${API_PREFIXES.NOTIFICATION}/notification-logs/${id}`,
       );
       return data;
     },
@@ -590,21 +510,6 @@ export function useSaveKeyDetails() {
     },
     // Settings are cached for ~30s per replica, so other replicas can take that long to show this.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY_ACCOUNTS_QUERY }),
-  });
-}
-
-/** Bodies are fetched only when a row is opened, so each read is logged server-side. */
-export function useCommunicationLogDetail(id: string | null) {
-  return useQuery({
-    queryKey: ["external-apis", "communication-log", id],
-    queryFn: async () => {
-      const { data } = await api.get<CommunicationLogDetail>(
-        `${API_PREFIXES.NOTIFICATION}/external-communication-logs/${id}`,
-      );
-      return data;
-    },
-    enabled: id != null,
-    retry: false,
   });
 }
 
@@ -711,6 +616,9 @@ export function useAiTopInstitutes(hours: number) {
 export interface ChargeOutcomeRow {
   charge_status: string;
   calls: number;
+  /** Of these, calls left unbilled by a billing gap (free_reason UNBILLED_GAP), and their cost. */
+  gap_calls: number;
+  gap_cost_usd: number;
   cost_usd: number;
   credits: number;
 }
@@ -718,6 +626,8 @@ export interface ChargeOutcomeRow {
 export function useChargeOutcomes(hours: number) {
   return useQuery(insightQuery<ChargeOutcomeRow>("ai-charges", hours, `
     SELECT charge_status, count(*)::int AS calls,
+           (count(*) FILTER (WHERE free_reason = 'UNBILLED_GAP'))::int AS gap_calls,
+           coalesce(sum(real_cost_usd) FILTER (WHERE free_reason = 'UNBILLED_GAP'), 0)::float8 AS gap_cost_usd,
            coalesce(sum(real_cost_usd), 0)::float8 AS cost_usd,
            coalesce(sum(credits_charged - refunded_credits), 0)::float8 AS credits
       FROM ai_usage_event
@@ -826,32 +736,12 @@ export function useLoggedCallSummary(hours: number) {
     SELECT vendor, operation, count(*)::int AS calls,
            (count(*) FILTER (WHERE status = 'FAILED'))::int AS failed,
            coalesce(sum(cost_amount), 0)::float8 AS cost,
-           max(cost_currency) AS currency,
+           cost_currency AS currency,
            avg(duration_ms)::float8 AS avg_ms
       FROM external_api_call_log
      WHERE occurred_at > now() - make_interval(hours => $1::int)
-     GROUP BY 1, 2
+     GROUP BY 1, 2, 6
      ORDER BY calls DESC`));
-}
-
-/** WATI bulk-send totals, read as page totals from the payload endpoint (one row per request). */
-export function useCommunicationTotals(hours: number) {
-  return useQuery({
-    queryKey: ["external-apis", "insight", "communication", hours],
-    queryFn: async () => {
-      const total = async (status?: string) => {
-        const { data } = await api.get<CommunicationLogPage>(
-          `${API_PREFIXES.NOTIFICATION}/external-communication-logs`,
-          { params: { hours, page: 0, size: 1, ...(status ? { status } : {}) } },
-        );
-        return data.totalElements ?? 0;
-      };
-      const [all, success, failed] = await Promise.all([total(), total("SUCCESS"), total("FAILED")]);
-      return { all, success, failed };
-    },
-    placeholderData: keepPreviousData,
-    retry: false,
-  });
 }
 
 /** This window and the one before it, for "up 20% on the 7 days before". */
@@ -860,5 +750,149 @@ export function useAiComparison(hours: number) {
   const rows = periods.data ?? [];
   const empty = { current: false, calls: 0, cost_usd: 0, credits: 0, dropped_calls: 0, institutes: 0 };
   const pick = (current: boolean): AiPeriodRow => rows.find((r) => r.current === current) ?? { ...empty, current };
-  return { now: pick(true), before: pick(false), ready: !!periods.data };
+  return {
+    now: pick(true), before: pick(false), ready: !!periods.data,
+    isLoading: periods.isLoading, isError: periods.isError, refetch: () => { periods.refetch(); },
+  };
+}
+
+export interface LoggedFailureRow {
+  vendor: string;
+  http_status: number | null;
+  /** What the caller recorded, only when there was no HTTP status (a socket refusal, a timeout). */
+  reason: string;
+  failed: number;
+  last_at: string;
+}
+
+/** Failed logged calls by vendor and HTTP status, most frequent first. */
+export function useLoggedFailures(hours: number) {
+  return useQuery(insightQuery<LoggedFailureRow>("logged-failures", hours, `
+    SELECT vendor, http_status,
+           CASE WHEN http_status IS NULL THEN left(coalesce(error_message, ''), 120) ELSE '' END AS reason,
+           count(*)::int AS failed, max(occurred_at) AS last_at
+      FROM external_api_call_log
+     WHERE occurred_at > now() - make_interval(hours => $1::int) AND status = 'FAILED'
+     GROUP BY 1, 2, 3
+     ORDER BY failed DESC
+     LIMIT 50`));
+}
+
+export interface CallVendorCost {
+  calls: number;
+  minutes: number;
+  /** Modelled from minutes and characters at the rate card (INR), by vendor: plivo, sarvam, ... */
+  cost_by_vendor_inr?: Record<string, number> | null;
+  cost_breakdown?: Record<string, number> | null;
+}
+
+/** What AI voice calls cost by vendor over the window, from the Calls page's own summary. */
+export function useCallVendorCost(hours: number) {
+  return useQuery({
+    queryKey: ["external-apis", "call-vendor-cost", hours],
+    queryFn: async () => {
+      // created_at is a zoneless UTC timestamp, so send UTC without the zone.
+      const from = new Date(Date.now() - hours * 3600_000).toISOString().slice(0, 19);
+      const { data } = await api.get<CallVendorCost>(`${API_PREFIXES.ADMIN_CORE}/calls/summary`, { params: { from } });
+      return data;
+    },
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+}
+
+/** How many AI calls match the AI calls tab's filters, for "Page 3 of 41". */
+export function useAiCallCount(hours: number, filters: AiCallFilters) {
+  return useQuery({
+    queryKey: ["external-apis", "ai-calls-count", hours, filters],
+    queryFn: async () => {
+      const rows = await aiQuery<{ total: number }>(
+        `SELECT count(*)::int AS total
+           FROM ai_usage_event e
+          WHERE e.occurred_at > now() - make_interval(hours => $1::int)
+            AND ($2::text IS NULL OR ${vendorSql("e.")} = $2)
+            AND ($3::text IS NULL OR e.charge_status = $3)`,
+        [hours, filters.provider ?? null, filters.chargeStatus ?? null],
+      );
+      return rows[0]?.total ?? 0;
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** How many rows the Recent calls tab would page through, with the same filters, per source summed. */
+export function useRecentCallCount(hours: number, filters: RecentCallFilters) {
+  return useQuery({
+    queryKey: ["external-apis", "recent-calls-count", hours, filters],
+    queryFn: async () => {
+      const rows = await aiQuery<{ total: number }>(
+        `SELECT (
+           (SELECT count(*) FROM ai_usage_event e
+             WHERE ($2::text IS NULL OR $2::text = 'ai') AND $3::boolean IS NOT TRUE
+               AND e.occurred_at > now() - make_interval(hours => $1::int))
+         + (SELECT count(*) FROM external_api_call_log l
+             WHERE ($2::text IS NULL OR $2::text = 'calls') AND ($3::boolean IS NOT TRUE OR l.status = 'FAILED')
+               AND l.occurred_at > now() - make_interval(hours => $1::int))
+         + (SELECT count(*) FROM telephony_call_log t
+             WHERE ($2::text IS NULL OR $2::text = 'telephony')
+               AND ($3::boolean IS NOT TRUE OR t.status ILIKE '%fail%' OR t.status ILIKE '%error%')
+               AND t.created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC')
+         + (SELECT count(*) FROM payment_log p
+             WHERE ($2::text IS NULL OR $2::text = 'payments') AND ($3::boolean IS NOT TRUE OR p.payment_status ILIKE '%fail%')
+               AND p.created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC')
+         + (SELECT count(*) FROM web_hook w
+             WHERE ($2::text IS NULL OR $2::text = 'webhooks')
+               AND ($3::boolean IS NOT TRUE OR w.status ILIKE '%fail%' OR w.status ILIKE '%error%')
+               AND w.created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC')
+         )::int AS total`,
+        [hours, filters.source ?? null, filters.failedOnly ?? false],
+      );
+      return rows[0]?.total ?? 0;
+    },
+    // Same cadence as the list, so "Page X of N" never drifts from the rows.
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export interface FailureSourceRow {
+  source_service: string;
+  calls: number;
+  failed: number;
+  last_at: string | null;
+}
+
+/** Which services are writing vendor calls into the shared log, so a silent one stands out. */
+export function useFailureSources(hours: number) {
+  return useQuery(insightQuery<FailureSourceRow>("failure-sources", hours, `
+    SELECT coalesce(source_service, 'ai') AS source_service, count(*)::int AS calls,
+           (count(*) FILTER (WHERE status = 'FAILED'))::int AS failed, max(occurred_at) AS last_at
+      FROM external_api_call_log
+     WHERE occurred_at > now() - make_interval(hours => $1::int)
+     GROUP BY 1`));
+}
+
+const VENDOR_COLUMN: Record<VendorLogSource, { table: string; vendor: string; time: string }> = {
+  telephony: { table: "telephony_call_log", vendor: "provider_type", time: "created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'" },
+  payments: { table: "payment_log", vendor: "vendor", time: "created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'" },
+  webhooks: { table: "web_hook", vendor: "vendor", time: "created_at > (now() - make_interval(hours => $1::int)) AT TIME ZONE 'UTC'" },
+  calls: { table: "external_api_call_log", vendor: "vendor", time: "occurred_at > now() - make_interval(hours => $1::int)" },
+};
+
+/** Every vendor in a log over the whole window, so a filter never loses options when paging. */
+export function useVendorOptions(source: VendorLogSource, hours: number) {
+  const c = VENDOR_COLUMN[source];
+  return useQuery({
+    queryKey: ["external-apis", "vendor-options", source, hours],
+    queryFn: async () => {
+      const rows = await aiQuery<{ vendor: string }>(
+        `SELECT DISTINCT ${c.vendor} AS vendor FROM ${c.table} WHERE ${c.time} AND ${c.vendor} IS NOT NULL ORDER BY 1 LIMIT 500`,
+        [hours],
+      );
+      return rows.map((r) => r.vendor);
+    },
+    staleTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
+  });
 }

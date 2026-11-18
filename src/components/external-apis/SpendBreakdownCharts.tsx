@@ -69,7 +69,7 @@ function StackedChart({ title, data, series, format, hourly }: {
           <BarChart data={data} barCategoryGap={2}>
             <CartesianGrid vertical={false} className="stroke-muted" />
             <XAxis dataKey="bucket" tick={{ fontSize: 12 }} tickFormatter={label} tickLine={false} axisLine={false} minTickGap={24} />
-            <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} width={56} />
+            <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} width={64} tickFormatter={(v: number) => format(v)} />
             <Tooltip
               cursor={{ fill: "hsl(var(--muted))" }}
               content={({ active, payload }) =>
@@ -128,7 +128,9 @@ export function SpendBreakdownCharts({ hours }: { hours: number }) {
     return <ErrorNote title="Could not load the spend charts" error={spend.error} onRetry={() => spend.refetch()} />;
   }
   if (spend.isLoading) return <Skeleton className="h-72 w-full" />;
-  if (!spend.data?.length) return null;
+  if (!spend.data?.length) {
+    return <p className="rounded-lg border p-4 text-sm text-muted-foreground">No metered spend in this period, so there is nothing to chart.</p>;
+  }
 
   const hourly = hours <= 48;
   return (
@@ -152,7 +154,7 @@ export function SpendBreakdownCharts({ hours }: { hours: number }) {
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <StackedChart title="Vendor cost (USD)" data={pivot.cost} series={pivot.series} format={usd} hourly={hourly} />
-        <StackedChart title="Credits deducted" data={pivot.credits} series={pivot.series} format={credits} hourly={hourly} />
+        <StackedChart title="Credits charged" data={pivot.credits} series={pivot.series} format={credits} hourly={hourly} />
       </div>
     </div>
   );

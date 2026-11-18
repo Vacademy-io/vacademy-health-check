@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { VENDOR_LOG_NAMES } from "@/lib/external-api-catalog";
 import { useLoggedVendors, useSetAutoCapture } from "@/services/external-apis-api";
 import { count, dateTime, serviceName, vendorName } from "./format";
-import { EmptyNote, ErrorNote } from "./parts";
+import { EmptyNote, ErrorNote, Pager } from "./parts";
+import { slicePage, usePage } from "./usePage";
 
 const CATALOGUED = new Set(Object.values(VENDOR_LOG_NAMES).flat());
 
@@ -14,7 +15,10 @@ const CATALOGUED = new Set(Object.values(VENDOR_LOG_NAMES).flat());
 export function LoggedVendorsCard({ hours, onWiden }: { hours: number; onWiden?: () => void }) {
   const logged = useLoggedVendors(hours);
   const setAutoCapture = useSetAutoCapture();
-  const vendors = logged.data?.vendors ?? [];
+  // The endpoint returns every vendor ever seen; only those with calls in this window are shown.
+  const vendors = (logged.data?.vendors ?? []).filter((v) => v.calls > 0);
+  const [page, setPage] = usePage([hours, vendors.length]);
+  const view = slicePage(vendors, page, 25);
   const autoCapture = logged.data?.auto_capture ?? false;
   const unlisted = vendors.filter((v) => !CATALOGUED.has(v.vendor)).length;
 
@@ -49,6 +53,7 @@ export function LoggedVendorsCard({ hours, onWiden }: { hours: number; onWiden?:
         ) : logged.data?.tables_ready === false ? (
           <EmptyNote what="vendor data yet" hint="This arrives with the next release of the main app." />
         ) : vendors.length ? (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -61,7 +66,7 @@ export function LoggedVendorsCard({ hours, onWiden }: { hours: number; onWiden?:
               </TableRow>
             </TableHeader>
             <TableBody>
-              {vendors.map((v) => (
+              {view.rows.map((v) => (
                 <TableRow key={v.vendor}>
                   <TableCell className="font-medium">
                     {vendorName(v.vendor)} {!CATALOGUED.has(v.vendor) && <Badge variant="outline">New</Badge>}
@@ -75,6 +80,8 @@ export function LoggedVendorsCard({ hours, onWiden }: { hours: number; onWiden?:
               ))}
             </TableBody>
           </Table>
+          <Pager page={view.page} totalPages={view.totalPages} total={view.total} onPage={setPage} />
+          </>
         ) : (
           <EmptyNote what="vendor calls logged" hours={hours} onWiden={onWiden} />
         )}
