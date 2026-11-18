@@ -22,8 +22,8 @@ const SOURCES: Source[] = [
   {
     key: "voice_bot",
     name: "Voice bot (AI calling)",
-    covers: "Every HTTP error or connection failure to an outside vendor, Sarvam refusing a key (out of credits, rate limited, revoked), and a call switching to the fallback speech vendor mid-call.",
-    gaps: "Copied in every 30 seconds from the bot's last 200 failures; a burst bigger than that between two checks loses the oldest.",
+    covers: "Every vendor the bot uses: Sarvam, Navana, Smallest, Rumik, Deepgram, Google, Bedrock, OpenRouter and Edge. HTTP errors and connection failures, any error a speech or LLM service raises during a call (whatever the transport), Sarvam and Navana refusing a key (out of credits, rate limited, revoked), a mid-call switch to the fallback vendor, and failed voice previews and cache warming.",
+    gaps: "Copied in every 30 seconds from the bot's last 200 failures; a burst bigger than that between two checks loses the oldest. A failure is counted once even when the HTTP error and the call error report it twice.",
   },
   {
     key: "admin_core",
