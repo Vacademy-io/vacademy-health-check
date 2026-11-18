@@ -16,30 +16,52 @@ const SOURCES: Source[] = [
   {
     key: "ai",
     name: "AI service",
-    covers: "Every outside call it makes over HTTP: OpenRouter, Sarvam, fal.ai, Serper, Mathpix, Pexels and the rest, when automatic recording is on.",
+    covers: "Every call to an integrated vendor, whichever HTTP library makes it (httpx, requests, urllib): OpenRouter, Sarvam, fal.ai, RunPod, Serper, Mathpix, Pexels, Pixabay and the rest. Failures are always recorded; successes only while automatic recording is on.",
     gaps: "Streaming sockets (the tutor's live speech) record only what the code reports.",
   },
   {
     key: "voice_bot",
     name: "Voice bot (AI calling)",
-    covers: "Every vendor the bot uses: Sarvam, Navana, Smallest, Rumik, Deepgram, Google, Bedrock, OpenRouter and Edge. HTTP errors and connection failures, any error a speech or LLM service raises during a call (whatever the transport), Sarvam and Navana refusing a key (out of credits, rate limited, revoked), a mid-call switch to the fallback vendor, and failed voice previews and cache warming.",
-    gaps: "Copied in every 30 seconds from the bot's last 200 failures; a burst bigger than that between two checks loses the oldest. A failure is counted once even when the HTTP error and the call error report it twice.",
+    covers: "Every vendor the bot uses: Sarvam, Navana, Smallest, Rumik, Deepgram, Google, Bedrock, OpenRouter and Edge. HTTP errors and connection failures, any error a speech or LLM service raises mid-call, key refusals and voice previews.",
+    gaps: "Copied in every 30 seconds from the bot's last 200 failures; a burst bigger than that between two checks loses the oldest.",
   },
   {
     key: "admin_core",
     name: "Main app",
-    covers: "Plivo, Exotel, Airtel, Aavtaar, Razorpay, Meta WhatsApp, WATI, FX rates, workflow HTTP steps and every other call made through its standard HTTP client.",
-    gaps: "Not yet: calls made with its two other HTTP libraries (about 40 places, e.g. some Google and Zoom calls) and payment SDKs. Payment outcomes are on the Payments tab.",
+    covers: "Plivo, Exotel, Airtel, Aavtaar, Razorpay (API and SDK), Stripe, Meta WhatsApp, WATI, Zoom and Google Drive recordings, FX rates and workflow HTTP steps: every HTTP client and payment SDK.",
+    gaps: "",
+  },
+  {
+    key: "notification",
+    name: "Messaging service",
+    covers: "WATI and Meta WhatsApp sends and templates, push notifications (Firebase; an uninstalled app is not a failure), email over SES SMTP and SES checks.",
+    gaps: "Delivery failures the vendor reports later by webhook are on the vendor's side, not here.",
+  },
+  {
+    key: "assessment",
+    name: "Assessments",
+    covers: "OpenRouter evaluation and narratives, Mathpix and DocConverter.",
+    gaps: "",
+  },
+  {
+    key: "media",
+    name: "File service",
+    covers: "DocConverter and CloudConvert.",
+    gaps: "",
+  },
+  {
+    key: "community",
+    name: "Community service",
+    covers: "OpenRouter, Google Play, App Store Connect, Microsoft Partner Center, Firebase and GitHub for app builds.",
+    gaps: "",
   },
 ];
 
 const ELSEWHERE = [
-  "Only the third-party APIs we have integrated are recorded (Sarvam, OpenRouter, Plivo, Razorpay and the rest on the All vendors tab). Websites the AI service reads for lead research and course content are not APIs and are left out.",
+  "Only the third-party APIs we have integrated are recorded. Websites read for lead research and course content are not APIs and are left out.",
   "A failed call keeps what we sent and what the vendor answered, with keys, tokens, phone numbers and emails hidden. Open a row to see them.",
-  "Email and WhatsApp sends are not part of this page.",
-  "Payment and webhook failures: the Payments tab.",
-  "Telephony call outcomes (busy, no answer, failed): the Telephony tab.",
-  "Not recorded anywhere yet: the messaging service (WATI, Meta WhatsApp, email), the media service (CloudConvert, file storage), assessments, community and sign-in services.",
+  "A new HTTP client added to any Java service without failure recording fails the build, so a new integration cannot fail out of sight.",
+  "Payment outcomes and webhooks: the Payments tab. Telephony call outcomes (busy, no answer): the Telephony tab.",
 ];
 
 export function FailureCoverageCard({ hours }: { hours: number }) {
@@ -76,14 +98,14 @@ export function FailureCoverageCard({ hours }: { hours: number }) {
                   <TableRow key={s.key}>
                     <TableCell className="align-top font-medium">
                       {s.name}
-                      {off && <div><Badge variant="destructive" className="mt-1">Recording off</Badge></div>}
+                      {off && <div><Badge variant="outline" className="mt-1">Successes not recorded</Badge></div>}
                       {!row && !sources.isLoading && !off && (
                         <div><Badge variant="outline" className="mt-1">Nothing in this period</Badge></div>
                       )}
                     </TableCell>
                     <TableCell className="max-w-md align-top text-xs">
                       <p>{s.covers}</p>
-                      <p className="mt-1 text-muted-foreground">{s.gaps}</p>
+                      {s.gaps && <p className="mt-1 text-muted-foreground">{s.gaps}</p>}
                     </TableCell>
                     <TableCell className="text-right align-top tabular-nums">{row ? count(row.calls) : "—"}</TableCell>
                     <TableCell className="text-right align-top tabular-nums">{row ? count(row.failed) : "—"}</TableCell>
@@ -97,8 +119,8 @@ export function FailureCoverageCard({ hours }: { hours: number }) {
           </Table>
         </div>
         {autoCapture === false && (
-          <p className="text-xs text-red-700 dark:text-red-400">
-            Automatic recording is off, so the AI service's failed calls are not being recorded. Turn it on under All vendors.
+          <p className="text-xs text-muted-foreground">
+            Automatic recording is off, so the AI service's successful calls are not counted. Its failures are always recorded.
           </p>
         )}
         <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">

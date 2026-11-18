@@ -101,6 +101,11 @@ export const INTEGRATED_VENDORS: Array<{ name: string; domains: string[] }> = [
   { name: "Zoho", domains: ["zohoapis.in", "zohoapis.com", "zoho.in"] },
   { name: "Cloudflare", domains: ["api.cloudflare.com"] },
   { name: "FX rates", domains: ["open.er-api.com"] },
+  { name: "Firebase", domains: ["fcm.googleapis.com", "firebase.googleapis.com"] },
+  { name: "Google Play", domains: ["androidpublisher.googleapis.com"] },
+  { name: "App Store Connect", domains: ["api.appstoreconnect.apple.com"] },
+  { name: "GitHub", domains: ["api.github.com"] },
+  { name: "Microsoft Partner Center", domains: ["manage.devcenter.microsoft.com", "login.microsoftonline.com"] },
 ];
 
 /** The integrated vendor a host belongs to, or null when it is not an integration. */
@@ -127,6 +132,8 @@ export const vendorName = (raw: string | null | undefined): string => {
   const integrated = integratedVendor(raw);
   if (integrated) return integrated;
   if (raw === "bedrock (AWS)") return "AWS Bedrock";
+  if (raw === "email-smtp") return "Email (SES SMTP)";
+  if (raw === "aws-ses") return "AWS SES";
   return /^[A-Z_]+$/.test(raw) ? raw.split("_").map(titleCase).join(" ") : raw;
 };
 

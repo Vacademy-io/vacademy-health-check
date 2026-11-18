@@ -27,7 +27,7 @@ const STATUSES: Record<VendorLogSource, string[]> = {
 
 const seconds = (ms: number | null) => (ms == null ? "—" : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`);
 
-export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWiden, source, hours, operationLabel, amountLabel, showInstitute, showDuration, showCreditsBilled, showHttpStatus }: {
+export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWiden, source, hours, operationLabel, amountLabel, showInstitute, showDuration, showCreditsBilled, showHttpStatus, preset }: {
   title: string;
   description: string;
   emptyWhat: string;
@@ -42,8 +42,10 @@ export function VendorLogCard({ title, description, emptyWhat, emptyHint, onWide
   showCreditsBilled?: boolean;
   /** A status code column, for logged vendor calls. */
   showHttpStatus?: boolean;
+  /** Filters to start with (a vendor, FAILED). Remount with a new key to apply new ones. */
+  preset?: VendorLogFilters;
 }) {
-  const [filters, setFilters] = useState<VendorLogFilters>({});
+  const [filters, setFilters] = useState<VendorLogFilters>(preset ?? {});
   const [page, setPage] = usePage([hours, filters]);
   const [openId, setOpenId] = useState<string | null>(null);
   const logs = useVendorLogs(source, hours, filters, page);

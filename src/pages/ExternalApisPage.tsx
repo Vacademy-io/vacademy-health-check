@@ -5,6 +5,7 @@ import { AllVendorsOverview } from "@/components/external-apis/AllVendorsOvervie
 import { BalancesTab } from "@/components/external-apis/BalancesTab";
 import { FailureCoverageCard } from "@/components/external-apis/FailureCoverageCard";
 import { KeyAccountsTab } from "@/components/external-apis/KeyAccountsTab";
+import { NeedsAttentionTab } from "@/components/external-apis/NeedsAttentionTab";
 import { LoggedVendorsCard } from "@/components/external-apis/LoggedVendorsCard";
 import { VendorLogCard } from "@/components/external-apis/VendorLogCard";
 import { usePage } from "@/components/external-apis/usePage";
@@ -393,7 +394,7 @@ function VendorsTab() {
 
 export default function ExternalApisPage() {
   const [range, setRange] = useState("168");
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("attention");
   const hours = Number(range);
   // Offered on empty results, so "nothing here" is never a dead end.
   const onWiden = hours < 720 ? () => setRange("720") : undefined;
@@ -402,7 +403,7 @@ export default function ExternalApisPage() {
     <div className="space-y-6">
       <PageHeader
         title="External APIs"
-        description="What every outside service costs us, what we charge institutes for it, and what is left in each account"
+        description="Every third-party API we have integrated: what needs topping up, what is failing and why, and what it costs"
         actions={
           <Select value={range} onValueChange={setRange}>
             <SelectTrigger className="w-40" aria-label="Time range"><SelectValue /></SelectTrigger>
@@ -414,16 +415,18 @@ export default function ExternalApisPage() {
       />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto flex-wrap justify-start">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="attention">Needs attention</TabsTrigger>
           <TabsTrigger value="balances">Balances</TabsTrigger>
+          <TabsTrigger value="calls">Failures &amp; vendor calls</TabsTrigger>
+          <TabsTrigger value="overview">Costs</TabsTrigger>
           <TabsTrigger value="recent">Recent calls</TabsTrigger>
           <TabsTrigger value="ai">AI calls</TabsTrigger>
           <TabsTrigger value="telephony">Telephony</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="calls">Vendor calls &amp; failures</TabsTrigger>
           <TabsTrigger value="keys">Keys &amp; accounts</TabsTrigger>
           <TabsTrigger value="vendors">All vendors</TabsTrigger>
         </TabsList>
+        <TabsContent value="attention"><NeedsAttentionTab hours={hours} onWiden={onWiden} /></TabsContent>
         <TabsContent value="overview"><OverviewTab hours={hours} onWiden={onWiden} onOpen={setTab} /></TabsContent>
         <TabsContent value="balances"><BalancesTab hours={hours} /></TabsContent>
         <TabsContent value="recent" className="space-y-6">
