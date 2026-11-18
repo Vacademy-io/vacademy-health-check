@@ -11,19 +11,19 @@ import {
   type RecentCallFilters,
   type RecentCallRow,
   type RecentCallSource,
+  useRecentCallCount,
   useRecentCalls,
   useVendorLogDetail,
 } from "@/services/external-apis-api";
-import { count, credits, dateTime, humanize, sourceLabel, vendorName } from "./format";
+import { chargeLabel, count, credits, dateTime, humanize, sourceLabel, vendorName } from "./format";
 import { EmptyNote, ErrorNote, FilterSelect, JsonBlock, Pager } from "./parts";
+import { usePage } from "./usePage";
+import { money } from "./balances";
 
 const SOURCES: RecentCallSource[] = ["ai", "calls", "telephony", "payments", "webhooks"];
 
-const money = (amount: number | null, currency: string | null) => {
-  if (amount == null) return "—";
-  const digits = currency === "USD" && amount !== 0 && amount < 0.01 ? 6 : 2;
-  return `${currency === "USD" ? "$" : currency ? `${currency} ` : ""}${amount.toFixed(digits)}`;
-};
+/** AI rows carry a charge status (POSTED, NOT_APPLICABLE...); the rest carry the vendor's own. */
+const statusLabel = (r: RecentCallRow) => (r.source === "ai" && r.status ? chargeLabel(r.status) : humanize(r.status));
 
 const duration = (ms: number | null) => (ms == null ? "—" : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`);
 
@@ -37,7 +37,7 @@ function CallDetail({ call }: { call: RecentCallRow }) {
     ["Vendor", vendorName(call.vendor)],
     [call.source === "ai" ? "Feature" : "Operation", humanize(call.operation)],
     [call.source === "ai" ? "Model" : "HTTP status", call.detail ?? "—"],
-    ["Status", call.failed ? `${humanize(call.status)} (failed)` : humanize(call.status)],
+    ["Status", call.failed ? `${statusLabel(call)} (failed)` : statusLabel(call)],
     ["Institute", call.institute_id
       ? <Link className="hover:underline" to={`/institutes/${call.institute_id}`}>{call.institute_name ?? call.institute_id}</Link>
       : "—"],
@@ -77,15 +77,15 @@ function CallDetail({ call }: { call: RecentCallRow }) {
 }
 
 /** Every recorded third-party call in one list, newest first, each one openable. */
-export function RecentCallsTab({ hours, onWiden, onOpenMessaging }: {
+export function RecentCallsTab({ hours, onWiden }: {
   hours: number;
   onWiden?: () => void;
-  onOpenMessaging: () => void;
 }) {
   const [filters, setFilters] = useState<RecentCallFilters>({});
-  const [page, setPage] = useState(0);
+  const [page, setPage] = usePage([hours, filters]);
   const [open, setOpen] = useState<RecentCallRow | null>(null);
   const calls = useRecentCalls(hours, filters, page);
+  const callCount = useRecentCallCount(hours, filters);
   const rows = (calls.data ?? []).slice(0, RECENT_PAGE_SIZE);
 
   const set = (patch: RecentCallFilters) => {
@@ -113,6 +113,8 @@ export function RecentCallsTab({ hours, onWiden, onOpenMessaging }: {
           <Button
             variant={filters.failedOnly ? "default" : "outline"}
             aria-pressed={!!filters.failedOnly}
+            disabled={filters.source === "ai"}
+            title={filters.source === "ai" ? "AI calls are only recorded when they succeed, so there are no AI failures to show" : undefined}
             onClick={() => set({ failedOnly: !filters.failedOnly })}
           >
             {filters.failedOnly ? "Showing failures only" : "Show failures only"}
@@ -135,7 +137,7 @@ export function RecentCallsTab({ hours, onWiden, onOpenMessaging }: {
                     <TableHead>What</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Institute</TableHead>
-                    <TableHead className="text-right">Cost</TableHead>
+                    <TableHead className="text-right">Vendor cost</TableHead>
                     <TableHead className="text-right">Credits</TableHead>
                     <TableHead>Error</TableHead>
                   </TableRow>
@@ -153,10 +155,10 @@ export function RecentCallsTab({ hours, onWiden, onOpenMessaging }: {
                         {r.detail && <div className="break-all text-muted-foreground">{r.source === "calls" ? `HTTP ${r.detail}` : r.detail}</div>}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={r.failed ? "destructive" : "outline"} className="whitespace-nowrap">{humanize(r.status)}</Badge>
+                        <Badge variant={r.failed ? "destructive" : "outline"} className="whitespace-nowrap">{statusLabel(r)}</Badge>
                       </TableCell>
                       <TableCell className="text-xs">{r.institute_name ?? r.institute_id ?? "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{money(r.amount, r.currency)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{r.source === "payments" ? "—" : money(r.amount, r.currency)}</TableCell>
                       <TableCell className="text-right tabular-nums">{r.credits == null ? "—" : credits(r.credits)}</TableCell>
                       <TableCell className="max-w-xs truncate text-xs text-muted-foreground" title={r.error ?? undefined}>{r.error ?? "—"}</TableCell>
                     </TableRow>
@@ -164,7 +166,13 @@ export function RecentCallsTab({ hours, onWiden, onOpenMessaging }: {
                 </TableBody>
               </Table>
             </div>
-            <Pager page={page} hasNext={(calls.data?.length ?? 0) > RECENT_PAGE_SIZE} onPage={setPage} />
+            <Pager
+              page={page}
+              total={callCount.data ?? null}
+              totalPages={callCount.data != null ? Math.ceil(callCount.data / RECENT_PAGE_SIZE) : null}
+              hasNext={(calls.data?.length ?? 0) > RECENT_PAGE_SIZE}
+              onPage={setPage}
+            />
           </>
         ) : (
           <EmptyNote
@@ -174,8 +182,9 @@ export function RecentCallsTab({ hours, onWiden, onOpenMessaging }: {
           />
         )}
         <p className="pt-3 text-xs text-muted-foreground">
-          WhatsApp and email are kept by the notification service, so they are listed separately.{" "}
-          <button type="button" className="underline hover:text-foreground" onClick={onOpenMessaging}>Open Messaging</button>
+          Failures here come from the AI service, the voice bot and the main app; &quot;Vendor calls &amp; failures&quot;
+          says what each one records. AI calls are recorded only when they succeed. Email and WhatsApp sends are not part
+          of this page.
         </p>
       </CardContent>
 

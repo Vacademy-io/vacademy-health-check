@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   useProviderTotals,
   useRefreshBalances,
+  useCallVendorCost,
   useTelephonySummary,
   useVendorBalances,
 } from "@/services/external-apis-api";
@@ -22,7 +23,8 @@ import {
   type VendorBalance,
 } from "./balances";
 import { dailySpendByVendor, daysWords, minutes, periodWords, runwayDays } from "./insights";
-import { ErrorNote, Highlights, Tiles } from "./parts";
+import { ErrorNote, Highlights, Pager, Tiles } from "./parts";
+import { slicePage, usePage } from "./usePage";
 
 /** Balance rows by the vendor key our usage records use, so recorded spend can give a runway. */
 const SPEND_KEY: Record<string, string> = { OpenRouter: "openrouter", "fal.ai": "fal", RunPod: "runpod" };
@@ -35,6 +37,11 @@ interface Runway {
 }
 
 function StatusBadge({ row }: { row: VendorBalance }) {
+  if (row.kind === "account_status") {
+    if (row.status === "error") return <Badge variant="destructive">Needs action</Badge>;
+    if (row.status === "unknown") return <Badge variant="outline">Not known</Badge>;
+    return <Badge variant="secondary">Working</Badge>;
+  }
   if (row.status === "error") return <Badge variant="destructive">Couldn&apos;t check</Badge>;
   if (row.status === "not_set_up") return <Badge variant="outline">Not set up</Badge>;
   if (isLow(row)) return <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200">Low</Badge>;
@@ -53,9 +60,15 @@ function AccountCard({ row, runway, note }: { row: VendorBalance; runway: Runway
           </div>
           <StatusBadge row={row} />
         </div>
-        <p className={`text-2xl font-semibold tabular-nums ${row.status === "ok" ? "" : "text-muted-foreground"}`}>
-          {row.status === "ok" ? money(row.balance, row.currency) : "—"}
-        </p>
+        {row.kind === "account_status" ? (
+          <p className={`text-2xl font-semibold ${row.status === "error" ? "text-red-700 dark:text-red-400" : row.status === "unknown" ? "text-muted-foreground" : ""}`}>
+            {row.state_label ?? "—"}
+          </p>
+        ) : (
+          <p className={`text-2xl font-semibold tabular-nums ${row.status === "ok" ? "" : "text-muted-foreground"}`}>
+            {row.status === "ok" ? money(row.balance, row.currency) : "—"}
+          </p>
+        )}
         {runway && (
           <p className={`text-xs ${runway.days < 7 ? "font-medium text-amber-700 dark:text-amber-400" : ""}`}>
             Lasts {daysWords(runway.days)} {runway.basis}
@@ -79,6 +92,7 @@ export function BalancesTab({ hours }: { hours: number }) {
   const telephony = useVendorBalances("telephony");
   const providers = useProviderTotals(hours);
   const calls = useTelephonySummary(hours);
+  const callCost = useCallVendorCost(hours);
 
   const period = periodWords(hours);
   const spend = dailySpendByVendor(providers.data ?? [], hours);
@@ -86,6 +100,8 @@ export function BalancesTab({ hours }: { hours: number }) {
   const plivoMaster = telephonyRows.find((r) => r.vendor === "Plivo" && r.status === "ok") ?? null;
   const ours = sortBalances([...(platform.data ?? []), ...(plivoMaster ? [plivoMaster] : [])]);
   const institutes = sortBalances(telephonyRows.filter((r) => r !== plivoMaster));
+  const [institutePage, setInstitutePage] = usePage([hours, institutes.length]);
+  const instituteView = slicePage(institutes, institutePage, 25);
   const plivoSeconds = (calls.data ?? [])
     .filter((r) => PLIVO_BACKED.has(r.provider))
     .reduce((n, r) => n + r.seconds, 0);
@@ -101,13 +117,23 @@ export function BalancesTab({ hours }: { hours: number }) {
   const loading = platform.isLoading || telephony.isLoading;
   const runways = ours.map((r) => ({ row: r, runway: runwayOf(r) })).filter((x) => x.runway != null);
   const shortest = runways.sort((a, b) => a.runway!.days - b.runway!.days)[0];
-  const lowOurs = ours.filter(isLow);
+  // An account with no balance figure that reports itself unusable (Sarvam out of credits)
+  // is "running out" in the sense that matters: features that use it are failing now.
+  const outOurs = ours.filter((r) => r.kind === "account_status" && r.status === "error");
+  const lowOurs = [...ours.filter(isLow), ...outOurs];
   const lowInstitutes = institutes.filter(isLow);
-  const failed = [...ours, ...institutes].filter((r) => r.status === "error");
+  const failed = [...ours, ...institutes].filter((r) => r.status === "error" && r.kind !== "account_status");
   const notSetUp = ours.filter((r) => r.status === "not_set_up");
   const instituteTotals = totalsByCurrency(institutes);
 
   // An institute's account by the institute; ours by the vendor, with the key only to tell two apart.
+  const sarvamMetered = spend.get("sarvam") ?? 0;
+  const sarvamCalls = callCost.data?.cost_by_vendor_inr?.sarvam ?? 0;
+  const sarvamSpend = [
+    sarvamCalls > 0 && `${money(sarvamCalls, "INR")} on AI voice calls (worked out from minutes at the rate card)`,
+    sarvamMetered > 0 && `${money(sarvamMetered * (hours / 24), "USD")} on tutor, chatbot voice, read-aloud and video narration (recorded per call)`,
+  ].filter(Boolean).join(" and ") || null;
+
   const nameOf = (r: VendorBalance) =>
     r.institute_name ?? r.institute_id ?? (r.account && r.vendor !== "Plivo" ? `${r.vendor} (${r.account})` : r.vendor);
   const lowest = ours.find((r) => r.status === "ok" && r.balance != null) ?? null;
@@ -150,9 +176,9 @@ export function BalancesTab({ hours }: { hours: number }) {
                 tone: lowest && isLow(lowest) ? "warn" : undefined,
               },
           {
-            label: "Our accounts running low",
+            label: "Our accounts low or out",
             value: String(lowOurs.length),
-            note: lowOurs.length ? listNames(lowOurs) : "None below $5",
+            note: lowOurs.length ? listNames(lowOurs) : "None below $5 or ₹500",
             tone: lowOurs.length ? "warn" : undefined,
           },
           {
@@ -180,6 +206,9 @@ export function BalancesTab({ hours }: { hours: number }) {
             "Plivo doesn't send us call prices, so how long it lasts can't be worked out here.",
           lowInstitutes.length > 0 &&
             `${lowInstitutes.length} institute${lowInstitutes.length === 1 ? " is" : "s are"} close to running out on their own telephony account: ${listNames(lowInstitutes)}. Ask them to top up.`,
+          ...outOurs.map((r) => `${r.vendor} ${r.account ?? ""}: ${r.state_label ?? "needs attention"}. ${r.message ?? ""}`.replace(/\s+/g, " ").trim()),
+          sarvamSpend &&
+            `Sarvam cost about ${sarvamSpend} in the last ${period}.`,
           failed.length > 0 &&
             `${failed.length} account${failed.length === 1 ? "" : "s"} couldn't be checked: ${listNames(failed)}. Usually the saved credentials were changed with the vendor.`,
           notSetUp.length > 0 && `${listNames(notSetUp)}: not set up to report a balance yet.`,
@@ -204,10 +233,14 @@ export function BalancesTab({ hours }: { hours: number }) {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {ours.map((row) => (
               <AccountCard
-                key={`${row.vendor}:${row.account}`}
+                key={`${row.vendor}:${row.account ?? ""}:${row.institute_id ?? ""}:${row.kind}`}
                 row={row}
                 runway={runwayOf(row)}
-                note={row === plivoMaster ? `${minutes(plivoSeconds)} call minutes in the last ${period}` : null}
+                note={row === plivoMaster
+                  ? `${minutes(plivoSeconds)} call minutes in the last ${period}`
+                  : row.vendor === "Sarvam" && sarvamSpend
+                    ? `Sarvam cost about ${sarvamSpend} in the last ${period}`
+                    : null}
               />
             ))}
           </div>
@@ -233,6 +266,7 @@ export function BalancesTab({ hours }: { hours: number }) {
           ) : !institutes.length ? (
             <p className="py-6 text-center text-sm text-muted-foreground">No institute has its own telephony account set up.</p>
           ) : (
+            <>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -246,7 +280,7 @@ export function BalancesTab({ hours }: { hours: number }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {institutes.map((row) => (
+                  {instituteView.rows.map((row) => (
                     <TableRow key={`${row.vendor}:${row.institute_id}:${row.account}`}>
                       <TableCell>{row.institute_name ?? row.institute_id ?? "—"}</TableCell>
                       <TableCell>{row.vendor}</TableCell>
@@ -266,6 +300,8 @@ export function BalancesTab({ hours }: { hours: number }) {
                 </TableBody>
               </Table>
             </div>
+            <Pager page={instituteView.page} totalPages={instituteView.totalPages} total={instituteView.total} onPage={setInstitutePage} />
+            </>
           )}
         </CardContent>
       </Card>

@@ -82,3 +82,11 @@ test("no code names on screen", () => {
   assert.equal(keyLabel("llm_provider_keys: Team A"), 'Stored key "Team A"');
   assert.equal(instituteKeyKind("institute_telephony_config"), "Telephony account");
 });
+
+test("status codes in words", async () => {
+  const { httpMeaning } = await import("../src/components/external-apis/insights.ts");
+  assert.equal(httpMeaning(429), "Rate limited: too many requests");
+  assert.equal(httpMeaning(null), "No answer: network error or our own timeout");
+  assert.equal(httpMeaning(418), "Request refused");
+  assert.equal(httpMeaning(599), "Vendor error");
+});

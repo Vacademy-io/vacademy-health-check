@@ -4,7 +4,7 @@ import { chargeLabel, explainError, humanize, sourceLabel, vendorName, windowLab
 
 test("sourceLabel names where a call was recorded", () => {
   assert.equal(sourceLabel("ai"), "AI call");
-  assert.equal(sourceLabel("calls"), "Logged vendor call");
+  assert.equal(sourceLabel("calls"), "Vendor call");
   assert.equal(sourceLabel("webhooks"), "Webhook");
   assert.equal(sourceLabel("NEW_SOURCE"), "New source");
 });
