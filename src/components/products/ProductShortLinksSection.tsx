@@ -51,9 +51,9 @@ export function ProductShortLinksSection({
       <div>
         <h3 className="text-sm font-semibold">Short links</h3>
         <p className="text-xs text-muted-foreground">
-          Put these in posts instead of the bare {displayName} website. A sign-up that came through a link shows
-          "source / campaign" in the Source column of the product's sign-up lead list. A new link works as soon as it
-          is saved. Changing or removing a link that was already live, and link previews in WhatsApp or LinkedIn,
+          Put these in posts instead of the bare {displayName} website. A link opens the website with utm_source and
+          utm_campaign; a sign-up that came through it shows them in the UTM Source and UTM Campaign columns of the
+          product's sign-up lead list. A new link works as soon as it is saved. Changing or removing a link that was already live, and link previews in WhatsApp or LinkedIn,
           take effect after the website's next deploy: for a new campaign, add a new link instead of changing one.
           Do not use a name that is already a page on the website, like blog or demo: the page opens instead.
         </p>
