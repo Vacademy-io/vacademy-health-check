@@ -14,6 +14,8 @@ import { ProductAlertsSection } from "@/components/products/ProductAlertsSection
 import { ProductPlansSection } from "@/components/products/ProductPlansSection";
 import { plansProblem } from "@/components/products/plans";
 import { ProductPricingTab } from "@/components/products/ProductPricingTab";
+import { ProductShortLinksSection } from "@/components/products/ProductShortLinksSection";
+import { shortLinksProblem } from "@/components/products/shortLinks";
 import { ProductSignupsTab } from "@/components/products/ProductSignupsTab";
 import { useProducts, useUpdateProduct, type ProductConfig } from "@/services/products-api";
 
@@ -54,6 +56,7 @@ function ProductCard({ product }: { product: ProductConfig }) {
   const dirty = JSON.stringify(form) !== JSON.stringify(product);
   const creditsValid = signupCreditsValid(form.demo_credits, product.demo_credits);
   const plansValid = plansProblem(form.plans, form.plan_validity_months, form.extra_credit_price_inr) === null;
+  const shortLinksValid = shortLinksProblem(form.short_links) === null;
 
   const save = () =>
     update.mutate(form, {
@@ -63,7 +66,7 @@ function ProductCard({ product }: { product: ProductConfig }) {
 
   const saveRow = (
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={save} disabled={!dirty || !creditsValid || !plansValid || update.isPending}>
+          <Button onClick={save} disabled={!dirty || !creditsValid || !plansValid || !shortLinksValid || update.isPending}>
             {update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save
           </Button>
@@ -102,9 +105,19 @@ function ProductCard({ product }: { product: ProductConfig }) {
             <TabsTrigger value="settings">Trial and mail</TabsTrigger>
             <TabsTrigger value="alerts">Alerts</TabsTrigger>
             <TabsTrigger value="pricing">Pricing</TabsTrigger>
+            <TabsTrigger value="links">Short links</TabsTrigger>
           </TabsList>
           <TabsContent value="signups">
             <ProductSignupsTab productKey={product.product_key} />
+          </TabsContent>
+          <TabsContent value="links">
+            <ProductShortLinksSection
+              displayName={product.display_name}
+              websiteUrl={form.website_url}
+              links={form.short_links}
+              onChange={(links) => set("short_links", links)}
+              saveRow={saveRow}
+            />
           </TabsContent>
           <TabsContent value="pricing">
             <ProductPricingTab>

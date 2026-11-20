@@ -30,12 +30,16 @@ export interface ProductConfig {
   plan_validity_months?: number | null;
   /** What one extra credit costs after a plan's credits are used, in rupees (shown on the website). */
   extra_credit_price_inr?: number | null;
+  /** Short links on the product's website (<website>/<code>), each with a source and campaign. */
+  short_links?: ProductShortLink[] | null;
   updated_by: string | null;
   updated_at: string | null;
 }
 
 export type { ProductPlan } from "@/components/products/plans";
 import type { ProductPlan } from "@/components/products/plans";
+export type { ProductShortLink } from "@/components/products/shortLinks";
+import type { ProductShortLink } from "@/components/products/shortLinks";
 
 export type TrialStatus = "ON_TRIAL" | "EXPIRED" | "PAID" | "NOT_ON_TRIAL";
 
