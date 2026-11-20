@@ -4,6 +4,7 @@ import { Coins, DollarSign, Unplug, Zap } from "lucide-react";
 import { AllVendorsOverview } from "@/components/external-apis/AllVendorsOverview";
 import { BalancesTab } from "@/components/external-apis/BalancesTab";
 import { FailureCoverageCard } from "@/components/external-apis/FailureCoverageCard";
+import { AlertsTab } from "@/components/external-apis/AlertsTab";
 import { KeyAccountsTab } from "@/components/external-apis/KeyAccountsTab";
 import { NeedsAttentionTab } from "@/components/external-apis/NeedsAttentionTab";
 import { LoggedVendorsCard } from "@/components/external-apis/LoggedVendorsCard";
@@ -47,6 +48,7 @@ import {
   useProviderTotals,
   type AiCallFilters,
   type AiCallRow,
+  useApiAlerts,
 } from "@/services/external-apis-api";
 
 const RANGES = [
@@ -398,6 +400,8 @@ export default function ExternalApisPage() {
   const hours = Number(range);
   // Offered on empty results, so "nothing here" is never a dead end.
   const onWiden = hours < 720 ? () => setRange("720") : undefined;
+  const alerts = useApiAlerts();
+  const openAlerts = alerts.data?.alerts.filter((a) => a.is_open && !a.muted).length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -416,6 +420,7 @@ export default function ExternalApisPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="attention">Needs attention</TabsTrigger>
+          <TabsTrigger value="alerts">Alerts{openAlerts > 0 && ` (${openAlerts})`}</TabsTrigger>
           <TabsTrigger value="balances">Balances</TabsTrigger>
           <TabsTrigger value="calls">Failures &amp; vendor calls</TabsTrigger>
           <TabsTrigger value="overview">Costs</TabsTrigger>
@@ -427,6 +432,7 @@ export default function ExternalApisPage() {
           <TabsTrigger value="vendors">All vendors</TabsTrigger>
         </TabsList>
         <TabsContent value="attention"><NeedsAttentionTab hours={hours} onWiden={onWiden} /></TabsContent>
+        <TabsContent value="alerts"><AlertsTab /></TabsContent>
         <TabsContent value="overview"><OverviewTab hours={hours} onWiden={onWiden} onOpen={setTab} /></TabsContent>
         <TabsContent value="balances"><BalancesTab hours={hours} /></TabsContent>
         <TabsContent value="recent" className="space-y-6">

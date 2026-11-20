@@ -1,6 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chargeLabel, explainError, humanize, sourceLabel, vendorName, windowLabel } from "../src/components/external-apis/format.ts";
+import { alertProblem, chargeLabel, explainError, humanize, keyEnding, sourceLabel, vendorName, windowLabel } from "../src/components/external-apis/format.ts";
+
+test("alertProblem says what is wrong in words", () => {
+  assert.equal(alertProblem({ kind: "CREDITS", consecutive_failures: 1 }), "Out of credits");
+  assert.equal(alertProblem({ kind: "FAILING", consecutive_failures: 7 }), "7 failures in a row");
+});
+
+test("keyEnding never shows the placeholder for a short key", () => {
+  assert.equal(keyEnding("ab12"), "Key ending ab12");
+  assert.equal(keyEnding("****"), "Key too short to show");
+});
 
 test("sourceLabel names where a call was recorded", () => {
   assert.equal(sourceLabel("ai"), "AI call");
@@ -68,4 +78,11 @@ test("explainError says what to do, not just a status code", () => {
 
 test("explainError does not echo a huge server body", () => {
   assert.doesNotMatch(explainError(failure(500, { error: "x".repeat(500) })), /xxx/);
+});
+
+test("invalidPhones names what is not a WhatsApp number, like the AI service does", async () => {
+  const { invalidPhones } = await import("../src/components/external-apis/format.ts");
+  assert.deepEqual(invalidPhones("+91 98765 43210, 9876543210, 09876543211, 0044 7700 900123"), []);
+  assert.deepEqual(invalidPhones("9876543210, 12345, abc, "), ["12345", "abc"]);
+  assert.deepEqual(invalidPhones(""), []);
 });

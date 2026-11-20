@@ -275,6 +275,83 @@ export function useSetAutoCapture() {
   });
 }
 
+export interface ApiAlert {
+  vendor: string;
+  key_hint: string;
+  kind: "CREDITS" | "FAILING";
+  is_open: boolean;
+  muted: boolean;
+  opened_at: string;
+  resolved_at: string | null;
+  last_failed_at: string | null;
+  last_notified_at: string | null;
+  consecutive_failures: number;
+  last_http_status: number | null;
+  last_error: string | null;
+  account: string | null;
+}
+
+export interface ApiAlertSettings {
+  emails: string;
+  /** Comma-separated WhatsApp numbers with country code, e.g. "919876543210, 447700900123". */
+  whatsapp_phones: string;
+  consecutive_failures: number;
+  repeat_hours: number;
+}
+
+const API_ALERTS_QUERY = ["external-apis", "alerts"];
+
+export function useApiAlerts() {
+  return useQuery({
+    queryKey: API_ALERTS_QUERY,
+    queryFn: async () => {
+      const { data } = await api.get<
+        ApiAlertSettings & { alerts: ApiAlert[]; tables_ready: boolean; whatsapp_template?: string }
+      >(
+        `${API_PREFIXES.AI}/external-apis/alerts`,
+      );
+      return data;
+    },
+    refetchInterval: 60_000,
+    retry: false,
+  });
+}
+
+export function useSaveAlertSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (settings: ApiAlertSettings) => {
+      await api.put(`${API_PREFIXES.AI}/external-apis/alerts/settings`, settings);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: API_ALERTS_QUERY }),
+  });
+}
+
+/** What a test send did, channel by channel: a refused number does not hide a delivered email. */
+export interface TestAlertResult {
+  email: { sent_to: string[]; accepted: boolean } | null;
+  whatsapp: Array<{ phone: string; success: boolean; error: string | null }>;
+}
+
+export function useSendTestAlert() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<TestAlertResult>(`${API_PREFIXES.AI}/external-apis/alerts/test`);
+      return data;
+    },
+  });
+}
+
+export function useMuteApiAlert() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (mute: { vendor: string; key_hint: string; muted: boolean }) => {
+      await api.put(`${API_PREFIXES.AI}/external-apis/alerts/mute`, mute);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: API_ALERTS_QUERY }),
+  });
+}
+
 export type VendorLogSource = "telephony" | "payments" | "webhooks" | "calls";
 
 export interface VendorLogRow {

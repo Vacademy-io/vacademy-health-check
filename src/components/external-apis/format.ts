@@ -148,6 +148,12 @@ const SOURCE_LABELS: Record<string, string> = {
 /** Which table a call came from, in words. */
 export const sourceLabel = (source: string) => SOURCE_LABELS[source] ?? humanize(source);
 
+export const alertProblem = ({ kind, consecutive_failures }: { kind: string; consecutive_failures: number }) =>
+  kind === "CREDITS" ? "Out of credits" : `${count(consecutive_failures)} failures in a row`;
+
+/** "****" is what a key too short to hint at is stored as. */
+export const keyEnding = (hint: string) => (hint === "****" ? "Key too short to show" : `Key ending ${hint}`);
+
 /** NO_ANSWER and course_generation become readable. "POST /v1/x" and the like are left alone. */
 export const humanize = (raw: string | null | undefined): string => {
   if (!raw) return "—";
@@ -247,3 +253,21 @@ export const keyLabel = (credential: string): string => {
   if (stored) return `Stored key "${stored[1]}"`;
   return /_KEYS$/.test(credential) ? "Key pool" : "Main key";
 };
+
+/**
+ * The entries in a comma-separated list that are not WhatsApp numbers, by the same rule as the
+ * AI service: digits with the country code (11 to 15), or a 10-digit Indian number.
+ */
+export const invalidPhones = (raw: string): string[] =>
+  raw
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => {
+      if (!p) return false;
+      let d = p.replace(/[\s\-().]/g, "");
+      if (d.startsWith("+")) d = d.slice(1);
+      else if (d.startsWith("00")) d = d.slice(2);
+      else if (d.length === 11 && d.startsWith("0")) d = `91${d.slice(1)}`;
+      else if (d.length === 10) d = `91${d}`;
+      return !(/^\d+$/.test(d) && d.length >= 11 && d.length <= 15);
+    });
