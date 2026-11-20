@@ -19,23 +19,10 @@ import {
   useChangeTrial,
   useProductInstitutes,
   type ProductInstitute,
-  type TrialStatus,
 } from "@/services/products-api";
 import { errorText } from "./errors";
+import { STATUS_FILTERS, statusBadge } from "./trialStatus";
 
-const STATUS: Record<TrialStatus, { label: string; variant: "secondary" | "outline" | "destructive" }> = {
-  ON_TRIAL: { label: "On trial", variant: "secondary" },
-  EXPIRED: { label: "Trial ended", variant: "destructive" },
-  PAID: { label: "Paid", variant: "outline" },
-  NOT_ON_TRIAL: { label: "No trial", variant: "outline" },
-};
-
-const FILTERS: { value: string; label: string }[] = [
-  { value: "", label: "All" },
-  { value: "ON_TRIAL", label: "On trial" },
-  { value: "EXPIRED", label: "Trial ended" },
-  { value: "PAID", label: "Paid" },
-];
 
 const dateText = (value: string | null) =>
   value ? new Date(`${value}Z`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "-";
@@ -139,7 +126,10 @@ export function ProductSignupsTab({ productKey }: { productKey: string }) {
     {
       key: "trial_status",
       header: "Status",
-      render: (row) => <Badge variant={STATUS[row.trial_status].variant}>{STATUS[row.trial_status].label}</Badge>,
+      render: (row) => {
+        const badge = statusBadge(row.trial_status);
+        return <Badge variant={badge.variant}>{badge.label}</Badge>;
+      },
     },
     { key: "trial_ends_at", header: "Trial ends", render: (row) => dateText(row.trial_ends_at) },
     {
@@ -184,7 +174,7 @@ export function ProductSignupsTab({ productKey }: { productKey: string }) {
           toolbar={
             <div className="flex flex-wrap items-center gap-2">
               <SearchInput value={search} onChange={setSearch} placeholder="Search name, email or phone" />
-              {FILTERS.map((filter) => (
+              {STATUS_FILTERS.map((filter) => (
                 <Button
                   key={filter.value}
                   size="sm"

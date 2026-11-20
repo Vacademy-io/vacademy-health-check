@@ -41,7 +41,8 @@ import type { ProductPlan } from "@/components/products/plans";
 export type { ProductShortLink } from "@/components/products/shortLinks";
 import type { ProductShortLink } from "@/components/products/shortLinks";
 
-export type TrialStatus = "ON_TRIAL" | "EXPIRED" | "PAID" | "NOT_ON_TRIAL";
+export type { TrialStatus } from "@/components/products/trialStatus";
+import type { TrialStatus } from "@/components/products/trialStatus";
 
 export interface ProductInstitute {
   id: string;
