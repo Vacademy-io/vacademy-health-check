@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Moon, Sun, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ApiAlertsBell } from "./ApiAlertsBell";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -55,6 +56,8 @@ export function Header({ onMenuClick }: HeaderProps) {
       <div className="flex-1" />
 
       <div className="flex items-center gap-2">
+        <ApiAlertsBell />
+
         <Button
           variant="ghost"
           size="icon"
