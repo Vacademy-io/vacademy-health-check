@@ -104,6 +104,35 @@ const HINTS: Array<[(code: number) => boolean, string]> = [
   [(c) => c === 404, "Not found: an id or URL is wrong"],
 ];
 
+/**
+ * What a failure without a status code means, read from its words. The voice bot reports key
+ * refusals, capacity refusals and dropped sockets this way ("Key refused: invalid, revoked or
+ * out of credit"), and calling those "no answer" sent people looking at the network.
+ */
+const REASON_HINTS: Array<[RegExp, string]> = [
+  [/key refused|invalid key|invalid api key|revoked|unauthori[sz]ed|forbidden|authentication/i, "Key refused: check the key"],
+  [/capacity|concurrency|too many (sockets|connections|streams)/i, "At capacity: too many connections on this key"],
+  [/credit|exhausted|insufficient (funds|balance)|payment required|quota/i, "Out of credits: top up"],
+  [/rate.?limit|too many requests/i, "Rate limited or quota used up"],
+  [/time(d)? ?out|connect|unreachable|reset|no answer|refused/i, "No answer: timeout or connection refused"],
+];
+
+export const reasonHint = (reason: string | null | undefined): string | null => {
+  const r = (reason ?? "").trim();
+  if (!r) return null;
+  for (const [pattern, words] of REASON_HINTS) if (pattern.test(r)) return words;
+  return null;
+};
+
+/** The hint for one kind of failure: from its status code when it has one, else from its words. */
+export const failureHint = (httpStatus: number | null | undefined, reason: string | null | undefined): string | null => {
+  if (httpStatus != null) {
+    for (const [test, words] of HINTS) if (test(httpStatus)) return words;
+    return null;
+  }
+  return reasonHint(reason) ?? (reason?.trim() ? null : "No answer: timeout or connection refused");
+};
+
 /** The failure rows grouped per vendor, the vendor with the latest failure first. */
 export const failingVendors = (rows: AttentionFailure[]): FailingVendor[] => {
   const by = new Map<string, FailingVendor>();
@@ -123,6 +152,14 @@ export const failingVendors = (rows: AttentionFailure[]): FailingVendor[] => {
       if (codes.some(test)) {
         v.hint = words;
         break;
+      }
+    }
+    if (!v.hint) {
+      // No status-code hint: read the reasons of the failures without a code.
+      for (const s of v.statuses) {
+        if (Number.isFinite(Number(s.label))) continue;
+        v.hint = reasonHint(s.label);
+        if (v.hint) break;
       }
     }
     if (!v.hint && codes.length === 0) v.hint = "No answer: timeout or connection refused";
