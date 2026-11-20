@@ -66,7 +66,7 @@ function SettingsCard({ saved, template }: { saved: ApiAlertSettings; template?:
               aria-invalid={badPhones.length > 0}
             />
             <span className="block text-xs font-normal text-muted-foreground">
-              With the country code; a 10-digit number is taken as Indian. Up to 10. Sent from the platform's WhatsApp
+              With the country code; a 10-digit number is taken as Indian. Up to 10. Sent from the Vidyayatan WhatsApp account, like the server health check,
               {template ? ` with the "${template}" template` : ""}.
             </span>
           </label>
