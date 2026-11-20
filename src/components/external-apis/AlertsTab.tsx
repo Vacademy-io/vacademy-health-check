@@ -9,39 +9,45 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   type ApiAlert,
   type ApiAlertSettings,
+  type TestAlertResult,
   useApiAlerts,
   useMuteApiAlert,
   useSaveAlertSettings,
   useSendTestAlert,
 } from "@/services/external-apis-api";
-import { alertProblem, dateTime, keyEnding, vendorName } from "./format";
+import { alertProblem, dateTime, invalidPhones, keyEnding, vendorName } from "./format";
 import { EmptyNote, ErrorNote } from "./parts";
 
-function SettingsCard({ saved }: { saved: ApiAlertSettings }) {
+function SettingsCard({ saved, template }: { saved: ApiAlertSettings; template?: string }) {
   const save = useSaveAlertSettings();
   const test = useSendTestAlert();
   const [emails, setEmails] = useState(saved.emails);
+  const [phones, setPhones] = useState(saved.whatsapp_phones ?? "");
   const [failures, setFailures] = useState(String(saved.consecutive_failures));
   const [repeat, setRepeat] = useState(String(saved.repeat_hours));
 
   const failureCount = Number(failures);
   const repeatHours = Number(repeat);
-  const valid = Number.isInteger(failureCount) && failureCount >= 2 && failureCount <= 50
+  const badPhones = invalidPhones(phones);
+  const numbersValid = Number.isInteger(failureCount) && failureCount >= 2 && failureCount <= 50
     && Number.isInteger(repeatHours) && repeatHours >= 1 && repeatHours <= 168;
-  const changed = emails !== saved.emails || failureCount !== saved.consecutive_failures || repeatHours !== saved.repeat_hours;
+  const valid = numbersValid && badPhones.length === 0;
+  const changed = emails !== saved.emails || phones !== (saved.whatsapp_phones ?? "")
+    || failureCount !== saved.consecutive_failures || repeatHours !== saved.repeat_hours;
+  const anyoneSaved = Boolean(saved.emails || saved.whatsapp_phones);
 
   return (
     <Card>
       <CardHeader className="space-y-1">
         <CardTitle className="text-base">Who gets told</CardTitle>
         <p className="text-xs text-muted-foreground">
-          {saved.emails
-            ? "These addresses get an email when an API runs out of credits or keeps failing, reminders while it lasts, and a note when it works again."
-            : "Nobody is emailed yet. Add an address to start. Problems still show above either way."}
+          {anyoneSaved
+            ? "These people hear when an API runs out of credits or keeps failing, get reminders while it lasts, and a note when it works again."
+            : "Nobody is told yet. Add an email address or a WhatsApp number to start. Problems still show above either way."}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto]">
+        <div className="grid gap-4 sm:grid-cols-2">
           <label className="space-y-1 text-sm font-medium">
             Email addresses, separated by commas
             <Input
@@ -50,6 +56,22 @@ function SettingsCard({ saved }: { saved: ApiAlertSettings }) {
               placeholder="tech@yourcompany.com, finance@yourcompany.com"
             />
           </label>
+          <label className="space-y-1 text-sm font-medium">
+            WhatsApp numbers, separated by commas
+            <Input
+              value={phones}
+              inputMode="tel"
+              onChange={(e) => setPhones(e.target.value)}
+              placeholder="919876543210, 9876543210"
+              aria-invalid={badPhones.length > 0}
+            />
+            <span className="block text-xs font-normal text-muted-foreground">
+              With the country code; a 10-digit number is taken as Indian. Up to 10. Sent from the platform's WhatsApp
+              {template ? ` with the "${template}" template` : ""}.
+            </span>
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-4">
           <label className="space-y-1 text-sm font-medium">
             Alert after this many failures in a row
             <Input
@@ -73,28 +95,58 @@ function SettingsCard({ saved }: { saved: ApiAlertSettings }) {
             />
           </label>
         </div>
-        {!valid && <p className="text-xs text-red-700">Failures in a row must be 2 to 50, and reminders 1 to 168 hours.</p>}
+        {!numbersValid && <p className="text-xs text-red-700">Failures in a row must be 2 to 50, and reminders 1 to 168 hours.</p>}
+        {badPhones.length > 0 && (
+          <p className="text-xs text-red-700">
+            Not a WhatsApp number: {badPhones.join(", ")}. Use digits with the country code, e.g. 919876543210.
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             disabled={!valid || !changed || save.isPending}
-            onClick={() => save.mutate({ emails, consecutive_failures: failureCount, repeat_hours: repeatHours })}
+            onClick={() => save.mutate({
+              emails,
+              whatsapp_phones: phones,
+              consecutive_failures: failureCount,
+              repeat_hours: repeatHours,
+            })}
           >
             {save.isPending ? "Saving..." : "Save"}
           </Button>
           <Button
             variant="outline"
-            disabled={!saved.emails || changed || test.isPending}
-            title={changed ? "Save first, so the test goes to these addresses" : undefined}
+            disabled={!anyoneSaved || changed || test.isPending}
+            title={changed ? "Save first, so the test goes to these people" : undefined}
             onClick={() => test.mutate()}
           >
-            {test.isPending ? "Sending..." : "Send a test email"}
+            {test.isPending ? "Sending..." : "Send a test"}
           </Button>
-          {test.isSuccess && <span className="text-xs text-muted-foreground">Sent to {test.data.sent_to.join(", ")}. Check the inbox and spam folder.</span>}
         </div>
+        {test.isSuccess && <TestResult result={test.data} />}
         {save.isError && <ErrorNote title="Could not save" error={save.error} />}
-        {test.isError && <ErrorNote title="Could not send the test email" error={test.error} />}
+        {test.isError && <ErrorNote title="Could not send the test" error={test.error} />}
       </CardContent>
     </Card>
+  );
+}
+
+/** Each channel on its own line, with WhatsApp's reason when a number was refused. */
+function TestResult({ result }: { result: TestAlertResult }) {
+  return (
+    <ul className="space-y-1 text-xs">
+      {result.email && (
+        <li className={result.email.accepted ? "text-muted-foreground" : "text-red-700"}>
+          {result.email.accepted
+            ? `Email sent to ${result.email.sent_to.join(", ")}. Check the inbox and spam folder.`
+            : "The notification service did not accept the email."}
+        </li>
+      )}
+      {result.whatsapp.map((r) => (
+        <li key={r.phone} className={r.success ? "text-muted-foreground" : "text-red-700"}>
+          {r.success ? `WhatsApp sent to +${r.phone}.` : `WhatsApp to +${r.phone} refused: ${r.error ?? "no reason given"}`}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -120,7 +172,7 @@ function AlertRow({ alert }: { alert: ApiAlert }) {
         {alert.is_open ? `Since ${dateTime(alert.opened_at)}` : alert.resolved_at ? `Ended ${dateTime(alert.resolved_at)}` : "—"}
       </TableCell>
       <TableCell className="whitespace-nowrap text-xs">
-        {alert.last_notified_at ? dateTime(alert.last_notified_at) : "Not emailed"}
+        {alert.last_notified_at ? dateTime(alert.last_notified_at) : "Not sent"}
       </TableCell>
       <TableCell className="text-right">
         <Button
@@ -168,8 +220,8 @@ export function AlertsTab() {
                   <TableHead>Problem</TableHead>
                   <TableHead>Last error</TableHead>
                   <TableHead>When</TableHead>
-                  <TableHead>Last email</TableHead>
-                  <TableHead className="text-right">Emails</TableHead>
+                  <TableHead>Last alert</TableHead>
+                  <TableHead className="text-right">Alerts</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -190,8 +242,9 @@ export function AlertsTab() {
       </Card>
       {/* Remounts when the saved values change, so the form always starts from what was saved. */}
       <SettingsCard
-        key={`${alerts.data.emails}|${alerts.data.consecutive_failures}|${alerts.data.repeat_hours}`}
+        key={`${alerts.data.emails}|${alerts.data.whatsapp_phones}|${alerts.data.consecutive_failures}|${alerts.data.repeat_hours}`}
         saved={alerts.data}
+        template={alerts.data.whatsapp_template}
       />
     </div>
   );

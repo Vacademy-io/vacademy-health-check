@@ -79,3 +79,10 @@ test("explainError says what to do, not just a status code", () => {
 test("explainError does not echo a huge server body", () => {
   assert.doesNotMatch(explainError(failure(500, { error: "x".repeat(500) })), /xxx/);
 });
+
+test("invalidPhones names what is not a WhatsApp number, like the AI service does", async () => {
+  const { invalidPhones } = await import("../src/components/external-apis/format.ts");
+  assert.deepEqual(invalidPhones("+91 98765 43210, 9876543210, 09876543211, 0044 7700 900123"), []);
+  assert.deepEqual(invalidPhones("9876543210, 12345, abc, "), ["12345", "abc"]);
+  assert.deepEqual(invalidPhones(""), []);
+});

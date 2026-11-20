@@ -293,6 +293,8 @@ export interface ApiAlert {
 
 export interface ApiAlertSettings {
   emails: string;
+  /** Comma-separated WhatsApp numbers with country code, e.g. "919876543210, 447700900123". */
+  whatsapp_phones: string;
   consecutive_failures: number;
   repeat_hours: number;
 }
@@ -303,7 +305,9 @@ export function useApiAlerts() {
   return useQuery({
     queryKey: API_ALERTS_QUERY,
     queryFn: async () => {
-      const { data } = await api.get<ApiAlertSettings & { alerts: ApiAlert[]; tables_ready: boolean }>(
+      const { data } = await api.get<
+        ApiAlertSettings & { alerts: ApiAlert[]; tables_ready: boolean; whatsapp_template?: string }
+      >(
         `${API_PREFIXES.AI}/external-apis/alerts`,
       );
       return data;
@@ -323,10 +327,16 @@ export function useSaveAlertSettings() {
   });
 }
 
+/** What a test send did, channel by channel: a refused number does not hide a delivered email. */
+export interface TestAlertResult {
+  email: { sent_to: string[]; accepted: boolean } | null;
+  whatsapp: Array<{ phone: string; success: boolean; error: string | null }>;
+}
+
 export function useSendTestAlert() {
   return useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<{ sent_to: string[] }>(`${API_PREFIXES.AI}/external-apis/alerts/test`);
+      const { data } = await api.post<TestAlertResult>(`${API_PREFIXES.AI}/external-apis/alerts/test`);
       return data;
     },
   });
@@ -339,21 +349,6 @@ export function useMuteApiAlert() {
       await api.put(`${API_PREFIXES.AI}/external-apis/alerts/mute`, mute);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: API_ALERTS_QUERY }),
-  });
-}
-
-export function useCommunicationLogs(hours: number, filters: CommunicationLogFilters, page: number) {
-  return useQuery({
-    queryKey: ["external-apis", "communication-logs", hours, filters, page],
-    queryFn: async () => {
-      const { data } = await api.get<CommunicationLogPage>(
-        `${API_PREFIXES.NOTIFICATION}/external-communication-logs`,
-        { params: { hours, page, size: 50, ...filters } },
-      );
-      return data;
-    },
-    placeholderData: keepPreviousData,
-    retry: false,
   });
 }
 
