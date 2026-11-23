@@ -1,7 +1,7 @@
 // Run: node --test tests/*.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assembleProduct, buildRequests, clampDays, gaDate, handleGaRequest, parseProducts, type ApiReport } from "../server/ga-report.ts";
+import { assembleProduct, assembleSources, buildRequests, buildSourceRequests, clampDays, gaDate, handleGaRequest, parseProducts, type ApiReport } from "../server/ga-report.ts";
 
 test("GA_PRODUCTS: valid config parses, hostnames lower-cased, properties/ prefix stripped", () => {
   const { products, error } = parseProducts(
@@ -79,4 +79,23 @@ test("handler: no token → 401; verified but unconfigured → configured:false 
   assert.equal(body.configured, false);
   assert.equal(body.days, 7);
   assert.match(body.message, /GA_SERVICE_ACCOUNT_JSON/);
+});
+
+test("source / medium: second batch, host filter kept, lead events joined per source", () => {
+  const reqs = buildSourceRequests({ product: "telleo", propertyId: "1", hostnames: ["telleo.ai"] }, 30);
+  assert.equal(reqs.length, 2);
+  assert.match(JSON.stringify(reqs[0]), /sessionSourceMedium/);
+  assert.match(JSON.stringify(reqs[1]), /andGroup/);
+  const rows = assembleSources([
+    { rows: [
+      { dimensionValues: [{ value: "google / organic" }], metricValues: [{ value: "120" }, { value: "150" }] },
+      { dimensionValues: [{ value: "(direct) / (none)" }], metricValues: [{ value: "80" }, { value: "90" }] },
+    ] },
+    { rows: [
+      { dimensionValues: [{ value: "google / organic" }], metricValues: [{ value: "3" }] },
+      { dimensionValues: [{ value: "linkedin / social" }], metricValues: [{ value: "1" }] },
+    ] },
+  ]);
+  assert.deepEqual(rows.map((r) => [r.name, r.activeUsers, r.leads]), [["google / organic", 120, 3], ["(direct) / (none)", 80, 0], ["linkedin / social", 0, 1]]);
+  assert.deepEqual(assembleSources([]), []);
 });

@@ -59,6 +59,15 @@ export interface GaProductReport {
   daily: GaDay[];
   devices: GaSplitRow[];
   channels: GaSplitRow[];
+  /** Top session source / medium pairs ("google / organic") with lead events per pair. */
+  sources: GaSourceRow[];
+}
+
+export interface GaSourceRow {
+  name: string;
+  activeUsers: number;
+  sessions: number;
+  leads: number;
 }
 
 export interface GaReport {
@@ -143,8 +152,25 @@ function totalsFrom(metrics: { value?: string }[] | undefined, leads = 0): GaTot
   };
 }
 
+/** Top source / medium rows from the second batch (order fixed by buildSourceRequests). */
+export function assembleSources(reports: ApiReport[]): GaSourceRow[] {
+  const [trafficR, leadsR] = reports;
+  const rows = new Map<string, GaSourceRow>();
+  for (const row of trafficR?.rows ?? []) {
+    const name = row.dimensionValues?.[0]?.value || "(not set)";
+    rows.set(name, { name, activeUsers: num(row.metricValues?.[0]?.value), sessions: num(row.metricValues?.[1]?.value), leads: 0 });
+  }
+  for (const row of leadsR?.rows ?? []) {
+    const name = row.dimensionValues?.[0]?.value || "(not set)";
+    const r = rows.get(name) ?? { name, activeUsers: 0, sessions: 0, leads: 0 };
+    r.leads += num(row.metricValues?.[0]?.value);
+    rows.set(name, r);
+  }
+  return [...rows.values()].sort((a, b) => b.activeUsers - a.activeUsers || b.leads - a.leads).slice(0, 25);
+}
+
 /** Builds one product's report from the five batch responses (order fixed by buildRequests). */
-export function assembleProduct(cfg: GaProductConfig, reports: ApiReport[], days: number, today: Date): Omit<GaProductReport, "error"> {
+export function assembleProduct(cfg: GaProductConfig, reports: ApiReport[], days: number, today: Date, sourceReports: ApiReport[] = []): Omit<GaProductReport, "error"> {
   const [totalsR, dailyR, devicesR, channelsR, leadsR] = reports;
 
   const leadsByDate = new Map<string, number>();
@@ -183,6 +209,7 @@ export function assembleProduct(cfg: GaProductConfig, reports: ApiReport[], days
     daily,
     devices: split(devicesR),
     channels: split(channelsR).slice(0, 8),
+    sources: assembleSources(sourceReports),
   };
 }
 
@@ -209,6 +236,25 @@ export function buildRequests(cfg: GaProductConfig, days: number): Record<string
       metrics: metrics(["eventCount"]),
       limit: 400,
       ...withHost({ filter: { fieldName: "eventName", inListFilter: { values: leadEvents } } }),
+    },
+  ];
+}
+
+/** Second batch (batchRunReports allows five per call): users and lead events per session source / medium. */
+export function buildSourceRequests(cfg: GaProductConfig, days: number): Record<string, unknown>[] {
+  const dateRanges = [{ startDate: `${days - 1}daysAgo`, endDate: "today" }];
+  const host = cfg.hostnames?.length ? { filter: { fieldName: "hostName", inListFilter: { values: cfg.hostnames, caseSensitive: false } } } : null;
+  const leadEvents = cfg.leadEvents?.length ? cfg.leadEvents : DEFAULT_LEAD_EVENTS;
+  const leadFilter = { filter: { fieldName: "eventName", inListFilter: { values: leadEvents } } };
+  const dimensions = [{ name: "sessionSourceMedium" }];
+  return [
+    { dateRanges, dimensions, metrics: [{ name: "activeUsers" }, { name: "sessions" }], limit: 50, ...(host ? { dimensionFilter: host } : {}) },
+    {
+      dateRanges,
+      dimensions,
+      metrics: [{ name: "eventCount" }],
+      limit: 50,
+      dimensionFilter: host ? { andGroup: { expressions: [host, leadFilter] } } : leadFilter,
     },
   ];
 }
@@ -271,7 +317,19 @@ async function runProduct(cfg: GaProductConfig, days: number, token: string, tod
     });
     const body = (await res.json().catch(() => ({}))) as { reports?: ApiReport[]; error?: { message?: string } };
     if (!res.ok) throw new Error(body.error?.message ?? `Google Analytics returned ${res.status}`);
-    return { ...assembleProduct(cfg, body.reports ?? [], days, today), error: null };
+    // Sources are a nice-to-have: if this second batch fails, the main report still shows.
+    let sourceReports: ApiReport[] = [];
+    try {
+      const sres = await fetch(`${DATA_API}/properties/${cfg.propertyId}:batchRunReports`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ requests: buildSourceRequests(cfg, days) }),
+      });
+      if (sres.ok) sourceReports = ((await sres.json().catch(() => ({}))) as { reports?: ApiReport[] }).reports ?? [];
+    } catch {
+      /* keep the main report */
+    }
+    return { ...assembleProduct(cfg, body.reports ?? [], days, today, sourceReports), error: null };
   } catch (e) {
     const empty = assembleProduct(cfg, [], days, today);
     return { ...empty, error: e instanceof Error ? e.message : String(e) };

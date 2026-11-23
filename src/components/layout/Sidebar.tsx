@@ -48,7 +48,7 @@ const navSections: Array<{
   {
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-      { to: "/command-center", label: "Command Center", icon: Compass },
+      { to: "/pm-view", label: "PM View", icon: Compass },
       { to: "/pulse", label: "Live Pulse", icon: Gauge },
       { to: "/institutes", label: "Institutes", icon: Building2 },
       { to: "/module-presets", label: "Module Presets", icon: Boxes },
