@@ -16,6 +16,7 @@
  * reopen the portal.
  */
 import { GA_ROUTE, handleGaRequest, verifyWithBackend } from "../server/ga-report";
+import { PM_ROUTE_PREFIX, d1Store, handlePmRequest } from "../server/pm-store";
 
 const LOGIN_PATH = "/auth-service/v1/login-root";
 const REFRESH_PATH = "/auth-service/v1/refresh-token";
@@ -63,6 +64,17 @@ function denied(reason) {
   });
 }
 
+/** Allowlist check for routes this Worker answers itself (GA, PM store). The backend still verifies the token. */
+function portalUser(context) {
+  const allowed = allowedUsers(context.env);
+  if (allowed.size === 0) return { denied: denied("allowlist_not_configured") };
+  const auth = context.request.headers.get("Authorization") || "";
+  const claims = decodeJwtPayload(auth.replace(/^bearer\s+/i, "").trim());
+  const username = claims && claims.username;
+  if (!username || !allowed.has(String(username).trim().toLowerCase())) return { denied: denied("token_not_allowed") };
+  return { denied: null, username: String(username).trim() };
+}
+
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   const path = url.pathname;
@@ -72,14 +84,24 @@ export async function onRequest(context) {
   // every other call, then the backend must accept the token, because this route never reaches
   // a service that would verify its signature.
   if (path === GA_ROUTE) {
-    const allowed = allowedUsers(context.env);
-    if (allowed.size === 0) return denied("allowlist_not_configured");
-    const auth = context.request.headers.get("Authorization") || "";
-    const claims = decodeJwtPayload(auth.replace(/^bearer\s+/i, "").trim());
-    const username = claims && claims.username;
-    if (!username || !allowed.has(String(username).trim().toLowerCase())) return denied("token_not_allowed");
+    const gate = portalUser(context);
+    if (gate.denied) return gate.denied;
     return handleGaRequest(context.request, context.env, (bearer, clientId) =>
       verifyWithBackend(bearer, "https://backend-stage.vacademy.io", clientId)
+    );
+  }
+
+  // PM View store: the PM's own records (classifications, Customer Register), kept in a D1
+  // database bound as PM_DB. Separate from the platform backend: nothing here is proxied to it.
+  if (path === PM_ROUTE_PREFIX || path.startsWith(PM_ROUTE_PREFIX + "/")) {
+    const gate = portalUser(context);
+    if (gate.denied) return gate.denied;
+    const store = context.env && context.env.PM_DB ? d1Store(context.env.PM_DB) : null;
+    return handlePmRequest(
+      context.request,
+      store,
+      (bearer, clientId) => verifyWithBackend(bearer, "https://backend-stage.vacademy.io", clientId),
+      gate.username
     );
   }
 

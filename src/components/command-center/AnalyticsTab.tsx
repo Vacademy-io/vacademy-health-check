@@ -136,7 +136,7 @@ export function AnalyticsTab() {
           <StatCard title="Accounts created" value={platformLoading ? "…" : num(platform.totals.accounts)} description="New institutes" icon={Building2} />
           <StatCard title="Trials started" value={platformLoading ? "…" : num(platform.totals.trials)} description={`${num(onTrialNow)} on trial now`} icon={Sparkles} />
           <StatCard title="Paid subscriptions started" value={platformLoading ? "…" : num(platform.totals.paid)} description={revenue ? `${num(revenue.payingInstitutes)} paying now` : undefined} icon={IndianRupee} />
-          <StatCard title="Active users (platform)" value={activity.data ? num(activity.data.total_unique_users) : "…"} description="Signed in at least once" icon={Users} />
+          <StatCard title="People signed in (platform)" value={activity.data ? num(activity.data.total_unique_users) : "…"} description="Students and staff, not institutes" icon={Users} />
         </div>
       </Section>
 
@@ -217,7 +217,7 @@ export function AnalyticsTab() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Active users per day</CardTitle>
+              <CardTitle className="text-base">People signed in per day</CardTitle>
               <CardDescription>People who signed in to the platform each day.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -230,7 +230,7 @@ export function AnalyticsTab() {
                     <XAxis dataKey="date" tick={AXIS} tickFormatter={shortDate} stroke="hsl(var(--muted-foreground))" />
                     <YAxis tick={AXIS} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
                     <Tooltip contentStyle={TOOLTIP} labelFormatter={(v) => shortDate(String(v))} />
-                    <Line type="monotone" dataKey="activeUsers" name="Active users" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="activeUsers" name="People signed in" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               )}
@@ -388,7 +388,7 @@ function DailyTable({ rows, gaProducts }: { rows: { date: string; accounts: numb
               <th className="px-2 py-2 text-right font-medium">Accounts</th>
               <th className="px-2 py-2 text-right font-medium">Trials</th>
               <th className="px-2 py-2 text-right font-medium">Paid</th>
-              <th className="py-2 pl-2 text-right font-medium">Active users</th>
+              <th className="py-2 pl-2 text-right font-medium">People signed in</th>
             </tr>
           </thead>
           <tbody>

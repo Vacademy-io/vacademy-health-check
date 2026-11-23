@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/select";
 import { LEAD_TAG_OPTIONS } from "@/types/api";
 import type { InstituteListItemDTO, LeadTag } from "@/types/api";
-import { LifeBuoy, Package, Tag, X } from "lucide-react";
+import { LifeBuoy, Package, Rocket, Tag, X } from "lucide-react";
+import { StartTrialDialog } from "@/components/command-center/StartTrialDialog";
 import { InstituteSupportDialog } from "@/components/support/InstituteSupportDialog";
 import { ApplyPresetDialog } from "@/components/institute-modules/ApplyPresetDialog";
 import { ModeBadge, ModuleChip } from "@/components/institute-modules/shared";
@@ -64,6 +65,7 @@ const columns: Column<InstituteListItemDTO & Record<string, unknown>>[] = [
 
 export default function InstitutesPage() {
   const navigate = useNavigate();
+  const [startingTrial, setStartingTrial] = useState(false);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [tagFilter, setTagFilter] = useState("");
@@ -162,7 +164,16 @@ export default function InstitutesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Institutes" description="All registered institutes on the platform" />
+      <PageHeader
+        title="Institutes"
+        description="All registered institutes on the platform"
+        actions={
+          <Button size="sm" onClick={() => setStartingTrial(true)}>
+            <Rocket className="mr-1.5 h-4 w-4" /> Start a trial
+          </Button>
+        }
+      />
+      <StartTrialDialog open={startingTrial} onOpenChange={setStartingTrial} />
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (

@@ -33,3 +33,6 @@ temp_interactive_push.bat
 
 # Google Analytics service-account key for local dev (see docs/command-center/GA_SETUP.md)
 secrets/
+
+# PM View local store for pnpm dev (production uses the PM_DB D1 database)
+.pm-data/
