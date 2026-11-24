@@ -152,7 +152,10 @@ export const alertProblem = ({ kind, consecutive_failures }: { kind: string; con
   kind === "CREDITS" ? "Out of credits" : `${count(consecutive_failures)} failures in a row`;
 
 /** "****" is what a key too short to hint at is stored as. */
-export const keyEnding = (hint: string) => (hint === "****" ? "Key too short to show" : `Key ending ${hint}`);
+/** "none" is a vendor logged by a Java service or the voice bot, which do not record the key. */
+export const keyEnding = (hint: string) =>
+  hint === "none" ? "Key not recorded by the service that called it"
+    : hint === "****" ? "Key too short to show" : `Key ending ${hint}`;
 
 /** NO_ANSWER and course_generation become readable. "POST /v1/x" and the like are left alone. */
 export const humanize = (raw: string | null | undefined): string => {
