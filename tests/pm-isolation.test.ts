@@ -59,7 +59,10 @@ test("PM View files never call the platform with POST/PUT/PATCH/DELETE", () => {
   for (const file of PM_FILES) {
     const src = readFileSync(file, "utf8");
     for (const m of src.matchAll(/\bapi\.(post|put|patch|delete)\s*(?:<[^>]*>)?\s*\(\s*([^,)]+)/g)) {
-      if (!/^`\$\{PM_API\}/.test(m[2].trim())) problems.push(`${rel(file)}: api.${m[1]}(${m[2].trim()})`);
+      const target = m[2].trim();
+      // The one platform POST allowed: read-only SELECTs through the analytics proxy, from pm-api.ts only.
+      const readOnly = m[1] === "post" && /^`\$\{READ_ONLY_QUERY\}`$/.test(target) && rel(file) === path.join("src", "services", "pm-api.ts");
+      if (!readOnly && !/^`\$\{PM_API\}/.test(target)) problems.push(`${rel(file)}: api.${m[1]}(${m[2].trim()})`);
     }
     if (/\bfetch\s*\(/.test(src)) problems.push(`${rel(file)} calls fetch() directly`);
     if (/\bprovisionDemo\b|\buseBulkUpdateLeadTag\b|\buseCreateSubscription\b|\busePatchSubscription\b|\buseCancelSubscription\b/.test(src))

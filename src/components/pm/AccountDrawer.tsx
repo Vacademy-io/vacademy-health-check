@@ -17,6 +17,8 @@ import {
   PAYMENT_MODES,
   PAYMENT_STATUSES,
   PM_CLASS_LABEL,
+  LOST_REASONS,
+  LOST_REASON_LABEL,
   PM_CLASSES,
   recordMonthlyValue,
   SUBSCRIPTION_TYPE_LABEL,
@@ -267,7 +269,6 @@ function DrawerBody({ account: a, pmConfigured, tab, setTab, onClose }: { accoun
               rows={[
                 ["Users logged in", a.usage ? `${a.usage.loggedIn} of ${a.usage.users}` : "Only checked for trial accounts"],
                 ["Last login", a.usage?.lastLogin ? formatDay(a.usage.lastLogin) : a.usage ? "Never" : "—"],
-                ["Online now", a.activeNow ? `${a.activeNow} people` : "No one"],
                 ["Courses", String(a.courses)],
                 ["Students", String(a.students)],
                 ["AI calls (30 days)", a.calls30 ? `${a.calls30.calls.toLocaleString("en-IN")} calls · ${Math.round(a.calls30.minutes).toLocaleString("en-IN")} min${a.calls30.lastCall ? ` · last ${formatDay(a.calls30.lastCall)}` : ""}` : "—"],
@@ -349,6 +350,14 @@ function DrawerBody({ account: a, pmConfigured, tab, setTab, onClose }: { accoun
                     {PM_CLASSES.map((c) => <option key={c} value={c}>{PM_CLASS_LABEL[c]}</option>)}
                   </select>
                 </Field>
+                {r.classification === "LOST" && (
+                  <Field label="Why did they leave?">
+                    <select className={selectCls} value={r.lostReason ?? ""} onChange={(e) => set("lostReason", (e.target.value || null) as PmRecord["lostReason"])}>
+                      <option value="">Not recorded</option>
+                      {LOST_REASONS.map((c) => <option key={c} value={c}>{LOST_REASON_LABEL[c]}</option>)}
+                    </select>
+                  </Field>
+                )}
                 <Field label="Owner">
                   <Input value={r.owner} onChange={(e) => set("owner", e.target.value)} placeholder="Who looks after them" />
                 </Field>

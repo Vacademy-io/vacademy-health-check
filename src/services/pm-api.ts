@@ -8,6 +8,7 @@ import api from "@/lib/axios";
 import { API_PREFIXES } from "@/lib/constants";
 import type { PmHistoryEntry, PmRecord, PmTaskState } from "@/lib/pm-record";
 import type { AccountCredits, AccountUsage, CallLite } from "@/lib/pm-view";
+import { AI_TOOLS_SQL, FEATURE_KEYS, FEATURE_SQL, isReadOnlySql, STAFF_SQL, type AiToolRow, type FeatureKey, type FeatureRow, type ReadOnlyDb, type StaffRow } from "@/lib/pm-insights";
 import type { AIPaginatedResponse, CrossInstituteActiveUsersDTO, InstituteCreditItem, InstituteListItemDTO, InstituteUserDTO, SuperAdminPageResponse } from "@/types/api";
 
 const KEY = ["super-admin", "pm-view"] as const;
@@ -67,11 +68,11 @@ export function useAccountUsage(instituteIds: string[]): { usage: Map<string, Ac
 
 /** The AI service's own reason for a 422 ("page_size: Input should be less than or equal to 20"). */
 function apiReason(e: unknown): string {
-  const data = (e as { response?: { data?: { detail?: unknown; message?: string } } })?.response?.data;
+  const data = (e as { response?: { data?: { detail?: unknown; message?: string; error?: string } } })?.response?.data;
   if (Array.isArray(data?.detail))
     return data.detail.map((d: { loc?: unknown[]; msg?: string }) => `${(d.loc ?? []).slice(-1)[0] ?? ""}: ${d.msg ?? ""}`).join("; ");
   if (typeof data?.detail === "string") return data.detail;
-  return data?.message ?? (e as Error)?.message ?? String(e);
+  return data?.message ?? data?.error ?? (e as Error)?.message ?? String(e);
 }
 
 /**
@@ -162,6 +163,79 @@ export function useCallsSince(from: string) {
     },
     staleTime: 5 * 60_000,
     retry: false,
+  });
+}
+
+// ---------------------------------------------------------------- platform database (read-only)
+
+/**
+ * The analytics proxy the Live Pulse page uses (vacademy_devops/analytics-api.yaml). It runs SELECTs
+ * against the production standby, which is physically read-only, as a SELECT-only role with
+ * default_transaction_read_only on. Super-admin only. It can't change platform data, and
+ * readOnlyQuery() below also refuses anything that isn't a single SELECT.
+ */
+export const READ_ONLY_QUERY = "/analytics-api/query";
+type ReadDb = ReadOnlyDb;
+
+async function readOnlyQuery<Row>(db: ReadDb, sql: string): Promise<Row[]> {
+  if (!isReadOnlySql(sql)) throw new Error("Refused: only a single SELECT may be sent");
+  try {
+    const { data } = await api.post<{ rows: Row[] }>(`${READ_ONLY_QUERY}`, { db, sql });
+    return data.rows ?? [];
+  } catch (e) {
+    throw new Error(apiReason(e));
+  }
+}
+
+export interface InstituteSignals {
+  /** Per feature: institute id → usage. Missing key = that query hasn't loaded (or failed). */
+  features: Partial<Record<FeatureKey, Map<string, FeatureRow>>>;
+  staff: Map<string, StaffRow> | null;
+  aiTools: AiToolRow[] | null;
+  errors: string[];
+  isLoading: boolean;
+  refetch: () => void;
+}
+
+type RawFeature = { institute_id: string; total: number; d30: number };
+type RawStaff = { institute_id: string; staff: number; staff_logged_in: number; staff_last_login: string | null; students_active_30: number };
+type SignalResult = { data?: unknown; error: unknown; isLoading: boolean; refetch: () => unknown };
+
+/** Module-level so useQueries can keep the combined result stable between renders. */
+function combineSignals(results: SignalResult[]): InstituteSignals {
+  const features: InstituteSignals["features"] = {};
+  const errors: string[] = [];
+  FEATURE_KEYS.forEach((k, i) => {
+    const q = results[i];
+    if (q.data) features[k] = new Map((q.data as RawFeature[]).map((r) => [String(r.institute_id), { total: Number(r.total) || 0, d30: Number(r.d30) || 0 }]));
+    if (q.error) errors.push(`${k}: ${(q.error as Error).message}`);
+  });
+  const staff = results[FEATURE_KEYS.length];
+  const tools = results[FEATURE_KEYS.length + 1];
+  if (staff.error) errors.push(`logins: ${(staff.error as Error).message}`);
+  if (tools.error) errors.push(`AI tools: ${(tools.error as Error).message}`);
+  return {
+    features,
+    staff: staff.data
+      ? new Map((staff.data as RawStaff[]).map((r) => [String(r.institute_id), { staff: Number(r.staff) || 0, staffLoggedIn: Number(r.staff_logged_in) || 0, staffLastLogin: r.staff_last_login, studentsActive30: Number(r.students_active_30) || 0 }]))
+      : null,
+    aiTools: (tools.data as AiToolRow[] | undefined) ?? null,
+    errors,
+    isLoading: results.some((q) => q.isLoading),
+    refetch: () => results.forEach((q) => q.refetch()),
+  };
+}
+
+/** Feature usage and logins for every institute, straight from the platform database (read-only). */
+export function useInstituteSignals(): InstituteSignals {
+  const opts = { staleTime: 10 * 60_000, retry: 1 } as const;
+  return useQueries({
+    queries: [
+      ...FEATURE_KEYS.map((k) => ({ queryKey: [...KEY, "signals", k], queryFn: (): Promise<unknown> => readOnlyQuery<RawFeature>(FEATURE_SQL[k].db, FEATURE_SQL[k].sql), ...opts })),
+      { queryKey: [...KEY, "signals", "staff"], queryFn: (): Promise<unknown> => readOnlyQuery<RawStaff>("auth_service", STAFF_SQL), ...opts },
+      { queryKey: [...KEY, "signals", "ai-tools"], queryFn: (): Promise<unknown> => readOnlyQuery<AiToolRow>("admin_core_service", AI_TOOLS_SQL), ...opts },
+    ],
+    combine: combineSignals,
   });
 }
 

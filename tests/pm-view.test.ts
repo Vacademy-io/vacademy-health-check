@@ -152,7 +152,7 @@ test("price mismatch compares the register price with the platform period price"
   assert.deepEqual(m, ["Price differs: register ₹50,000, platform ₹60,000"]);
 });
 
-test("quick filters combine (Active institutes + PROD on platform + Not yet reviewed)", () => {
+test("quick filters combine (PROD on platform + Not yet reviewed)", () => {
   const rows = buildAccounts(
     [inst("a", { lead_tag: "PROD" }), inst("b", { lead_tag: "PROD" }), inst("c", { lead_tag: "PROD" })],
     [],
@@ -161,7 +161,7 @@ test("quick filters combine (Active institutes + PROD on platform + Not yet revi
     new Map([["b", rec("b", { classification: "PRODUCTION" })]]),
     TODAY
   );
-  assert.deepEqual(filterAccounts(rows, ["active", "paying", "unreviewed"], "").map((r) => r.id), ["a"]);
+  assert.deepEqual(filterAccounts(rows, ["paying", "unreviewed"], "").map((r) => r.id), ["a", "c"]);
   assert.deepEqual(filterAccounts(rows, [], "inst c").map((r) => r.id), ["c"]);
   assert.deepEqual(filterAccounts(rows, ["production"], "").map((r) => r.id), ["b"]);
 });
@@ -432,7 +432,6 @@ test("dashboard counts leave out test accounts and link to the right lists", () 
   assert.equal(d.courses, 7);
   assert.equal(d.institutesWithCourses, 2);
   assert.equal(d.students, 130);
-  assert.deepEqual([d.onlineInstitutes, d.onlinePeople], [1, 3]);
   assert.equal(d.aiCreditsUsed, 95);
   assert.deepEqual(d.attention, { notLoggedIn: 1, noCourse: 0, endingIn3: 1, endedNotPaying: 0, followUpsDue: 1, lowCredits: 1, renewals30: 1 });
   assert.equal(d.weekly.length, 12);

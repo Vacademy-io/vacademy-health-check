@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowRight, BookOpen, Building2, CheckCircle2, Download, GraduationCap, IndianRupee, Loader2, PhoneCall, RefreshCw, Sparkles, Wifi } from "lucide-react";
+import { ArrowRight, BookOpen, Building2, CheckCircle2, Download, GraduationCap, IndianRupee, Loader2, PhoneCall, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -102,7 +102,6 @@ export function DashboardTab({ onOpenAccount, onOpenTrials, onOpenAccounts, onOp
       ["Paying or PROD tag", d.paying, ""],
       ["Courses created", d.courses, `in ${d.institutesWithCourses} institutes`],
       ["Students", d.students, ""],
-      ["Institutes online now", d.onlineInstitutes, `${d.onlinePeople} people`],
       ["AI credits used", Math.round(d.aiCreditsUsed), ""],
       ["AI calls, last 30 days", totalCalls, `${Math.round(totalMinutes)} minutes, ${callers.length} institutes`],
       ...callers.slice(0, 10).map((x, i) => [`  #${i + 1} ${x.name}`, x.calls30!.calls, `${Math.round(x.calls30!.minutes)} min`]),
@@ -122,7 +121,7 @@ export function DashboardTab({ onOpenAccount, onOpenTrials, onOpenAccounts, onOp
   if (data.isLoading)
     return (
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-28" />)}</div>
+        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28" />)}</div>
         <Skeleton className="h-64" />
       </div>
     );
@@ -142,13 +141,12 @@ export function DashboardTab({ onOpenAccount, onOpenTrials, onOpenAccounts, onOp
       </div>
 
       {/* ------------------------------------------------ headline numbers */}
-      <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
         <Kpi icon={Building2} label="Institutes" value={num(d.institutes)} sub={`${d.newThisWeek} new this week${weekDelta === 0 ? "" : ` (${weekDelta > 0 ? "+" : ""}${weekDelta} vs last)`}`} onClick={() => onOpenAccounts([])} />
         <Kpi icon={Sparkles} label="On trial" value={num(d.onTrial)} sub={`${d.trialsEndingIn7} end within 7 days`} onClick={() => onOpenTrials("ALL")} />
         <Kpi icon={IndianRupee} label="Paying or PROD" value={num(d.paying)} sub="Paid subscription, or tagged PROD" onClick={() => onOpenAccounts(["paying"])} />
         <Kpi icon={BookOpen} label="Courses created" value={num(d.courses)} sub={`in ${num(d.institutesWithCourses)} institutes`} />
         <Kpi icon={GraduationCap} label="Students" value={num(d.students)} sub={`AI credits used: ${num(d.aiCreditsUsed)}`} />
-        <Kpi icon={Wifi} label="Online now" value={num(d.onlineInstitutes)} sub={`institutes · ${num(d.onlinePeople)} people`} onClick={() => onOpenAccounts(["active"])} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
@@ -263,7 +261,7 @@ export function DashboardTab({ onOpenAccount, onOpenTrials, onOpenAccounts, onOp
                   <td className="px-2 py-2 text-xs">{r.paid ? "Paying" : r.trialStage ? TRIAL_STAGE_LABEL[r.trialStage] : PLATFORM_STATUS[r.platformTag ?? ""] ?? "No tag"}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{r.courses}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{r.students}</td>
-                  <td className="px-4 py-2 text-right text-xs text-muted-foreground">{r.usage ? `${r.usage.loggedIn}/${r.usage.users}` : r.activeNow ? "online now" : "—"}</td>
+                  <td className="px-4 py-2 text-right text-xs text-muted-foreground">{r.usage ? `${r.usage.loggedIn}/${r.usage.users}` : "—"}</td>
                 </tr>
               ))}
             </tbody>

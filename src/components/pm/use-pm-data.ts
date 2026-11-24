@@ -4,24 +4,25 @@ import type { PmRecord } from "@/lib/pm-record";
 import { buildAccounts, callsByInstitute, localDate, productsFromSelections } from "@/lib/pm-view";
 import { useRecentQuotes, useTaggedTrials } from "@/services/command-center-api";
 import { useSubscriptions } from "@/services/plans-api";
-import { useAccountUsage, useActiveNow, useCallsSince, useCreditsMap, usePlatformInstitutes, usePmRecords } from "@/services/pm-api";
+import { useAccountUsage, useCallsSince, useCreditsMap, usePlatformInstitutes, usePmRecords } from "@/services/pm-api";
 
 /**
  * Everything the PM View tabs share: platform data (read-only) joined with the PM store's records.
  * React Query de-duplicates the requests, so both tabs can call this.
  */
+// The platform's "online now" count is not reliable (sessions are never closed), so the PM View doesn't use it.
+const NO_ONLINE_DATA = new Map<string, number>();
+
 export function usePmData() {
   const institutes = usePlatformInstitutes();
   const subs = useSubscriptions();
   const quotes = useRecentQuotes();
   const tagged = useTaggedTrials();
-  const activeNow = useActiveNow();
   const pm = usePmRecords();
 
   const today = localDate(new Date());
   const records = useMemo(() => new Map<string, PmRecord>((pm.data?.records ?? []).map((r) => [r.instituteId, r])), [pm.data]);
   const trials = useMemo(() => buildTrials(quotes.data?.content ?? [], tagged.data?.content ?? [], subs.data ?? []), [quotes.data, tagged.data, subs.data]);
-  const activeMap = useMemo(() => new Map((activeNow.data?.per_institute ?? []).map((a) => [a.institute_id, a.active_count])), [activeNow.data]);
   // Sign-in data for trial accounts that are live or ended in the last 2 weeks.
   const trialIds = useMemo(() => trials.filter((t) => t.daysLeft === null || t.daysLeft >= -14).map((t) => t.instituteId).sort(), [trials]);
   const usageQ = useAccountUsage(trialIds);
@@ -41,8 +42,8 @@ export function usePmData() {
     return m;
   }, [quotes.data]);
   const accounts = useMemo(
-    () => buildAccounts(institutes.data ?? [], subs.data ?? [], trials, activeMap, records, today, { usage, credits: credits.data, quoteProducts, calls30 }),
-    [institutes.data, subs.data, trials, activeMap, records, today, usage, credits.data, quoteProducts, calls30]
+    () => buildAccounts(institutes.data ?? [], subs.data ?? [], trials, NO_ONLINE_DATA, records, today, { usage, credits: credits.data, quoteProducts, calls30 }),
+    [institutes.data, subs.data, trials, records, today, usage, credits.data, quoteProducts, calls30]
   );
 
   return {
@@ -53,7 +54,6 @@ export function usePmData() {
     institutes: institutes.data ?? [],
     subs: subs.data ?? [],
     quotes: quotes.data?.content ?? [],
-    activeNow: activeNow.data,
     pmConfigured: pm.data?.configured ?? false,
     pmMessage: pm.isError ? (pm.error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? (pm.error as Error).message : pm.data?.message ?? null,
     isLoading: institutes.isLoading || subs.isLoading || pm.isLoading,
@@ -64,7 +64,6 @@ export function usePmData() {
       subs.refetch();
       quotes.refetch();
       tagged.refetch();
-      activeNow.refetch();
       pm.refetch();
       credits.refetch();
       calls30Q.refetch();
