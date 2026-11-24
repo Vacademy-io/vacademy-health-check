@@ -10,6 +10,7 @@ test("alertProblem says what is wrong in words", () => {
 test("keyEnding never shows the placeholder for a short key", () => {
   assert.equal(keyEnding("ab12"), "Key ending ab12");
   assert.equal(keyEnding("****"), "Key too short to show");
+  assert.equal(keyEnding("none"), "Key not recorded by the service that called it");
 });
 
 test("sourceLabel names where a call was recorded", () => {
