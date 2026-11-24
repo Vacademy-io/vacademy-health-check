@@ -29,7 +29,9 @@ import {
   type PmRecord,
 } from "@/lib/pm-record";
 import { PRODUCT_LABELS, productName, TRIAL_STAGE_LABEL, type AccountRow } from "@/lib/pm-view";
-import { useCreditsMap, useDeletePmRecord, usePmHistory, useSavePmRecord } from "@/services/pm-api";
+import { useCreditsMap, useDeletePmRecord, useFeatureData, usePmHistory, useSavePmRecord } from "@/services/pm-api";
+import { FEATURE_CATALOG } from "@/lib/pm-feature-catalog";
+import { accountFeatures, FEATURE_GROUPS } from "@/lib/pm-features";
 import { FollowUpDialog } from "./FollowUpDialog";
 
 const TABS = [
@@ -78,6 +80,54 @@ function Facts({ title, rows, action }: { title: string; rows: [string, ReactNod
           </div>
         ))}
       </dl>
+    </div>
+  );
+}
+
+/** Every product feature for one institute: using it, started but stuck, or not started (read-only). */
+function FeatureChecklist({ instituteId }: { instituteId: string }) {
+  const features = useFeatureData();
+  const items = accountFeatures(FEATURE_CATALOG, instituteId, features.rows);
+  const anyLoaded = items.some((i) => i.loaded);
+  return (
+    <div className="rounded-lg border md:col-span-2">
+      <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
+        <p className="text-sm font-semibold">Features: what they use and where they got stuck</p>
+        {features.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+      </div>
+      {!anyLoaded ? (
+        <p className="px-4 py-3 text-sm text-muted-foreground">{features.isLoading ? "Loading…" : "Feature data couldn't be loaded."}</p>
+      ) : (
+        <div className="divide-y">
+          {FEATURE_GROUPS.map((g) => {
+            const group = items.filter((i) => i.def.group === g.key);
+            const touched = group.filter((i) => i.state !== "NOT_STARTED");
+            const untouched = group.filter((i) => i.state === "NOT_STARTED");
+            return (
+              <div key={g.key} className="px-4 py-2.5 text-sm">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.label}</p>
+                {touched.map((i) => (
+                  <div key={i.def.key} className="flex flex-wrap items-center justify-between gap-2 py-0.5">
+                    <span className="flex items-center gap-2">
+                      <span className={cn("h-2 w-2 rounded-full", i.state === "COMPLETED" ? "bg-emerald-500" : "bg-amber-500")} />
+                      {i.def.label}
+                    </span>
+                    <span className={cn("text-xs", i.state === "STUCK" ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground")}>
+                      {i.state === "STUCK" ? `Started, hasn't ${i.def.completed}` : "Using it"}
+                      {i.row?.lastAt ? ` · last ${formatDay(i.row.lastAt)}` : ""}
+                    </span>
+                  </div>
+                ))}
+                {untouched.length > 0 && (
+                  <p className="pt-0.5 text-xs text-muted-foreground">
+                    Not started: {untouched.map((i) => (i.loaded ? i.def.label : `${i.def.label} (not loaded)`)).join(", ")}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -274,6 +324,7 @@ function DrawerBody({ account: a, pmConfigured, tab, setTab, onClose }: { accoun
                 ["AI calls (30 days)", a.calls30 ? `${a.calls30.calls.toLocaleString("en-IN")} calls · ${Math.round(a.calls30.minutes).toLocaleString("en-IN")} min${a.calls30.lastCall ? ` · last ${formatDay(a.calls30.lastCall)}` : ""}` : "—"],
               ]}
             />
+            <FeatureChecklist instituteId={a.id} />
             <Facts
               title="AI credits"
               rows={
