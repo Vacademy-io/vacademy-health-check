@@ -6,6 +6,10 @@
 import type { Subscription } from "../types/plans";
 import { LOST_REASON_LABEL, LOST_REASONS, type LostReason } from "./pm-record.ts";
 import { daysBetween, isTestAccount, type AccountRow } from "./pm-view.ts";
+import { inRange } from "./pm-range.ts";
+
+/** A from → to date range (YYYY-MM-DD, both inclusive). */
+type DateRange = { from: string; to: string };
 
 // ---------------------------------------------------------------- inputs
 
@@ -114,6 +118,9 @@ export const STAFF_SQL = `SELECT ur.institute_id,
  WHERE ur.institute_id IS NOT NULL AND coalesce(ur.status, 'ACTIVE') <> 'DELETED'
  GROUP BY 1`;
 
+/** The product each institute signed up through; the platform defaults it to vacademy. */
+export const PRODUCT_SQL = `SELECT id, lower(coalesce(nullif(btrim(product), ''), 'vacademy')) AS product FROM institutes`;
+
 export const AI_TOOLS_SQL = `SELECT coalesce(request_type, 'unknown') AS request_type, count(*)::int AS requests, count(DISTINCT institute_id)::int AS institutes
   FROM ai_token_usage WHERE ${D30} GROUP BY 1 ORDER BY 2 DESC LIMIT 30`;
 
@@ -170,9 +177,9 @@ export const monthlyRupees = (a: Pick<AccountRow, "platformMrrMinor" | "register
 
 // ---------------------------------------------------------------- sign-ups
 
-/** Real (non-test) institutes created within the last `days` days, optionally for one product ("NONE" = not set). */
-export function cohort(accounts: AccountRow[], today: string, days: number, product: string): AccountRow[] {
-  return accounts.filter((a) => !isTestAccount(a) && within(today, a.createdAt, days - 1) && matchesProduct(a, product));
+/** Real (non-test) institutes created within the range, optionally for one product ("NONE" = not set). */
+export function cohort(accounts: AccountRow[], range: DateRange, product: string): AccountRow[] {
+  return accounts.filter((a) => !isTestAccount(a) && inRange(a.createdAt, range) && matchesProduct(a, product));
 }
 
 export function matchesProduct(a: Pick<AccountRow, "products">, product: string): boolean {
@@ -320,18 +327,18 @@ export interface ChurnItem {
   reason: string;
 }
 export interface ChurnSummary {
-  /** AI plans that were cancelled or ran out in the window. */
+  /** AI plans that were cancelled or ran out in the range. */
   plansEnded: ChurnItem[];
   /** Still active but set to cancel at the end of the period. */
   cancelling: ChurnItem[];
-  /** Trials that ended in the window without paying. */
+  /** Trials that ended in the range without paying. */
   trialsLost: ChurnItem[];
   /** Your Lost labels, grouped by the reason you recorded. */
   reasons: { reason: LostReason | "NONE"; label: string; count: number }[];
   lostTotal: number;
 }
 
-export function churnSummary(accounts: AccountRow[], subs: Subscription[], today: string, days: number): ChurnSummary {
+export function churnSummary(accounts: AccountRow[], subs: Subscription[], range: DateRange): ChurnSummary {
   const byId = new Map(accounts.map((a) => [a.id, a]));
   const name = (id: string, fallback: string | null) => byId.get(id)?.name ?? fallback ?? id;
   const test = (id: string) => {
@@ -343,7 +350,7 @@ export function churnSummary(accounts: AccountRow[], subs: Subscription[], today
   const plansEnded = subs
     .filter((s) => (s.status === "CANCELLED" || s.status === "EXPIRED") && !test(s.institute_id) && !payingIds.has(s.institute_id))
     .map((s) => ({ s, when: s.status === "CANCELLED" ? s.updated_at ?? s.end_at : s.end_at ?? s.updated_at }))
-    .filter(({ when }) => within(today, when, days))
+    .filter(({ when }) => inRange(when, range))
     .map(({ s, when }) => ({
       instituteId: s.institute_id,
       name: name(s.institute_id, s.institute_name),
@@ -358,7 +365,7 @@ export function churnSummary(accounts: AccountRow[], subs: Subscription[], today
 
   const real = accounts.filter((a) => !isTestAccount(a));
   const trialsLost = real
-    .filter((a) => a.trial?.endsAt && (a.trial.daysLeft ?? 0) < 0 && !isPayingAccount(a) && within(today, a.trial.endsAt, days))
+    .filter((a) => a.trial?.endsAt && (a.trial.daysLeft ?? 0) < 0 && !isPayingAccount(a) && inRange(a.trial.endsAt, range))
     .map((a) => ({ instituteId: a.id, name: a.name, what: "Trial ended, didn't pay", when: a.trial!.endsAt, reason: a.record?.lostReason ? LOST_REASON_LABEL[a.record.lostReason] : "" }));
 
   const lost = real.filter((a) => a.pmClass === "LOST");

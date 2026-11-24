@@ -11,6 +11,7 @@ import {
   FEATURE_SQL,
   featureAdoption,
   isReadOnlySql,
+  PRODUCT_SQL,
   signupsByWeek,
   STAFF_SQL,
   toolLabel,
@@ -22,6 +23,7 @@ import type { InstituteListItemDTO } from "../src/types/api.ts";
 import type { Subscription } from "../src/types/plans.ts";
 
 const TODAY = "2026-11-21";
+const LAST30 = { from: "2026-10-23", to: TODAY };
 
 function inst(id: string, over: Partial<InstituteListItemDTO> = {}): InstituteListItemDTO {
   return { id, name: `Inst ${id}`, email: "", city: "", state: "", type: "SCHOOL", logo_file_id: null, subdomain: id, created_at: "2026-11-01T00:00:00Z", student_count: 0, course_count: 0, batch_count: 0, lead_tag: null, ...over };
@@ -44,6 +46,23 @@ test("every query the PM View sends is a read-only SELECT", () => {
   for (const [k, q] of Object.entries(FEATURE_SQL)) assert.ok(isReadOnlySql(q.sql), k);
   assert.ok(isReadOnlySql(STAFF_SQL));
   assert.ok(isReadOnlySql(AI_TOOLS_SQL));
+  assert.ok(isReadOnlySql(PRODUCT_SQL));
+});
+
+test("product: your register first, then the demo quote, then the product they signed up through", () => {
+  const rows = buildAccounts(
+    [inst("reg"), inst("quote"), inst("plat"), inst("none")],
+    [], [], new Map(),
+    new Map([["reg", rec("reg", { products: ["Telleo"] })]]),
+    TODAY,
+    { quoteProducts: new Map([["quote", ["voomsales"]], ["reg", ["evalezy"]]]), platformProducts: new Map([["reg", "vacademy"], ["quote", "vacademy"], ["plat", "evalezy"]]) }
+  );
+  assert.deepEqual(rows.map((a) => [a.id, a.products.join(), a.productSource]), [
+    ["reg", "telleo", "register"],
+    ["quote", "voomsales", "quote"],
+    ["plat", "evalezy", "platform"],
+    ["none", "", null],
+  ]);
 });
 
 test("funnel: each step counts only accounts that passed the steps above it", () => {
@@ -83,9 +102,9 @@ test("cohort keeps real sign-ups in the window, for one product", () => {
     [inst("new", { created_at: "2026-11-10T00:00:00Z" }), inst("old", { created_at: "2026-05-01T00:00:00Z" }), inst("test", { lead_tag: "TEST" }), inst("tel", { created_at: "2026-11-12T00:00:00Z" })],
     [rec("tel", { products: ["telleo"] })]
   );
-  assert.deepEqual(cohort(rows, TODAY, 30, "").map((a) => a.id).sort(), ["new", "tel"]);
-  assert.deepEqual(cohort(rows, TODAY, 30, "telleo").map((a) => a.id), ["tel"]);
-  assert.deepEqual(cohort(rows, TODAY, 30, "NONE").map((a) => a.id), ["new"]);
+  assert.deepEqual(cohort(rows, LAST30, "").map((a) => a.id).sort(), ["new", "tel"]);
+  assert.deepEqual(cohort(rows, LAST30, "telleo").map((a) => a.id), ["tel"]);
+  assert.deepEqual(cohort(rows, LAST30, "NONE").map((a) => a.id), ["new"]);
 });
 
 test("sign-ups per week start on Monday and cover the requested weeks", () => {
@@ -120,7 +139,7 @@ test("churn: ended plans, planned cancellations, lost trials and recorded reason
     { institute_id: "leaving", institute_name: null, plan_name: "Pro", status: "ACTIVE", updated_at: null, end_at: "2026-12-01T00:00:00Z", cancel_at_period_end: true, reason: null },
     { institute_id: "gone", institute_name: null, plan_name: "Old", status: "EXPIRED", updated_at: null, end_at: "2025-01-01T00:00:00Z", cancel_at_period_end: false, reason: null },
   ] as unknown as Subscription[];
-  const c = churnSummary(rows, subs, TODAY, 30);
+  const c = churnSummary(rows, subs, LAST30);
   assert.deepEqual(c.plansEnded.map((x) => [x.instituteId, x.reason]), [["gone", "Budget cut"]]);
   assert.deepEqual(c.cancelling.map((x) => x.instituteId), ["leaving"]);
   assert.equal(c.lostTotal, 3);

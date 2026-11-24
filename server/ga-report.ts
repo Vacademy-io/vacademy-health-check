@@ -75,6 +75,9 @@ export interface GaReport {
   /** Why it isn't configured, or a config parse error. */
   message: string | null;
   days: number;
+  /** The exact range when one was asked for (YYYY-MM-DD, both inclusive). */
+  from?: string;
+  to?: string;
   generatedAt: string;
   products: GaProductReport[];
 }
@@ -110,6 +113,20 @@ export function parseProducts(raw: string | undefined): { products: GaProductCon
     products.push({ product, propertyId, hostnames: list(r.hostnames), leadEvents: list(r.leadEvents) });
   }
   return { products, error: null };
+}
+
+/** A custom from → to range: real dates, from ≤ to ≤ today (UTC), at most 730 days. Null if not valid. */
+export function parseCustomRange(fromRaw: unknown, toRaw: unknown, today: Date): { from: string; to: string; days: number } | null {
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  const from = typeof fromRaw === "string" ? fromRaw : "";
+  const to = typeof toRaw === "string" ? toRaw : "";
+  if (!iso.test(from) || !iso.test(to)) return null;
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || new Date(a).toISOString().slice(0, 10) !== from || new Date(b).toISOString().slice(0, 10) !== to) return null;
+  const days = Math.round((b - a) / 86_400_000) + 1;
+  if (days < 1 || days > 730 || to > today.toISOString().slice(0, 10)) return null;
+  return { from, to, days };
 }
 
 export function clampDays(raw: unknown): number {
@@ -214,8 +231,8 @@ export function assembleProduct(cfg: GaProductConfig, reports: ApiReport[], days
 }
 
 /** The five runReport requests for one product, in the order assembleProduct expects. */
-export function buildRequests(cfg: GaProductConfig, days: number): Record<string, unknown>[] {
-  const dateRanges = [{ startDate: `${days - 1}daysAgo`, endDate: "today" }];
+export function buildRequests(cfg: GaProductConfig, days: number, range?: { from: string; to: string }): Record<string, unknown>[] {
+  const dateRanges = [range ? { startDate: range.from, endDate: range.to } : { startDate: `${days - 1}daysAgo`, endDate: "today" }];
   const metrics = (names: string[]) => names.map((name) => ({ name }));
   const host = cfg.hostnames?.length ? { filter: { fieldName: "hostName", inListFilter: { values: cfg.hostnames, caseSensitive: false } } } : null;
   const withHost = (extra?: Record<string, unknown>) => {
@@ -241,8 +258,8 @@ export function buildRequests(cfg: GaProductConfig, days: number): Record<string
 }
 
 /** Second batch (batchRunReports allows five per call): users and lead events per session source / medium. */
-export function buildSourceRequests(cfg: GaProductConfig, days: number): Record<string, unknown>[] {
-  const dateRanges = [{ startDate: `${days - 1}daysAgo`, endDate: "today" }];
+export function buildSourceRequests(cfg: GaProductConfig, days: number, range?: { from: string; to: string }): Record<string, unknown>[] {
+  const dateRanges = [range ? { startDate: range.from, endDate: range.to } : { startDate: `${days - 1}daysAgo`, endDate: "today" }];
   const host = cfg.hostnames?.length ? { filter: { fieldName: "hostName", inListFilter: { values: cfg.hostnames, caseSensitive: false } } } : null;
   const leadEvents = cfg.leadEvents?.length ? cfg.leadEvents : DEFAULT_LEAD_EVENTS;
   const leadFilter = { filter: { fieldName: "eventName", inListFilter: { values: leadEvents } } };
@@ -308,12 +325,12 @@ async function accessToken(serviceAccountJson: string): Promise<string> {
 
 const reportCache = new Map<string, { at: number; report: GaReport }>();
 
-async function runProduct(cfg: GaProductConfig, days: number, token: string, today: Date): Promise<GaProductReport> {
+async function runProduct(cfg: GaProductConfig, days: number, token: string, today: Date, range?: { from: string; to: string }): Promise<GaProductReport> {
   try {
     const res = await fetch(`${DATA_API}/properties/${cfg.propertyId}:batchRunReports`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ requests: buildRequests(cfg, days) }),
+      body: JSON.stringify({ requests: buildRequests(cfg, days, range) }),
     });
     const body = (await res.json().catch(() => ({}))) as { reports?: ApiReport[]; error?: { message?: string } };
     if (!res.ok) throw new Error(body.error?.message ?? `Google Analytics returned ${res.status}`);
@@ -323,7 +340,7 @@ async function runProduct(cfg: GaProductConfig, days: number, token: string, tod
       const sres = await fetch(`${DATA_API}/properties/${cfg.propertyId}:batchRunReports`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ requests: buildSourceRequests(cfg, days) }),
+        body: JSON.stringify({ requests: buildSourceRequests(cfg, days, range) }),
       });
       if (sres.ok) sourceReports = ((await sres.json().catch(() => ({}))) as { reports?: ApiReport[] }).reports ?? [];
     } catch {
@@ -336,20 +353,22 @@ async function runProduct(cfg: GaProductConfig, days: number, token: string, tod
   }
 }
 
-export async function gaReport(env: GaEnv, daysRaw: unknown, opts: { fresh?: boolean } = {}): Promise<GaReport> {
-  const days = clampDays(daysRaw);
-  const base = { days, generatedAt: new Date().toISOString(), products: [] as GaProductReport[] };
+export async function gaReport(env: GaEnv, daysRaw: unknown, opts: { fresh?: boolean; from?: unknown; to?: unknown } = {}): Promise<GaReport> {
+  const range = parseCustomRange(opts.from, opts.to, new Date());
+  const days = range ? range.days : clampDays(daysRaw);
+  const base = { days, ...(range ? { from: range.from, to: range.to } : {}), generatedAt: new Date().toISOString(), products: [] as GaProductReport[] };
   if (!env.GA_SERVICE_ACCOUNT_JSON) return { ...base, configured: false, message: "GA_SERVICE_ACCOUNT_JSON is not set." };
   const { products, error } = parseProducts(env.GA_PRODUCTS);
   if (error) return { ...base, configured: false, message: error };
 
-  const key = `${days}|${env.GA_PRODUCTS}`;
+  const key = `${range ? `${range.from}..${range.to}` : days}|${env.GA_PRODUCTS}`;
   const hit = reportCache.get(key);
   if (!opts.fresh && hit && Date.now() - hit.at < CACHE_MS) return hit.report;
 
   const token = await accessToken(env.GA_SERVICE_ACCOUNT_JSON);
-  const today = new Date();
-  const report: GaReport = { ...base, configured: true, message: null, products: await Promise.all(products.map((p) => runProduct(p, days, token, today))) };
+  // The daily series ends on the range's last day (today for a preset).
+  const today = range ? new Date(`${range.to}T00:00:00Z`) : new Date();
+  const report: GaReport = { ...base, configured: true, message: null, products: await Promise.all(products.map((p) => runProduct(p, days, token, today, range ?? undefined))) };
   reportCache.set(key, { at: Date.now(), report });
   return report;
 }
@@ -359,7 +378,7 @@ export async function gaReport(env: GaEnv, daysRaw: unknown, opts: { fresh?: boo
 export const GA_ROUTE = "/ga-api/v1/report";
 
 /**
- * Answers GET /ga-api/v1/report?days=30. `verify` must confirm the bearer token belongs to a portal
+ * Answers GET /ga-api/v1/report?days=30 (or ?from=YYYY-MM-DD&to=YYYY-MM-DD). `verify` must confirm the bearer token belongs to a portal
  * user (the caller checks the allowlist and asks the backend to accept the token): the JWT here is
  * only decoded, never signature-checked, so it must not be trusted on its own.
  */
@@ -372,7 +391,7 @@ export async function handleGaRequest(request: Request, env: GaEnv, verify: (bea
   if (!bearer || !(await verify(bearer, request.headers.get("clientId")))) return json(401, { message: "Sign in to the portal to see analytics." });
   const url = new URL(request.url);
   try {
-    return json(200, await gaReport(env, url.searchParams.get("days"), { fresh: url.searchParams.get("fresh") === "1" }));
+    return json(200, await gaReport(env, url.searchParams.get("days"), { fresh: url.searchParams.get("fresh") === "1", from: url.searchParams.get("from"), to: url.searchParams.get("to") }));
   } catch (e) {
     return json(502, { message: e instanceof Error ? e.message : String(e) });
   }

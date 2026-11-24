@@ -235,7 +235,7 @@ function DrawerBody({ account: a, pmConfigured, tab, setTab, onClose }: { accoun
             <Facts
               title="Product & plan"
               rows={[
-                ["Product", a.products.length ? `${a.products.map(productName).join(", ")}${a.productSource === "quote" ? " (from demo quote)" : ""}` : "Not set: add it under Contract & billing"],
+                ["Product", a.products.length ? `${a.products.map(productName).join(", ")}${a.productSource === "quote" ? " (from demo quote)" : a.productSource === "platform" ? " (signed up through it)" : ""}` : "Not set: add it under Contract & billing"],
                 ["Platform plan", a.platformPlan ?? "None"],
                 ["Subscription", a.subscription ? `${a.subscription.status.toLowerCase()}${a.subscription.current_period?.payment_status ? ` · ${a.subscription.current_period.payment_status.toLowerCase()}` : ""}` : "None"],
                 ["Platform MRR", a.platformMrrMinor ? formatInrMinor(a.platformMrrMinor) : "—"],
