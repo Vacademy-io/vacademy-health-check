@@ -10,6 +10,7 @@ import { AccountsTab } from "@/components/pm/AccountsTab";
 import { AiCallsTab } from "@/components/pm/AiCallsTab";
 import { ConversionsTab } from "@/components/pm/ConversionsTab";
 import { DashboardTab } from "@/components/pm/DashboardTab";
+import { InsightsTab } from "@/components/pm/InsightsTab";
 import { TrialsTab } from "@/components/pm/TrialsTab";
 import { WebAnalyticsTab } from "@/components/pm/WebAnalyticsTab";
 import { usePmData } from "@/components/pm/use-pm-data";
@@ -17,6 +18,7 @@ import { QUICK_FILTERS, TRIAL_STAGE_LABEL, type QuickFilter, type TrialFilter } 
 
 const TABS = [
   { key: "dashboard", label: "Dashboard", hint: "Key numbers and what needs attention" },
+  { key: "insights", label: "Product insights", hint: "Sign-ups, onboarding, usage, drop-off, features and why they leave" },
   { key: "trials", label: "Trials", hint: "Accounts after the demo" },
   { key: "accounts", label: "Accounts", hint: "Every institute, with your own labels and records" },
   { key: "conversions", label: "Demo → paid", hint: "Which demo requests become paying users, by source" },
@@ -59,6 +61,7 @@ export default function PmViewPage() {
 
   const body: Record<Tab, React.ReactNode> = {
     dashboard: <DashboardTab onOpenAccount={setOpenId} onOpenTrials={(s) => go("trials", [], s)} onOpenAccounts={(f) => go("accounts", f)} onOpenCalls={() => go("calls")} />,
+    insights: <InsightsTab onOpenAccount={setOpenId} />,
     trials: <TrialsTab onOpenAccount={setOpenId} stage={stage} onStageChange={(s) => go("trials", [], s)} />,
     conversions: <ConversionsTab onOpenAccount={setOpenId} />,
     calls: <AiCallsTab onOpenAccount={setOpenId} />,

@@ -133,7 +133,6 @@ export function TrialsTab({ onOpenAccount, stage, onStageChange }: { onOpenAccou
                         </p>
                         <p className="text-muted-foreground">
                           {a.usage?.lastLogin ? `Last login ${rel(today, a.usage.lastLogin)}` : a.usage ? "Never logged in" : ""}
-                          {a.activeNow > 0 && <span className="ml-1 font-medium text-emerald-600">· online now</span>}
                         </p>
                       </td>
                       <td className="px-3 py-2.5 text-xs">

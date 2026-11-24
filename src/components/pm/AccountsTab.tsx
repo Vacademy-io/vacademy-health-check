@@ -14,7 +14,7 @@ import { ImportDialog } from "./ImportDialog";
 import { downloadText, usePmData } from "./use-pm-data";
 
 const PAGE = 50;
-type SortKey = "created" | "name" | "students" | "online" | "calls" | "creditsUsed" | "creditsLow";
+type SortKey = "created" | "name" | "students" | "calls" | "creditsUsed" | "creditsLow";
 
 /** The platform's lead tag in plain words. Read-only: set on the Institutes page. */
 const PLATFORM_STATUS: Record<LeadTag | "NONE", { label: string; tone: string }> = {
@@ -39,7 +39,6 @@ function sortRows(rows: AccountRow[], key: SortKey): AccountRow[] {
     created: (a, b) => b.createdAt.localeCompare(a.createdAt),
     name: (a, b) => a.name.localeCompare(b.name),
     students: (a, b) => b.students - a.students,
-    online: (a, b) => b.activeNow - a.activeNow || b.createdAt.localeCompare(a.createdAt),
     calls: (a, b) => (b.calls30?.calls ?? 0) - (a.calls30?.calls ?? 0) || b.createdAt.localeCompare(a.createdAt),
     creditsUsed: (a, b) => (b.credits?.used ?? -1) - (a.credits?.used ?? -1),
     // Institutes without a credit account go last.
@@ -68,7 +67,6 @@ export function AccountsTab({ filters, onFiltersChange, onOpenAccount }: Props) 
   const [platform, setPlatform] = useState<string>("");
   const [label, setLabel] = useState<string>("");
   const [product, setProduct] = useState<string>("");
-  const [onlineOnly, setOnlineOnly] = useState(false);
   const [showTest, setShowTest] = useState(false);
   const [sort, setSort] = useState<SortKey>("created");
   const [pageState, setPageState] = useState<{ view: string; page: number }>({ view: "", page: 0 });
@@ -87,18 +85,17 @@ export function AccountsTab({ filters, onFiltersChange, onOpenAccount }: Props) 
     if (platform) list = list.filter((a) => (platform === "NONE" ? a.platformTag === null : a.platformTag === platform));
     if (label) list = list.filter((a) => (label === "NONE" ? a.pmClass === null : a.pmClass === label));
     if (product) list = list.filter((a) => (product === "NONE" ? a.products.length === 0 : a.products.includes(product)));
-    if (onlineOnly) list = list.filter((a) => a.activeNow > 0);
     return sortRows(list, sort);
-  }, [data.accounts, filters, search, showTest, platform, label, product, onlineOnly, sort]);
+  }, [data.accounts, filters, search, showTest, platform, label, product, sort]);
 
-  const view = JSON.stringify([filters, search, showTest, platform, label, product, onlineOnly, sort]);
+  const view = JSON.stringify([filters, search, showTest, platform, label, product, sort]);
   const page = pageState.view === view ? pageState.page : 0;
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   const setPage = (p: number) => setPageState({ view, page: Math.max(0, Math.min(p, pages - 1)) });
   const shown = rows.slice(page * PAGE, page * PAGE + PAGE);
   const allShownSelected = shown.length > 0 && shown.every((r) => selected.has(r.id));
   const selectedRows = data.accounts.filter((a) => selected.has(a.id));
-  const anyFilter = !!(search || platform || label || product || onlineOnly || filters.length);
+  const anyFilter = !!(search || platform || label || product || filters.length);
 
   const toggle = (id: string) =>
     setSelected((cur) => {
@@ -118,7 +115,6 @@ export function AccountsTab({ filters, onFiltersChange, onOpenAccount }: Props) 
     setPlatform("");
     setLabel("");
     setProduct("");
-    setOnlineOnly(false);
     onFiltersChange([]);
   };
 
@@ -184,14 +180,10 @@ export function AccountsTab({ filters, onFiltersChange, onOpenAccount }: Props) 
           <option value="NONE">Not set</option>
           {Object.keys(PRODUCT_LABELS).map((p) => <option key={p} value={p}>{productName(p)}</option>)}
         </select>
-        <label className="flex h-9 items-center gap-1.5 rounded-md border px-2.5 text-sm">
-          <input type="checkbox" checked={onlineOnly} onChange={(e) => setOnlineOnly(e.target.checked)} /> Online now
-        </label>
         <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className={selectCls} aria-label="Sort">
           <option value="created">Newest first</option>
           <option value="name">Name A–Z</option>
           <option value="students">Most students</option>
-          <option value="online">Most people online</option>
           <option value="calls">Most AI calls (30 days)</option>
           <option value="creditsUsed">Most AI credits used</option>
           <option value="creditsLow">Lowest AI credits left</option>
@@ -308,7 +300,6 @@ export function AccountsTab({ filters, onFiltersChange, onOpenAccount }: Props) 
                   <th className="px-2 py-2 text-left font-medium">My label</th>
                   <th className="px-2 py-2 text-left font-medium">Product</th>
                   <th className="px-2 py-2 text-left font-medium">Trial / plan</th>
-                  <th className="px-2 py-2 text-right font-medium">Online now</th>
                   <th className="px-2 py-2 text-right font-medium">Students</th>
                   <th className="px-2 py-2 text-right font-medium">AI calls (30d)</th>
                   <th className="px-3 py-2 text-right font-medium" title="Credits left, and credits used so far">AI credits</th>
@@ -356,7 +347,6 @@ export function AccountsTab({ filters, onFiltersChange, onOpenAccount }: Props) 
                         <p>{trialText}</p>
                         {plan && <p className="text-muted-foreground">{plan}</p>}
                       </td>
-                      <td className="px-2 py-2.5 text-right tabular-nums">{a.activeNow || <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-2 py-2.5 text-right tabular-nums">{a.students}</td>
                       <td className="px-2 py-2.5 text-right tabular-nums">{a.calls30?.calls ? a.calls30.calls.toLocaleString("en-IN") : <span className="text-muted-foreground">—</span>}</td>
                       <td className={cn("px-3 py-2.5 text-right tabular-nums", a.credits?.low && "font-medium text-amber-600")}>

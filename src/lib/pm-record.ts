@@ -17,6 +17,20 @@ export const PM_CLASS_LABEL: Record<PmClass, string> = {
   LOST: "Lost",
 };
 
+/** Why an account left or didn't buy. The platform never records this, so the PM sets it with the Lost label. */
+export const LOST_REASONS = ["PRICE", "MISSING_FEATURE", "NOT_USING", "COMPETITOR", "TECHNICAL", "SUPPORT", "NO_BUDGET", "OTHER"] as const;
+export type LostReason = (typeof LOST_REASONS)[number];
+export const LOST_REASON_LABEL: Record<LostReason, string> = {
+  PRICE: "Too expensive",
+  MISSING_FEATURE: "Missing a feature they need",
+  NOT_USING: "Not using it / no time",
+  COMPETITOR: "Chose another tool",
+  TECHNICAL: "Bugs or technical problems",
+  SUPPORT: "Unhappy with support",
+  NO_BUDGET: "No budget / project stopped",
+  OTHER: "Other",
+};
+
 export const SUBSCRIPTION_TYPES = ["MONTHLY", "QUARTERLY", "HALF_YEARLY", "ANNUAL", "ONE_TIME", "CUSTOM"] as const;
 export type SubscriptionType = (typeof SUBSCRIPTION_TYPES)[number];
 export const SUBSCRIPTION_TYPE_LABEL: Record<SubscriptionType, string> = {
@@ -92,6 +106,8 @@ export interface PmRecord {
   /** Name as entered or as it was when first saved; the live platform name wins in the UI. */
   name: string;
   classification: PmClass | null;
+  /** Why they left or didn't buy (with the Lost label). */
+  lostReason: LostReason | null;
   owner: string;
   products: string[];
   contacts: PmContact[];
@@ -140,6 +156,7 @@ export function emptyRecord(instituteId: string, name = ""): PmRecord {
     instituteId,
     name,
     classification: null,
+    lostReason: null,
     owner: "",
     products: [],
     contacts: [],
@@ -234,6 +251,7 @@ export function sanitizeRecord(input: unknown): PmRecord | null {
   return {
     ...base,
     classification: parseClass(r.classification),
+    lostReason: oneOf(LOST_REASONS, r.lostReason),
     owner: str(r.owner, 100),
     products: list(r.products, (x) => str(x, 40) || null, 10),
     contacts: list(r.contacts, (x) => {

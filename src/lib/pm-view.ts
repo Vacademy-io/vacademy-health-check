@@ -372,7 +372,6 @@ export function buildAccounts(
 
 export const QUICK_FILTERS = [
   { key: "all", label: "All" },
-  { key: "active", label: "Active institutes (now)" },
   { key: "production", label: "Production" },
   { key: "paying", label: "PROD / paying on platform" },
   { key: "trial", label: "On trial" },
@@ -389,8 +388,6 @@ const onTrial = (a: AccountRow) => (a.trial !== null && (a.trial.daysLeft === nu
 
 export function matchesQuick(a: AccountRow, f: QuickFilter): boolean {
   switch (f) {
-    case "active":
-      return a.activeNow > 0;
     case "production":
       return a.pmClass === "PRODUCTION";
     case "paying":
@@ -608,7 +605,7 @@ export function buildInbox(accounts: AccountRow[], today: string, signals: Inbox
     if (overdue.length)
       add({ key: `overdue:${a.id}:${overdue.map((p) => p.date).join(",")}`, kind: "PAYMENT", group: "RETAIN", severity: "high", when: "OVERDUE", title: a.name, detail: `${overdue.length} payment${overdue.length === 1 ? "" : "s"} marked overdue in the register`, action: "Call about the overdue payment", impact: overdue.reduce((s, p) => s + (p.amount ?? 0), 0), instituteId: a.id });
     if (r.classification === "PRODUCTION" && a.healthLabel === "At risk")
-      add({ key: `risk:${a.id}:${today.slice(0, 7)}`, kind: "RELATIONSHIP", group: "RETAIN", severity: "medium", when: "THIS_WEEK", title: a.name, detail: `Health ${a.health}/100${a.activeNow === 0 ? " · nobody signed in now" : ""}`, action: "Check in: ask how it's going and fix blockers", impact: monthly, instituteId: a.id });
+      add({ key: `risk:${a.id}:${today.slice(0, 7)}`, kind: "RELATIONSHIP", group: "RETAIN", severity: "medium", when: "THIS_WEEK", title: a.name, detail: `Health ${a.health}/100`, action: "Check in: ask how it's going and fix blockers", impact: monthly, instituteId: a.id });
   }
 
   // Relationships: anniversaries, birthdays, custom dates this week.
@@ -745,8 +742,6 @@ export interface DashboardStats {
   courses: number;
   institutesWithCourses: number;
   students: number;
-  onlineInstitutes: number;
-  onlinePeople: number;
   aiCreditsUsed: number;
   /** "Needs attention" counts; each maps to a list the PM can open. */
   attention: {
@@ -811,8 +806,6 @@ export function dashboardStats(accounts: AccountRow[], today: string): Dashboard
     courses: real.reduce((t, a) => t + a.courses, 0),
     institutesWithCourses: real.filter((a) => a.courses > 0).length,
     students: real.reduce((t, a) => t + a.students, 0),
-    onlineInstitutes: real.filter((a) => a.activeNow > 0).length,
-    onlinePeople: real.reduce((t, a) => t + a.activeNow, 0),
     aiCreditsUsed: real.reduce((t, a) => t + (a.credits?.used ?? 0), 0),
     attention: {
       notLoggedIn: stages.NOT_LOGGED_IN,
@@ -1150,7 +1143,7 @@ export function registerCsv(accounts: AccountRow[]): string {
 export function accountsCsv(accounts: AccountRow[]): string {
   const headers = [
     "Institute ID", "Institute", "Email", "Subdomain", "City", "State", "Created", "Students", "Courses",
-    "Platform tag", "Platform plan", "Platform subscription status", "Platform MRR (₹)", "Paying (platform)", "Trial ends", "People online now",
+    "Platform tag", "Platform plan", "Platform subscription status", "Platform MRR (₹)", "Paying (platform)", "Trial ends",
     "PM classification", "Owner", "Register plan", "Subscription type", "Start", "End", "Renewal", "Final price (₹)", "Monthly value (₹)",
     "Health", "Health label", "PM ≠ platform",
   ];
@@ -1158,7 +1151,7 @@ export function accountsCsv(accounts: AccountRow[]): string {
     headers,
     accounts.map((a) => [
       a.id, a.name, a.email, a.subdomain, a.city, a.state, a.createdAt.slice(0, 10), a.students, a.courses,
-      a.platformTag ?? "", a.platformPlan ?? "", a.subscription?.status ?? "", Math.round(a.platformMrrMinor / 100), a.paid ? "yes" : "no", a.trial?.endsAt?.slice(0, 10) ?? "", a.activeNow,
+      a.platformTag ?? "", a.platformPlan ?? "", a.subscription?.status ?? "", Math.round(a.platformMrrMinor / 100), a.paid ? "yes" : "no", a.trial?.endsAt?.slice(0, 10) ?? "",
       a.pmClass ? PM_CLASS_LABEL[a.pmClass] : "", a.record?.owner ?? "", a.record?.planName ?? "", a.record?.subscriptionType ?? "", a.record?.startDate ?? "", a.record?.endDate ?? "", a.record?.renewalDate ?? "",
       a.record?.finalPrice ?? "", a.registerMonthly ?? "", a.health, a.healthLabel, a.mismatches.join("; "),
     ])
