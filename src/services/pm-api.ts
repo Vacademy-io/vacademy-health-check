@@ -9,6 +9,8 @@ import { API_PREFIXES } from "@/lib/constants";
 import type { PmHistoryEntry, PmRecord, PmTaskState } from "@/lib/pm-record";
 import type { AccountCredits, AccountUsage, CallLite } from "@/lib/pm-view";
 import { addDays } from "@/lib/pm-range";
+import { FEATURE_CATALOG } from "@/lib/pm-feature-catalog";
+import type { FeatureRowData } from "@/lib/pm-features";
 import { AI_TOOLS_SQL, FEATURE_KEYS, FEATURE_SQL, isReadOnlySql, PRODUCT_SQL, STAFF_SQL, type AiToolRow, type FeatureKey, type FeatureRow, type ReadOnlyDb, type StaffRow } from "@/lib/pm-insights";
 import type { AIPaginatedResponse, CrossInstituteActiveUsersDTO, InstituteCreditItem, InstituteListItemDTO, InstituteUserDTO, SuperAdminPageResponse } from "@/types/api";
 
@@ -250,6 +252,50 @@ export function useInstituteSignals(): InstituteSignals {
       { queryKey: [...KEY, "signals", "ai-tools"], queryFn: (): Promise<unknown> => readOnlyQuery<AiToolRow>("admin_core_service", AI_TOOLS_SQL), ...opts },
     ],
     combine: combineSignals,
+  });
+}
+
+type RawFeatureState = { institute_id: string; started: number; completed: number; d30: number; last_at: string | null };
+
+export interface FeatureData {
+  /** Feature key → institute id → counts. Missing key = not loaded (or failed). */
+  rows: Record<string, Map<string, FeatureRowData> | undefined>;
+  errors: string[];
+  isLoading: boolean;
+  isFetching: boolean;
+  refetch: () => void;
+}
+
+function combineFeatures(results: { data?: unknown; error: unknown; isLoading: boolean; isFetching: boolean; refetch: () => unknown }[]): FeatureData {
+  const rows: FeatureData["rows"] = {};
+  const errors: string[] = [];
+  FEATURE_CATALOG.forEach((def, i) => {
+    const q = results[i];
+    if (q.data)
+      rows[def.key] = new Map(
+        (q.data as RawFeatureState[]).map((r) => [String(r.institute_id), { started: Number(r.started) || 0, completed: Number(r.completed) || 0, d30: Number(r.d30) || 0, lastAt: r.last_at ? String(r.last_at) : null }])
+      );
+    if (q.error) errors.push(`${def.label}: ${(q.error as Error).message}`);
+  });
+  return {
+    rows,
+    errors,
+    isLoading: results.some((q) => q.isLoading),
+    isFetching: results.some((q) => q.isFetching),
+    refetch: () => results.forEach((q) => q.refetch()),
+  };
+}
+
+/** Started / finished counts per institute for every feature in the catalog (read-only SELECTs). */
+export function useFeatureData(): FeatureData {
+  return useQueries({
+    queries: FEATURE_CATALOG.map((def) => ({
+      queryKey: [...KEY, "feature", def.key],
+      queryFn: (): Promise<unknown> => readOnlyQuery<RawFeatureState>(def.db, def.sql),
+      staleTime: 10 * 60_000,
+      retry: 1,
+    })),
+    combine: combineFeatures,
   });
 }
 

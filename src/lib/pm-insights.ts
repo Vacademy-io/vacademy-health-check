@@ -63,7 +63,7 @@ export interface Signals {
 
 // ---------------------------------------------------------------- read-only SQL (platform standby)
 
-export type ReadOnlyDb = "admin_core_service" | "auth_service" | "assessment_service";
+export type ReadOnlyDb = "admin_core_service" | "auth_service" | "assessment_service" | "notification_service";
 
 /** True for one SELECT (or WITH … SELECT) statement with no second statement and no write keywords. */
 export function isReadOnlySql(sql: string): boolean {
