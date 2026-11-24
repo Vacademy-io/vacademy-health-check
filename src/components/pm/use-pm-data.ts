@@ -4,7 +4,7 @@ import type { PmRecord } from "@/lib/pm-record";
 import { buildAccounts, callsByInstitute, localDate, productsFromSelections } from "@/lib/pm-view";
 import { useRecentQuotes, useTaggedTrials } from "@/services/command-center-api";
 import { useSubscriptions } from "@/services/plans-api";
-import { useAccountUsage, useCallsSince, useCreditsMap, usePlatformInstitutes, usePmRecords } from "@/services/pm-api";
+import { useAccountUsage, useCallsSince, usePlatformProducts, useCreditsMap, usePlatformInstitutes, usePmRecords } from "@/services/pm-api";
 
 /**
  * Everything the PM View tabs share: platform data (read-only) joined with the PM store's records.
@@ -32,6 +32,7 @@ export function usePmData() {
   const credits = useCreditsMap();
   const calls30Q = useCallsSince(daysAgo(29));
   const calls30 = useMemo(() => (calls30Q.data ? new Map(callsByInstitute(calls30Q.data.calls).map((c) => [c.instituteId, c])) : undefined), [calls30Q.data]);
+  const platformProducts = usePlatformProducts();
   const quoteProducts = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const q of quotes.data?.content ?? []) {
@@ -42,8 +43,8 @@ export function usePmData() {
     return m;
   }, [quotes.data]);
   const accounts = useMemo(
-    () => buildAccounts(institutes.data ?? [], subs.data ?? [], trials, NO_ONLINE_DATA, records, today, { usage, credits: credits.data, quoteProducts, calls30 }),
-    [institutes.data, subs.data, trials, records, today, usage, credits.data, quoteProducts, calls30]
+    () => buildAccounts(institutes.data ?? [], subs.data ?? [], trials, NO_ONLINE_DATA, records, today, { usage, credits: credits.data, quoteProducts, platformProducts: platformProducts.data, calls30 }),
+    [institutes.data, subs.data, trials, records, today, usage, credits.data, quoteProducts, platformProducts.data, calls30]
   );
 
   return {
@@ -63,6 +64,7 @@ export function usePmData() {
       institutes.refetch();
       subs.refetch();
       quotes.refetch();
+      platformProducts.refetch();
       tagged.refetch();
       pm.refetch();
       credits.refetch();

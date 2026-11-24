@@ -1,7 +1,7 @@
 // Run: node --test tests/*.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assembleProduct, assembleSources, buildRequests, buildSourceRequests, clampDays, gaDate, handleGaRequest, parseProducts, type ApiReport } from "../server/ga-report.ts";
+import { assembleProduct, assembleSources, buildRequests, buildSourceRequests, clampDays, parseCustomRange, gaDate, handleGaRequest, parseProducts, type ApiReport } from "../server/ga-report.ts";
 
 test("GA_PRODUCTS: valid config parses, hostnames lower-cased, properties/ prefix stripped", () => {
   const { products, error } = parseProducts(
@@ -98,4 +98,21 @@ test("source / medium: second batch, host filter kept, lead events joined per so
   ]);
   assert.deepEqual(rows.map((r) => [r.name, r.activeUsers, r.leads]), [["google / organic", 120, 3], ["(direct) / (none)", 80, 0], ["linkedin / social", 0, 1]]);
   assert.deepEqual(assembleSources([]), []);
+});
+
+test("custom from → to range: valid dates only, not in the future, at most 730 days", () => {
+  const today = new Date("2026-11-21T10:00:00Z");
+  assert.deepEqual(parseCustomRange("2026-11-01", "2026-11-21", today), { from: "2026-11-01", to: "2026-11-21", days: 21 });
+  assert.deepEqual(parseCustomRange("2026-11-05", "2026-11-05", today), { from: "2026-11-05", to: "2026-11-05", days: 1 });
+  assert.equal(parseCustomRange("2026-11-10", "2026-11-01", today), null);
+  assert.equal(parseCustomRange("2026-11-01", "2026-11-22", today), null);
+  assert.equal(parseCustomRange("2026-02-30", "2026-03-01", today), null);
+  assert.equal(parseCustomRange("2024-01-01", "2026-11-01", today), null);
+  assert.equal(parseCustomRange(null, "2026-11-01", today), null);
+});
+
+test("a custom range is sent to GA as exact dates", () => {
+  const reqs = buildRequests({ product: "vacademy", propertyId: "1" }, 10, { from: "2026-10-01", to: "2026-10-10" });
+  assert.deepEqual(reqs[0].dateRanges, [{ startDate: "2026-10-01", endDate: "2026-10-10" }]);
+  assert.deepEqual(buildSourceRequests({ product: "vacademy", propertyId: "1" }, 10, { from: "2026-10-01", to: "2026-10-10" })[0].dateRanges, [{ startDate: "2026-10-01", endDate: "2026-10-10" }]);
 });

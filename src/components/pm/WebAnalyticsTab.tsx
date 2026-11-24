@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { PRODUCT_LABELS, productName } from "@/lib/pm-view";
+import { localDate, PRODUCT_LABELS, productName } from "@/lib/pm-view";
+import { resolvePeriod, type Period } from "@/lib/pm-range";
 import { useGaReport, type GaProductReport } from "@/services/ga-api";
 import { Pager, usePaged } from "./Pager";
+import { PeriodPicker } from "./PeriodPicker";
 
 const RANGES = [7, 30, 90] as const;
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--primary))"];
@@ -31,8 +33,13 @@ type Row = { key: string; report: GaProductReport | null };
 
 /** PM View › Web analytics: Google Analytics for every product site, side by side, then one in depth. */
 export function WebAnalyticsTab() {
-  const [days, setDays] = useState<(typeof RANGES)[number]>(30);
-  const ga = useGaReport(days);
+  const [today] = useState(() => localDate(new Date()));
+  const [period, setPeriod] = useState<Period>({ kind: "preset", days: 30 });
+  const range = resolvePeriod(period, today);
+  const days = range.days;
+  const ga = useGaReport(days, range.custom ? range : null);
+  // The deployed server answers custom dates only after this update ships; until then it sends a preset.
+  const customIgnored = range.custom && !!ga.data && ga.data.from !== range.from;
   const report = ga.data;
 
   // Every product we know of plus anything configured in Google Analytics.
@@ -41,9 +48,11 @@ export function WebAnalyticsTab() {
     const keys = [...new Set([...Object.keys(PRODUCT_LABELS), ...byKey.keys()])];
     return keys.map((key) => ({ key, report: byKey.get(key) ?? null })).sort((a, b) => (b.report?.totals.activeUsers ?? -1) - (a.report?.totals.activeUsers ?? -1));
   }, [report]);
-  const connected = rows.filter((r) => r.report && !r.report.error);
+  const [product, setProduct] = useState("");
+  const shown = useMemo(() => (product ? rows.filter((r) => r.key === product) : rows), [rows, product]);
+  const connected = useMemo(() => shown.filter((r) => r.report && !r.report.error), [shown]);
   const [picked, setPicked] = useState<string | null>(null);
-  const selected = rows.find((r) => r.key === picked) ?? connected[0] ?? null;
+  const selected = (product ? shown[0] : rows.find((r) => r.key === picked)) ?? connected[0] ?? null;
 
   const combined = useMemo(() => {
     const base = connected[0]?.report?.daily ?? [];
@@ -67,19 +76,23 @@ export function WebAnalyticsTab() {
             {report?.generatedAt && <> Updated {new Date(report.generatedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}.</>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md border p-0.5" role="group" aria-label="Period">
-            {RANGES.map((d) => (
-              <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={cn("rounded px-3 py-1 text-xs font-medium", days === d ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
-                {d} days
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={product} onChange={(e) => setProduct(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm" aria-label="Product">
+            <option value="">All products</option>
+            {rows.map((r) => <option key={r.key} value={r.key}>{productName(r.key)}</option>)}
+          </select>
+          <PeriodPicker presets={RANGES} value={period} onChange={setPeriod} today={today} />
           <Button variant="outline" size="sm" onClick={() => ga.refetch()}>
             {ga.isFetching ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />} Refresh
           </Button>
         </div>
       </div>
+
+      {customIgnored && (
+        <p className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+          <AlertTriangle className="h-4 w-4 shrink-0" /> The analytics server doesn't support custom dates yet (it will once this update is deployed), so this shows the last {ga.data?.days} days.
+        </p>
+      )}
 
       {ga.isLoading ? (
         <Skeleton className="h-64 w-full" />
@@ -91,9 +104,9 @@ export function WebAnalyticsTab() {
         <>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">All products · last {days} days</CardTitle>
+              <CardTitle className="text-base">{product ? productName(product) : "All products"} · {customIgnored ? `last ${ga.data?.days ?? days} days` : range.label}</CardTitle>
               <CardDescription>
-                {num(totals.visitors)} visitors · {num(totals.sessions)} sessions · {num(totals.leads)} leads ({pct(totals.leads, totals.visitors)}). Click a product for detail.
+                {num(totals.visitors)} visitors · {num(totals.sessions)} sessions · {num(totals.leads)} leads ({pct(totals.leads, totals.visitors)}).{!product && " Click a product for detail."}
               </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto p-0">
@@ -112,7 +125,7 @@ export function WebAnalyticsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => {
+                  {shown.map((r) => {
                     const p = r.report;
                     const t = p && !p.error ? trend(p) : null;
                     const active = selected?.key === r.key;
@@ -173,7 +186,7 @@ export function WebAnalyticsTab() {
             </Card>
           )}
 
-          {selected?.report && !selected.report.error && <ProductDetail report={selected.report} days={days} />}
+          {selected?.report && !selected.report.error && <ProductDetail report={selected.report} days={days} key={range.from + range.to} />}
         </>
       )}
     </div>

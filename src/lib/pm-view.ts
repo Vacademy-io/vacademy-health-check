@@ -182,6 +182,8 @@ export interface AccountExtras {
   credits?: Map<string, AccountCredits>;
   /** Products picked in the quote a demo workspace was created from. */
   quoteProducts?: Map<string, string[]>;
+  /** The product each institute signed up through (institutes.product on the platform). */
+  platformProducts?: Map<string, string>;
   /** AI calls in the last 30 days, per institute. */
   calls30?: Map<string, InstituteCalls>;
 }
@@ -237,7 +239,7 @@ export interface AccountRow {
   calls30: InstituteCalls | null;
   /** Product keys: from the register if set there, else from the demo quote. */
   products: string[];
-  productSource: "register" | "quote" | null;
+  productSource: "register" | "quote" | "platform" | null;
   instituteType: string;
   activeNow: number;
   /** PM data, from the PM store. */
@@ -346,7 +348,9 @@ export function buildAccounts(
       ...(() => {
         if (record?.products.length) return { products: record.products.map((p) => p.toLowerCase()), productSource: "register" as const };
         const q = extras.quoteProducts?.get(id);
-        return q?.length ? { products: q, productSource: "quote" as const } : { products: [] as string[], productSource: null };
+        if (q?.length) return { products: q, productSource: "quote" as const };
+        const p = extras.platformProducts?.get(id);
+        return p ? { products: [p], productSource: "platform" as const } : { products: [] as string[], productSource: null };
       })(),
       instituteType: base.type ?? "",
       activeNow: activeNow.get(id) ?? 0,

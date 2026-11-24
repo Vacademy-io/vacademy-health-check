@@ -10,7 +10,9 @@ import { formatDay } from "@/lib/plans";
 import { callsByInstitute, callsPerDay, productName, toCsv } from "@/lib/pm-view";
 import { useCallsSince } from "@/services/pm-api";
 import { Pager, usePaged } from "./Pager";
-import { daysAgo, downloadText, usePmData } from "./use-pm-data";
+import { downloadText, usePmData } from "./use-pm-data";
+import { PeriodPicker } from "./PeriodPicker";
+import { resolvePeriod, type Period } from "@/lib/pm-range";
 
 const PERIODS = [7, 30, 90] as const;
 const num = (v: number) => v.toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -32,15 +34,17 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
 
 /** PM View › AI calls: how many AI calls, and which institutes make them. Read-only, from the platform call log. */
 export function AiCallsTab({ onOpenAccount }: { onOpenAccount: (id: string) => void }) {
-  const [days, setDays] = useState<(typeof PERIODS)[number]>(30);
+  const [period, setPeriod] = useState<Period>({ kind: "preset", days: 30 });
   const [search, setSearch] = useState("");
   const data = usePmData();
-  const q = useCallsSince(daysAgo(days - 1));
+  const range = resolvePeriod(period, data.today);
+  const days = range.days;
+  const q = useCallsSince(range.from, range.custom ? range.to : undefined);
   const calls = useMemo(() => q.data?.calls ?? [], [q.data]);
 
   const accountsById = useMemo(() => new Map(data.accounts.map((a) => [a.id, a])), [data.accounts]);
   const byInstitute = useMemo(() => callsByInstitute(calls), [calls]);
-  const perDay = useMemo(() => callsPerDay(calls, days, data.today).map((d) => ({ ...d, label: shortDate(d.date) })), [calls, days, data.today]);
+  const perDay = useMemo(() => callsPerDay(calls, days, range.to).map((d) => ({ ...d, label: shortDate(d.date) })), [calls, days, range.to]);
 
   const totalCalls = q.data?.totals?.calls ?? calls.length;
   const totalMinutes = q.data?.totals?.minutes ?? byInstitute.reduce((t, r) => t + r.minutes, 0);
@@ -51,11 +55,11 @@ export function AiCallsTab({ onOpenAccount }: { onOpenAccount: (id: string) => v
 
   const term = search.trim().toLowerCase();
   const filtered = byInstitute.filter((r) => !term || r.name.toLowerCase().includes(term));
-  const paged = usePaged(filtered, 15, `${days}|${term}`);
+  const paged = usePaged(filtered, 15, `${range.from}|${range.to}|${term}`);
 
   const exportCsv = () =>
     downloadText(
-      `ai-calls-by-institute-${data.today}-${days}d.csv`,
+      `ai-calls-by-institute-${range.from}-to-${range.to}.csv`,
       toCsv(
         ["Rank", "Institute", "Institute ID", "Product", "Calls", "Connected", "Connected %", "Minutes", "Avg minutes per call", "Billed (₹)", "Share of all calls", "Last call"],
         byInstitute.map((r, i) => {
@@ -70,13 +74,7 @@ export function AiCallsTab({ onOpenAccount }: { onOpenAccount: (id: string) => v
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">AI calls made by institutes on the platform (read-only, from the call log). Click an institute for its full details.</p>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md border p-0.5" role="group" aria-label="Period">
-            {PERIODS.map((d) => (
-              <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={cn("rounded px-3 py-1 text-xs font-medium", days === d ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
-                {d} days
-              </button>
-            ))}
-          </div>
+          <PeriodPicker presets={PERIODS} value={period} onChange={setPeriod} today={data.today} />
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={!byInstitute.length}>
             <Download className="mr-1.5 h-4 w-4" /> Export
           </Button>
@@ -106,7 +104,7 @@ export function AiCallsTab({ onOpenAccount }: { onOpenAccount: (id: string) => v
             </p>
           )}
           <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
-            <Kpi label="Total AI calls" value={num(totalCalls)} sub={`last ${days} days`} />
+            <Kpi label="Total AI calls" value={num(totalCalls)} sub={range.label} />
             <Kpi label="Minutes" value={num(totalMinutes)} sub={totalCalls ? `${(totalMinutes / totalCalls).toFixed(1)} min per call` : undefined} />
             <Kpi label="Connected" value={pct(connected, calls.length)} sub={`${num(connected)} calls answered`} />
             <Kpi label="Institutes calling" value={num(institutes)} sub={institutes ? `${num(calls.length / institutes)} calls per institute on average` : undefined} />

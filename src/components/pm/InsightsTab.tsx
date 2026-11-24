@@ -22,6 +22,8 @@ import {
 import { isTestAccount, PRODUCT_LABELS, productName, toCsv, type AccountRow } from "@/lib/pm-view";
 import { useInstituteSignals } from "@/services/pm-api";
 import { downloadText, usePmData } from "./use-pm-data";
+import { PeriodPicker } from "./PeriodPicker";
+import { previousRange, resolvePeriod, type Period } from "@/lib/pm-range";
 
 const WINDOWS = [30, 90, 180, 365] as const;
 const num = (v: number) => v.toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -64,10 +66,11 @@ function Question({ n, title, description, children }: { n: number; title: strin
 export function InsightsTab({ onOpenAccount }: { onOpenAccount: (id: string) => void }) {
   const data = usePmData();
   const signals = useInstituteSignals();
-  const [days, setDays] = useState<(typeof WINDOWS)[number]>(90);
+  const [period, setPeriod] = useState<Period>({ kind: "preset", days: 90 });
   const [product, setProduct] = useState("");
   const [openStep, setOpenStep] = useState<FunnelKey | null>(null);
   const today = data.today;
+  const range = resolvePeriod(period, today);
 
   const sig = useMemo(() => {
     const byId = new Map<string, AccountSignal>(data.accounts.map((a) => [a.id, accountSignal(a, signals, today)]));
@@ -75,13 +78,13 @@ export function InsightsTab({ onOpenAccount }: { onOpenAccount: (id: string) => 
   }, [data.accounts, signals, today]);
 
   const scoped = useMemo(() => data.accounts.filter((a) => matchesProduct(a, product)), [data.accounts, product]);
-  const signups = useMemo(() => cohort(data.accounts, today, days, product), [data.accounts, today, days, product]);
-  const previous = useMemo(() => cohort(data.accounts, today, days * 2, product).length - signups.length, [data.accounts, today, days, product, signups]);
+  const signups = useMemo(() => cohort(data.accounts, { from: range.from, to: range.to }, product), [data.accounts, range.from, range.to, product]);
+  const previous = useMemo(() => cohort(data.accounts, previousRange(range), product).length, [data.accounts, range, product]);
   const weeks = useMemo(() => signupsByWeek(scoped.filter((a) => !isTestAccount(a)), today, 12).map((w) => ({ ...w, label: shortDate(w.week) })), [scoped, today]);
   const funnel = useMemo(() => buildFunnel(signups, sig), [signups, sig]);
   const drop = biggestDrop(funnel);
   const adoption = useMemo(() => featureAdoption(scoped, sig), [scoped, sig]);
-  const churn = useMemo(() => churnSummary(scoped, data.subs, today, days), [scoped, data.subs, today, days]);
+  const churn = useMemo(() => churnSummary(scoped, data.subs, { from: range.from, to: range.to }), [scoped, data.subs, range.from, range.to]);
 
   const real = scoped.filter((a) => !isTestAccount(a));
   const activeAll = real.filter((a) => sig(a).active30).length;
@@ -92,11 +95,11 @@ export function InsightsTab({ onOpenAccount }: { onOpenAccount: (id: string) => 
 
   const exportCsv = () =>
     downloadText(
-      `product-insights-${today}-${days}d.csv`,
+      `product-insights-${range.from}-to-${range.to}.csv`,
       toCsv(
         ["Section", "Item", "Count", "Share", "Detail"],
         [
-          ["Sign-ups", `Last ${days} days`, signups.length, "", `${previous} in the ${days} days before`],
+          ["Sign-ups", range.label, signups.length, "", `${previous} in the ${range.days} days before`],
           ...funnel.map((s) => ["Funnel", s.label, s.count, pctText(s.ofStart), `${s.stuck.length} stopped here`]),
           ...adoption.map((f) => ["Features", f.label, f.using, share(f.using, real.length), `Paying ${share(f.payingUsing, f.payingTotal)} vs non-paying ${share(f.freeUsing, f.freeTotal)}; revenue ${inr(f.revenue)}/month`]),
           ...(signals.aiTools ?? []).map((t) => ["AI tools (30 days)", toolLabel(t.request_type), t.requests, "", `${t.institutes} institutes`]),
@@ -118,13 +121,7 @@ export function InsightsTab({ onOpenAccount }: { onOpenAccount: (id: string) => 
             {Object.keys(PRODUCT_LABELS).map((p) => <option key={p} value={p}>{productName(p)}</option>)}
             <option value="NONE">Product not set</option>
           </select>
-          <div className="inline-flex rounded-md border p-0.5" role="group" aria-label="Period">
-            {WINDOWS.map((d) => (
-              <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={cn("rounded px-3 py-1 text-xs font-medium", days === d ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
-                {d} days
-              </button>
-            ))}
-          </div>
+          <PeriodPicker presets={WINDOWS} value={period} onChange={setPeriod} today={today} />
           <Button variant="outline" size="sm" onClick={exportCsv} disabled={loading}>
             <Download className="mr-1.5 h-4 w-4" /> Export
           </Button>
@@ -152,7 +149,7 @@ export function InsightsTab({ onOpenAccount }: { onOpenAccount: (id: string) => 
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="Signed up" value={num(signups.length)} sub={`last ${days} days · ${previous} the ${days} days before`} />
+            <Kpi label="Signed up" value={num(signups.length)} sub={`${range.label} · ${previous} in the ${range.days} days before`} />
             <Kpi label="Completed onboarding" value={share(onboarded, signups.length)} sub={`${num(onboarded)} logged in, made a course and added students`} />
             <Kpi label="Actually using it" value={share(active, signups.length)} sub={`${num(active)} of the new sign-ups · ${num(activeAll)} of all ${num(real.length)} institutes`} />
             <Kpi label="Biggest drop-off" value={drop ? drop.label : "—"} sub={drop ? `${num(drop.stuck.length)} stopped before this step (${pctText(drop.dropFromPrev)})` : "No sign-ups in this period"} />
@@ -175,7 +172,7 @@ export function InsightsTab({ onOpenAccount }: { onOpenAccount: (id: string) => 
           <Question
             n={2}
             title="How many complete onboarding, use the product, and where do they drop off?"
-            description={`Institutes that signed up in the last ${days} days. Each step counts only those who also passed the steps above it.`}
+            description={`Institutes that signed up ${range.custom ? `between ${range.label}` : `in the ${range.label}`}. Each step counts only those who also passed the steps above it.`}
           >
             <div className="space-y-2">
               {funnel.map((s, i) => {
@@ -289,7 +286,7 @@ export function InsightsTab({ onOpenAccount }: { onOpenAccount: (id: string) => 
           <Question
             n={4}
             title="Why are institutes cancelling?"
-            description={`Last ${days} days. The platform doesn't ask customers why they leave, so the reasons come from you: give an account the Lost label and pick “Why did they leave?” in its details.`}
+            description={`${range.custom ? range.label : range.label.charAt(0).toUpperCase() + range.label.slice(1)}. The platform doesn't ask customers why they leave, so the reasons come from you: give an account the Lost label and pick “Why did they leave?” in its details.`}
           >
             <div className="grid gap-3 sm:grid-cols-3">
               <Kpi label="AI plans cancelled or expired" value={num(churn.plansEnded.length)} sub="and no other active plan" />

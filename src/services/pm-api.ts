@@ -8,7 +8,8 @@ import api from "@/lib/axios";
 import { API_PREFIXES } from "@/lib/constants";
 import type { PmHistoryEntry, PmRecord, PmTaskState } from "@/lib/pm-record";
 import type { AccountCredits, AccountUsage, CallLite } from "@/lib/pm-view";
-import { AI_TOOLS_SQL, FEATURE_KEYS, FEATURE_SQL, isReadOnlySql, STAFF_SQL, type AiToolRow, type FeatureKey, type FeatureRow, type ReadOnlyDb, type StaffRow } from "@/lib/pm-insights";
+import { addDays } from "@/lib/pm-range";
+import { AI_TOOLS_SQL, FEATURE_KEYS, FEATURE_SQL, isReadOnlySql, PRODUCT_SQL, STAFF_SQL, type AiToolRow, type FeatureKey, type FeatureRow, type ReadOnlyDb, type StaffRow } from "@/lib/pm-insights";
 import type { AIPaginatedResponse, CrossInstituteActiveUsersDTO, InstituteCreditItem, InstituteListItemDTO, InstituteUserDTO, SuperAdminPageResponse } from "@/types/api";
 
 const KEY = ["super-admin", "pm-view"] as const;
@@ -128,14 +129,17 @@ const CALL_MAX_PAGES = 200;
  * Every AI call since `from` (YYYY-MM-DD), paged from the call log (read-only), plus the exact
  * totals. Only the fields the PM View needs are kept. Stops at 10,000 calls and says so (`capped`).
  */
-export function useCallsSince(from: string) {
+/** AI calls from `from` (YYYY-MM-DD), up to and including `to` when given (else up to now). */
+export function useCallsSince(from: string, to?: string) {
+  // The API's `to` is exclusive, so ask for the start of the next day.
+  const range = to ? { from, to: addDays(to, 1) } : { from };
   return useQuery({
-    queryKey: [...KEY, "calls", from, CALL_PAGE],
+    queryKey: [...KEY, "calls", from, to ?? null, CALL_PAGE],
     queryFn: async () => {
       type CallPage = { content: CallLite[]; total_elements: number; total_pages: number };
       const get = async (page: number): Promise<CallPage> => {
         try {
-          return (await api.get<CallPage>(`${API_PREFIXES.ADMIN_CORE}/calls`, { params: { from, page, size: CALL_PAGE } })).data;
+          return (await api.get<CallPage>(`${API_PREFIXES.ADMIN_CORE}/calls`, { params: { ...range, page, size: CALL_PAGE } })).data;
         } catch (e) {
           throw new Error(apiReason(e));
         }
@@ -155,7 +159,7 @@ export function useCallsSince(from: string) {
       }
       let totals: CallTotals | null = null;
       try {
-        totals = (await api.get<CallTotals>(`${API_PREFIXES.ADMIN_CORE}/calls/summary`, { params: { from } })).data;
+        totals = (await api.get<CallTotals>(`${API_PREFIXES.ADMIN_CORE}/calls/summary`, { params: range })).data;
       } catch {
         totals = null;
       }
@@ -195,6 +199,16 @@ export interface InstituteSignals {
   errors: string[];
   isLoading: boolean;
   refetch: () => void;
+}
+
+/** Product per institute (vacademy, evalezy, telleo, voomsales, vimotion), from the platform database. Read-only. */
+export function usePlatformProducts() {
+  return useQuery({
+    queryKey: [...KEY, "platform-products"],
+    queryFn: async () => new Map((await readOnlyQuery<{ id: string; product: string }>("admin_core_service", PRODUCT_SQL)).map((r) => [String(r.id), String(r.product)])),
+    staleTime: 10 * 60_000,
+    retry: 1,
+  });
 }
 
 type RawFeature = { institute_id: string; total: number; d30: number };
