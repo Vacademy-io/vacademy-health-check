@@ -1,97 +1,119 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, Download, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowDownWideNarrow, ArrowUpNarrowWide, Download, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatDay } from "@/lib/plans";
 import { FEATURE_CATALOG } from "@/lib/pm-feature-catalog";
-import { byUsage, FEATURE_GROUPS, FEATURE_STATE_LABEL, featureStats, stuckRanking, type FeatureGroup, type FeatureState, type FeatureStat } from "@/lib/pm-features";
+import { FEATURE_GROUPS, featureStats, secondaryOf, volumeOf, type FeatureGroup, type FeatureStat } from "@/lib/pm-features";
 import { matchesProduct } from "@/lib/pm-insights";
-import { PRODUCT_LABELS, productName, toCsv, type AccountRow } from "@/lib/pm-view";
+import { PRODUCT_LABELS, productName, toCsv } from "@/lib/pm-view";
 import { useFeatureData } from "@/services/pm-api";
 import { Pager, usePaged } from "./Pager";
 import { downloadText, usePmData } from "./use-pm-data";
 
 const num = (v: number) => v.toLocaleString("en-IN", { maximumFractionDigits: 0 });
-const pct = (v: number) => `${Math.round(v * 100)}%`;
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const selectCls = "h-9 rounded-md border bg-background px-2 text-sm";
-const STATE_TONE: Record<FeatureState, string> = {
-  COMPLETED: "bg-emerald-500",
-  STUCK: "bg-amber-500",
-  NOT_STARTED: "bg-muted-foreground/25",
-};
 
-function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-2xl font-bold">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-    </div>
-  );
-}
+type ListView = "HIGHEST" | "LOWEST" | "STUCK" | "NOT_STARTED";
 
-/** Three-part bar: using it / started but stuck / not started. */
-function StateBar({ s }: { s: FeatureStat }) {
-  if (!s.base) return null;
-  const part = (n: number) => `${(n / s.base) * 100}%`;
+/** One feature as a card: its own volume (calls made, courses created …) leads. */
+function FeatureCard({ s, active, onClick }: { s: FeatureStat; active: boolean; onClick: () => void }) {
+  const top = s.ranking[0];
+  const users = s.ranking.length;
   return (
-    <div className="flex h-2 w-full overflow-hidden rounded bg-muted" aria-hidden>
-      <div className={STATE_TONE.COMPLETED} style={{ width: part(s.completed.length) }} />
-      <div className={STATE_TONE.STUCK} style={{ width: part(s.stuck.length) }} />
-    </div>
+    <button type="button" onClick={onClick} className={cn("rounded-lg border bg-card p-4 text-left transition-colors hover:border-primary/60", active && "border-primary ring-1 ring-primary")}>
+      <p className="text-sm font-medium">{s.def.label}</p>
+      {s.loaded ? (
+        <>
+          <p className="mt-1 text-3xl font-bold tabular-nums">{num(s.total)}</p>
+          <p className="text-xs text-muted-foreground">{s.def.unit}</p>
+          <div className="mt-3 space-y-0.5 text-xs">
+            <p>
+              <b className="tabular-nums">{num(s.total30)}</b> <span className="text-muted-foreground">in the last 30 days</span>
+            </p>
+            <p>
+              <b className="tabular-nums">{num(s.totalSecondary)}</b> <span className="text-muted-foreground">{s.def.secondary}</span>
+            </p>
+            <p className="text-muted-foreground">
+              {num(users)} institute{users === 1 ? "" : "s"}
+              {users ? ` · avg ${num(s.total / users)} each` : ""}
+              {s.stuck.length > 0 && <span className="text-amber-700 dark:text-amber-400"> · {num(s.stuck.length)} stuck</span>}
+            </p>
+            {top && top.value > 0 && (
+              <p className="truncate text-muted-foreground" title={top.account.name}>
+                Top: <span className="font-medium text-foreground">{top.account.name}</span> ({num(top.value)})
+              </p>
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="mt-3 text-sm text-muted-foreground">Loading…</p>
+      )}
+    </button>
   );
 }
 
 /**
- * PM View › Feature usage: each product's features, how many institutes use each one, who started
- * and didn't finish, and who never started. Read-only platform data.
+ * PM View › Feature usage: each product's features measured by their own volume (calls made,
+ * courses created, assessments created …), with institutes ranked highest to lowest, plus who
+ * started a feature and didn't finish. Read-only platform data.
  */
 export function FeaturesTab({ onOpenAccount }: { onOpenAccount: (id: string) => void }) {
   const data = usePmData();
   const features = useFeatureData();
   const [group, setGroup] = useState<FeatureGroup>("LMS");
   const [product, setProduct] = useState("");
-  const [open, setOpen] = useState<{ key: string; state: FeatureState } | null>(null);
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [view, setView] = useState<ListView>("HIGHEST");
 
   const scoped = useMemo(() => data.accounts.filter((a) => matchesProduct(a, product)), [data.accounts, product]);
   const allStats = useMemo(() => featureStats(FEATURE_CATALOG, scoped, features.rows), [scoped, features.rows]);
-  const stats = useMemo(() => allStats.filter((s) => s.def.group === group).sort(byUsage), [allStats, group]);
-  const loaded = useMemo(() => stats.filter((s) => s.loaded), [stats]);
-  const mostUsed = loaded[0] ?? null;
-  const leastUsed = loaded.length > 1 ? loaded[loaded.length - 1] : null;
-  const stuckTop = stuckRanking(loaded)[0] ?? null;
-  const anyUse = useMemo(() => {
-    const ids = new Set<string>();
-    for (const s of loaded) for (const a of s.completed) ids.add(a.id);
-    return ids.size;
-  }, [loaded]);
-  const base = stats[0]?.base ?? 0;
+  const stats = useMemo(() => allStats.filter((s) => s.def.group === group), [allStats, group]);
+  const open = stats.find((s) => s.def.key === openKey) ?? stats[0] ?? null;
 
-  const openStat = open ? stats.find((s) => s.def.key === open.key) ?? null : null;
-  const openList = useMemo((): AccountRow[] => {
-    if (!open || !openStat) return [];
-    const list = open.state === "COMPLETED" ? openStat.completed : open.state === "STUCK" ? openStat.stuck : openStat.notStarted;
-    const rows = features.rows[openStat.def.key];
-    return [...list].sort((a, b) => String(rows?.get(b.id)?.lastAt ?? b.createdAt).localeCompare(String(rows?.get(a.id)?.lastAt ?? a.createdAt)));
-  }, [open, openStat, features.rows]);
-  const sortedList = openList;
-  const paged = usePaged(sortedList, 20, `${open?.key}|${open?.state}|${product}`);
+  const list = useMemo(() => {
+    if (!open) return [];
+    const rows = features.rows[open.def.key];
+    const fromAccounts = (accts: FeatureStat["stuck"]) =>
+      accts
+        .map((a) => {
+          const r = rows?.get(a.id);
+          return { account: a, value: volumeOf(open.def, r), secondary: secondaryOf(open.def, r), d30: r?.d30 ?? 0, lastAt: r?.lastAt ?? null };
+        })
+        .sort((x, y) => String(y.lastAt ?? y.account.createdAt).localeCompare(String(x.lastAt ?? x.account.createdAt)));
+    if (view === "HIGHEST") return open.ranking;
+    if (view === "LOWEST") return [...open.ranking].reverse();
+    return fromAccounts(view === "STUCK" ? open.stuck : open.notStarted);
+  }, [open, view, features.rows]);
+  const paged = usePaged(list, 20, `${open?.def.key}|${view}|${product}`);
 
   const exportCsv = () => {
-    const header = ["Product area", "Feature", "Started means", "Finished means", "Institutes", "Using it", "Started, didn't finish", "Not started", "Active last 30 days", "Adoption", "Stuck rate"];
-    const rows = allStats.map((s) => [FEATURE_GROUPS.find((g) => g.key === s.def.group)?.label ?? s.def.group, s.def.label, s.def.started, s.def.completed, s.base, s.completed.length, s.stuck.length, s.notStarted.length, s.active30, pct(s.adoption), pct(s.stuckRate)]);
-    // Second block: every institute that started a feature and didn't finish, for follow-up.
-    const stuckRows = allStats.flatMap((s) => s.stuck.map((a) => ["Stuck", s.def.label, a.name, a.id, a.email, a.products.map(productName).join(", "), features.rows[s.def.key]?.get(a.id)?.lastAt?.slice(0, 10) ?? "", "", "", "", ""]));
-    downloadText(`feature-usage-${data.today}.csv`, toCsv(header, [...rows, [], ["", "Feature", "Institute", "Institute ID", "Email", "Product", "Last activity"], ...stuckRows]));
+    const header = ["Product area", "Feature", "Volume", "Measures", "Last 30 days", "Second count", "Second count measures", "Institutes using", "Stuck (started, didn't finish)", "Not started", "Top institute", "Top institute volume"];
+    const rows = allStats.map((s) => [FEATURE_GROUPS.find((g) => g.key === s.def.group)?.label ?? s.def.group, s.def.label, s.total, s.def.unit, s.total30, s.totalSecondary, s.def.secondary, s.ranking.length, s.stuck.length, s.notStarted.length, s.ranking[0]?.account.name ?? "", s.ranking[0]?.value ?? ""]);
+    const perInstitute = allStats.flatMap((s) => s.ranking.map((r, i) => [s.def.label, i + 1, r.account.name, r.account.id, r.value, s.def.unit, r.d30, r.secondary, s.def.secondary, r.lastAt?.slice(0, 10) ?? ""]));
+    downloadText(
+      `feature-usage-${data.today}.csv`,
+      toCsv(header, [...rows, [], ["Feature", "Rank", "Institute", "Institute ID", "Volume", "Measures", "Last 30 days", "Second count", "Measures", "Last activity"], ...perInstitute])
+    );
   };
+
+  const VIEWS: { key: ListView; label: string; count: number }[] = open
+    ? [
+        { key: "HIGHEST", label: "Highest first", count: open.ranking.length },
+        { key: "LOWEST", label: "Lowest first", count: open.ranking.length },
+        { key: "STUCK", label: "Started, didn't finish", count: open.stuck.length },
+        { key: "NOT_STARTED", label: "Not started", count: open.notStarted.length },
+      ]
+    : [];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Every feature, institute by institute: <b className="text-emerald-700 dark:text-emerald-400">using it</b>, <b className="text-amber-700 dark:text-amber-400">started but didn't finish</b>, or <b>not started</b>. Test and internal accounts are left out. Click a number to see the institutes.
+          Each feature measured by what it does: calls made, courses created, assessments created. Click a feature to rank institutes from highest to lowest, or to see who started and didn't finish. Test and internal accounts are left out.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <select value={product} onChange={(e) => setProduct(e.target.value)} className={selectCls} aria-label="Product">
@@ -116,7 +138,8 @@ export function FeaturesTab({ onOpenAccount }: { onOpenAccount: (id: string) => 
             aria-selected={group === g.key}
             onClick={() => {
               setGroup(g.key);
-              setOpen(null);
+              setOpenKey(null);
+              setView("HIGHEST");
             }}
             className={cn("rounded-full border px-3.5 py-1.5 text-sm font-medium", group === g.key ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}
             title={g.hint}
@@ -130,122 +153,92 @@ export function FeaturesTab({ onOpenAccount }: { onOpenAccount: (id: string) => 
         <div className="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <div>
-            <p className="font-medium">Some features couldn't be loaded and show as not started:</p>
+            <p className="font-medium">Some features couldn't be loaded and show as zero:</p>
             <ul className="mt-1 list-disc pl-4">{features.errors.map((e) => <li key={e}>{e}</li>)}</ul>
           </div>
         </div>
       )}
 
-      {data.isLoading || (features.isLoading && loaded.length === 0) ? (
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}</div>
-          <Skeleton className="h-72" />
-        </div>
+      {data.isLoading ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-40" />)}</div>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="Institutes using any of these" value={`${num(anyUse)} of ${num(base)}`} sub={base ? `${pct(anyUse / base)} of institutes` : undefined} />
-            <Kpi label="Most used" value={mostUsed?.def.label ?? "—"} sub={mostUsed ? `${num(mostUsed.completed.length)} institutes (${pct(mostUsed.adoption)})` : undefined} />
-            <Kpi label="Least used" value={leastUsed?.def.label ?? "—"} sub={leastUsed ? `${num(leastUsed.completed.length)} institutes (${pct(leastUsed.adoption)})` : undefined} />
-            <Kpi label="Where people get stuck most" value={stuckTop?.def.label ?? "—"} sub={stuckTop ? `${pct(stuckTop.stuckRate)} of those who tried didn't finish (${num(stuckTop.stuck.length)})` : "Nobody stuck yet"} />
+            {stats.map((s) => (
+              <FeatureCard
+                key={s.def.key}
+                s={s}
+                active={open?.def.key === s.def.key}
+                onClick={() => {
+                  setOpenKey(s.def.key);
+                  setView("HIGHEST");
+                }}
+              />
+            ))}
           </div>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{FEATURE_GROUPS.find((g) => g.key === group)?.label}: every feature, most used first</CardTitle>
-              <CardDescription>Hover a feature to see what “started” and “finished” mean for it.</CardDescription>
-            </CardHeader>
-            <CardContent className="overflow-x-auto p-0">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-y text-xs text-muted-foreground">
-                    <th className="px-4 py-2 text-left font-medium">Feature</th>
-                    <th className="px-2 py-2 text-right font-medium">Using it</th>
-                    <th className="px-2 py-2 text-right font-medium">Started, didn't finish</th>
-                    <th className="px-2 py-2 text-right font-medium">Not started</th>
-                    <th className="px-2 py-2 text-right font-medium">Active last 30 days</th>
-                    <th className="w-40 px-4 py-2 text-left font-medium">Split</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.map((s, i) => {
-                    const cell = (state: FeatureState, n: number, tone: string) => (
-                      <button
-                        type="button"
-                        disabled={!n}
-                        onClick={() => setOpen(open?.key === s.def.key && open.state === state ? null : { key: s.def.key, state })}
-                        className={cn("rounded px-1.5 py-0.5 tabular-nums disabled:cursor-default", n ? "hover:bg-accent hover:underline" : "text-muted-foreground", open?.key === s.def.key && open.state === state && "bg-primary/10 font-semibold", tone)}
-                      >
-                        {s.loaded ? num(n) : "…"}
-                      </button>
-                    );
-                    return (
-                      <tr key={s.def.key} className={cn("border-b last:border-0", open?.key === s.def.key && "bg-primary/5")}>
-                        <td className="px-4 py-2" title={`Started: ${s.def.started}\nFinished: ${s.def.completed}`}>
-                          <p className="font-medium">
-                            {s.def.label}
-                            {s.loaded && i === 0 && s.completed.length > 0 && <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">MOST USED</span>}
-                            {s.loaded && i === stats.length - 1 && stats.length > 1 && <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">LEAST USED</span>}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Finished = {s.def.completed}</p>
-                        </td>
-                        <td className="px-2 py-2 text-right">
-                          {cell("COMPLETED", s.completed.length, "text-emerald-700 dark:text-emerald-400")} <span className="text-xs text-muted-foreground">{s.loaded ? pct(s.adoption) : ""}</span>
-                        </td>
-                        <td className="px-2 py-2 text-right">
-                          {cell("STUCK", s.stuck.length, s.stuck.length ? "text-amber-700 dark:text-amber-400" : "")}
-                          {s.loaded && s.stuck.length > 0 && <span className="text-xs text-muted-foreground"> {pct(s.stuckRate)} of tries</span>}
-                        </td>
-                        <td className="px-2 py-2 text-right">{cell("NOT_STARTED", s.notStarted.length, "")}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">{s.loaded ? num(s.active30) : "…"}</td>
-                        <td className="px-4 py-2">
-                          <StateBar s={s} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-
-          {openStat && (
+          {open && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">
-                  {openStat.def.label}: {FEATURE_STATE_LABEL[open!.state].toLowerCase()} ({num(openList.length)})
+                  {open.def.label}: {num(open.total)} {open.def.unit}
                 </CardTitle>
                 <CardDescription>
-                  {open!.state === "STUCK"
-                    ? `They ${openStat.def.started.toLowerCase()}, but haven't yet ${openStat.def.completed.toLowerCase()}. Newest activity first: a good list to follow up.`
-                    : open!.state === "NOT_STARTED"
-                      ? `They haven't ${openStat.def.started.toLowerCase()} yet. Newest sign-ups first.`
-                      : `Finished = ${openStat.def.completed}.`}
+                  {cap(open.def.unit)} per institute. Started = {open.def.started.toLowerCase()}; finished = {open.def.completed}.
                 </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <ul className="divide-y text-sm">
-                  {paged.items.map((a) => {
-                    const r = features.rows[openStat.def.key]?.get(a.id);
-                    return (
-                      <li key={a.id}>
-                        <button type="button" onClick={() => onOpenAccount(a.id)} className="flex w-full flex-wrap items-center justify-between gap-2 px-4 py-2 text-left hover:bg-accent/50">
-                          <span className="min-w-0">
-                            <span className="font-medium">{a.name}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">{a.products.map(productName).join(", ")}</span>
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {r?.lastAt ? `last activity ${formatDay(r.lastAt)}` : `signed up ${formatDay(a.createdAt)}`}
-                            {r && r.started > 0 && ` · ${num(r.started)} started, ${num(r.completed)} finished`}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <div className="px-4 pb-3">
-                  <Pager {...paged} noun="institutes" />
+                <div className="flex flex-wrap gap-1.5 pt-2" role="group" aria-label="Institute list">
+                  {VIEWS.map((v) => (
+                    <button
+                      key={v.key}
+                      type="button"
+                      aria-pressed={view === v.key}
+                      onClick={() => setView(v.key)}
+                      className={cn("inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium", view === v.key ? "border-primary bg-primary/10" : "hover:bg-accent", v.key === "STUCK" && v.count > 0 && "text-amber-700 dark:text-amber-400")}
+                    >
+                      {v.key === "HIGHEST" && <ArrowDownWideNarrow className="h-3.5 w-3.5" />}
+                      {v.key === "LOWEST" && <ArrowUpNarrowWide className="h-3.5 w-3.5" />}
+                      {v.label} <span className="text-muted-foreground">({num(v.count)})</span>
+                    </button>
+                  ))}
                 </div>
+              </CardHeader>
+              <CardContent className="overflow-x-auto p-0">
+                {list.length === 0 ? (
+                  <p className="px-4 py-6 text-sm text-muted-foreground">{open.loaded ? "No institutes here." : "Still loading…"}</p>
+                ) : (
+                  <table className="w-full min-w-[640px] text-sm">
+                    <thead>
+                      <tr className="border-y text-xs text-muted-foreground">
+                        <th className="w-10 px-4 py-2 text-left font-medium">#</th>
+                        <th className="px-2 py-2 text-left font-medium">Institute</th>
+                        <th className="px-2 py-2 text-right font-medium">{cap(open.def.unit)}</th>
+                        <th className="px-2 py-2 text-right font-medium">Last 30 days</th>
+                        <th className="px-2 py-2 text-right font-medium">{cap(open.def.secondary)}</th>
+                        <th className="px-4 py-2 text-right font-medium">Last activity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paged.items.map((r, i) => (
+                        <tr key={r.account.id} onClick={() => onOpenAccount(r.account.id)} className="cursor-pointer border-b last:border-0 hover:bg-accent/40">
+                          <td className="px-4 py-2 text-xs text-muted-foreground tabular-nums">{paged.page * paged.pageSize + i + 1}</td>
+                          <td className="px-2 py-2">
+                            <span className="font-medium">{r.account.name}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">{r.account.products.map(productName).join(", ")}</span>
+                          </td>
+                          <td className="px-2 py-2 text-right font-semibold tabular-nums">{num(r.value)}</td>
+                          <td className="px-2 py-2 text-right tabular-nums">{num(r.d30)}</td>
+                          <td className="px-2 py-2 text-right tabular-nums">{num(r.secondary)}</td>
+                          <td className="px-4 py-2 text-right text-xs text-muted-foreground">{r.lastAt ? formatDay(r.lastAt) : `signed up ${formatDay(r.account.createdAt)}`}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {list.length > 0 && (
+                  <div className="px-4 pb-3">
+                    <Pager {...paged} noun="institutes" />
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

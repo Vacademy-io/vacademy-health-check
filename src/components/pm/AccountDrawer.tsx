@@ -31,7 +31,7 @@ import {
 import { PRODUCT_LABELS, productName, TRIAL_STAGE_LABEL, type AccountRow } from "@/lib/pm-view";
 import { useCreditsMap, useDeletePmRecord, useFeatureData, usePmHistory, useSavePmRecord } from "@/services/pm-api";
 import { FEATURE_CATALOG } from "@/lib/pm-feature-catalog";
-import { accountFeatures, FEATURE_GROUPS } from "@/lib/pm-features";
+import { accountFeatures, FEATURE_GROUPS, secondaryOf, volumeOf } from "@/lib/pm-features";
 import { FollowUpDialog } from "./FollowUpDialog";
 
 const TABS = [
@@ -113,7 +113,8 @@ function FeatureChecklist({ instituteId }: { instituteId: string }) {
                       {i.def.label}
                     </span>
                     <span className={cn("text-xs", i.state === "STUCK" ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground")}>
-                      {i.state === "STUCK" ? `Started, hasn't ${i.def.completed}` : "Using it"}
+                      {`${volumeOf(i.def, i.row).toLocaleString("en-IN")} ${i.def.unit} · ${secondaryOf(i.def, i.row).toLocaleString("en-IN")} ${i.def.secondary}`}
+                      {i.state === "STUCK" ? ` · stuck: hasn't ${i.def.completed}` : ""}
                       {i.row?.lastAt ? ` · last ${formatDay(i.row.lastAt)}` : ""}
                     </span>
                   </div>

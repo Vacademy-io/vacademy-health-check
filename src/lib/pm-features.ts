@@ -28,9 +28,20 @@ export interface FeatureDef {
   /** What counts as starting, and as finishing, in plain words. */
   started: string;
   completed: string;
+  /** What the main number counts, e.g. "calls made", "courses created". */
+  unit: string;
+  /** What the other count means, e.g. "answered" for calls; for completed-volume features, the set-up count. */
+  secondary: string;
+  /** Which count is the feature's volume: started rows (default) or completed rows. */
+  main?: "started" | "completed";
   db: ReadOnlyDb;
   sql: string;
 }
+
+/** The feature's volume for one institute (calls made, courses created …). */
+export const volumeOf = (def: Pick<FeatureDef, "main">, r: FeatureRowData | null | undefined) => (r ? (def.main === "completed" ? r.completed : r.started) : 0);
+/** The other count shown next to the volume (answered calls, active courses, gateways connected …). */
+export const secondaryOf = (def: Pick<FeatureDef, "main">, r: FeatureRowData | null | undefined) => (r ? (def.main === "completed" ? r.started : r.completed) : 0);
 
 export interface FeatureRowData {
   started: number;
@@ -62,6 +73,14 @@ export interface FeatureStat {
   notStarted: AccountRow[];
   /** Institutes with activity in the last 30 days. */
   active30: number;
+  /** Volume: total calls made / courses created … across institutes in scope. */
+  total: number;
+  /** Total of the secondary count (answered calls, active courses …). */
+  totalSecondary: number;
+  /** Volume in the last 30 days. */
+  total30: number;
+  /** Institutes with any volume, highest first. */
+  ranking: { account: AccountRow; value: number; secondary: number; d30: number; lastAt: string | null }[];
   /** completed / base. */
   adoption: number;
   /** stuck / (stuck + completed): how many who try it don't get through. */
@@ -78,12 +97,22 @@ export function featureStats(defs: FeatureDef[], accounts: AccountRow[], data: R
     const stuck: AccountRow[] = [];
     const notStarted: AccountRow[] = [];
     let active30 = 0;
+    let total = 0;
+    let totalSecondary = 0;
+    let total30 = 0;
+    const ranking: FeatureStat["ranking"] = [];
     for (const a of real) {
       const r = rows?.get(a.id);
       const s = featureState(r);
       (s === "COMPLETED" ? completed : s === "STUCK" ? stuck : notStarted).push(a);
       if ((r?.d30 ?? 0) > 0) active30++;
+      const value = volumeOf(def, r);
+      total += value;
+      totalSecondary += secondaryOf(def, r);
+      total30 += r?.d30 ?? 0;
+      if (r && (value > 0 || r.completed > 0)) ranking.push({ account: a, value, secondary: secondaryOf(def, r), d30: r.d30, lastAt: r.lastAt });
     }
+    ranking.sort((x, y) => y.value - x.value || y.secondary - x.secondary || String(y.lastAt ?? "").localeCompare(String(x.lastAt ?? "")));
     const tried = completed.length + stuck.length;
     return {
       def,
@@ -92,6 +121,10 @@ export function featureStats(defs: FeatureDef[], accounts: AccountRow[], data: R
       stuck,
       notStarted,
       active30,
+      total,
+      totalSecondary,
+      total30,
+      ranking,
       adoption: real.length ? completed.length / real.length : 0,
       stuckRate: tried ? stuck.length / tried : 0,
       loaded: !!rows,
@@ -99,7 +132,7 @@ export function featureStats(defs: FeatureDef[], accounts: AccountRow[], data: R
   });
 }
 
-/** Most used first (by institutes using it, then by those who started). */
+/** Most used first: by institutes using it, then by those who started (volumes have different units). */
 export const byUsage = (a: FeatureStat, b: FeatureStat) => b.completed.length - a.completed.length || b.stuck.length - a.stuck.length;
 
 /** Features ranked by how many people start and don't finish (only where at least `min` tried). */
