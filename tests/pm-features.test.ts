@@ -9,7 +9,7 @@ import type { InstituteListItemDTO } from "../src/types/api.ts";
 
 const TODAY = "2026-11-21";
 const inst = (id: string, over: Partial<InstituteListItemDTO> = {}): InstituteListItemDTO => ({ id, name: `Inst ${id}`, email: "", city: "", state: "", type: "SCHOOL", logo_file_id: null, subdomain: id, created_at: "2026-11-01T00:00:00Z", student_count: 0, course_count: 0, batch_count: 0, lead_tag: null, ...over });
-const def = (key: string): FeatureDef => ({ key, group: "LMS", label: key, started: "Started", completed: "finished", db: "admin_core_service", sql: "SELECT 1" });
+const def = (key: string, main?: "completed"): FeatureDef => ({ key, group: "LMS", label: key, started: "Started", completed: "finished", unit: "items", secondary: "done", main, db: "admin_core_service", sql: "SELECT 1" });
 
 test("every feature query is a single read-only SELECT with the expected columns", () => {
   const keys = new Set<string>();
@@ -20,6 +20,7 @@ test("every feature query is a single read-only SELECT with the expected columns
     assert.ok(!keys.has(f.key), `duplicate key ${f.key}`);
     keys.add(f.key);
     assert.ok(groups.has(f.group), `${f.key} has unknown group`);
+    assert.ok(f.unit && f.secondary, `${f.key} needs a unit and a secondary label`);
   }
   for (const g of groups) assert.ok(FEATURE_CATALOG.some((f) => f.group === g), `no features in ${g}`);
 });
@@ -48,5 +49,10 @@ test("feature stats split real institutes into using, stuck and not started", ()
   assert.equal(missing.loaded, false);
   assert.deepEqual([courses, live].sort(byUsage).map((s) => s.def.key), ["courses", "live"]);
   assert.deepEqual(stuckRanking([courses, live], 1).map((s) => s.def.key), ["live", "courses"]);
+  // Volume is what the feature does (e.g. calls made), and institutes are ranked by it.
+  assert.deepEqual([courses.total, courses.totalSecondary, courses.total30], [3, 1, 1]);
+  assert.deepEqual(courses.ranking.map((r) => [r.account.id, r.value]), [["a", 2], ["b", 1]]);
+  const [paid] = featureStats([def("courses", "completed")], accounts, rows);
+  assert.deepEqual([paid.total, paid.totalSecondary], [1, 3]);
   assert.deepEqual(accountFeatures([def("courses"), def("live")], "b", rows).map((x) => x.state), ["STUCK", "NOT_STARTED"]);
 });
