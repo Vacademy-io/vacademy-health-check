@@ -16,6 +16,8 @@ export interface InstituteUsageRow {
   recording_bytes: number;
   bandwidth_bytes: number;
   bandwidth_requests: number;
+  /** Part of bandwidth_bytes served straight from S3 (billed per GB); the rest went through the flat-rate CDN. */
+  bandwidth_s3_direct_bytes?: number;
   /** Our approximate monthly cost in INR at `rates`, not a price. */
   storage_cost_inr: number;
   bandwidth_cost_inr: number;
@@ -33,7 +35,12 @@ export interface UsageAllowance {
   storage_rate_per_gb: number;
   /** Per extra GB delivered, in `currency`. */
   bandwidth_rate_per_gb: number;
+  /** CREDITS (taken from the wallet monthly) or a three-letter code (shown only, billed by hand). */
   currency: string;
+  addon_storage_gb: number;
+  addon_price_per_month: number;
+  /** First month taken from the wallet (YYYY-MM); null for a shown-only plan. */
+  charge_from_month: string | null;
   note: string | null;
   updated_by: string | null;
   updated_at: string | null;
@@ -41,8 +48,31 @@ export interface UsageAllowance {
 
 export type UsageAllowanceInput = Pick<
   UsageAllowance,
-  "included_storage_gb" | "included_bandwidth_gb" | "storage_rate_per_gb" | "bandwidth_rate_per_gb" | "currency" | "note"
+  | "included_storage_gb"
+  | "included_bandwidth_gb"
+  | "storage_rate_per_gb"
+  | "bandwidth_rate_per_gb"
+  | "currency"
+  | "addon_storage_gb"
+  | "addon_price_per_month"
+  | "charge_from_month"
+  | "note"
 >;
+
+/** One month taken from the wallet (or that failed and is retried daily). */
+export interface UsageCharge {
+  institute_id: string;
+  month: string;
+  status: "CHARGED" | "FAILED" | string;
+  credits: number;
+  storage_average_bytes: number;
+  storage_extra_bytes: number;
+  bandwidth_bytes: number;
+  bandwidth_extra_bytes: number;
+  addon_credits: number;
+  error: string | null;
+  updated_at: string | null;
+}
 
 /** One month against the plan: storage is the month's average, bandwidth the month's total. */
 export interface AllowanceStatus {
@@ -52,6 +82,10 @@ export interface AllowanceStatus {
   storage_rate_per_gb: number;
   bandwidth_rate_per_gb: number;
   currency: string;
+  addon_storage_gb: number;
+  addon_price: number;
+  charged_to_wallet: boolean;
+  charge_from_month: string | null;
   storage_snapshot_days: number;
   storage_average_bytes: number;
   storage_extra_bytes: number;
@@ -64,6 +98,7 @@ export interface AllowanceStatus {
 
 export interface AllowanceView {
   allowance: UsageAllowance | null;
+  charges?: UsageCharge[];
   current_month?: AllowanceStatus;
   previous_month?: AllowanceStatus;
 }
@@ -73,7 +108,7 @@ export interface PlatformUsage {
   /** YYYY-MM of the bandwidth columns. */
   month: string;
   bandwidth_tracking_since: string | null;
-  rates: { storage_usd_per_gb_month: number; bandwidth_usd_per_gb: number; usd_to_inr: number };
+  rates: { storage_usd_per_gb_month: number; bandwidth_usd_per_gb: number; cdn_usd_per_gb?: number; usd_to_inr: number };
   institutes: InstituteUsageRow[];
   /** Files no institute could be traced to; null when there are none. */
   unassigned: InstituteUsageRow | null;
@@ -143,6 +178,7 @@ export function useRemoveUsageAllowance(instituteId: string) {
 
 /** An amount in the plan currency, e.g. ₹1,250.50. */
 export function money(amount: number, currency: string): string {
+  if (currency === "CREDITS") return `${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })} credits`;
   try {
     return amount.toLocaleString("en-IN", { style: "currency", currency, maximumFractionDigits: 2 });
   } catch {

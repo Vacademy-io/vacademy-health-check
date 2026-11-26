@@ -101,9 +101,10 @@ export default function StoragePage() {
         <CardHeader>
           <CardTitle>By institute</CardTitle>
           <CardDescription>
-            Sorted by our cost. Plan · extra charge shows included storage / bandwidth and this month's extra charge
-            for institutes on a storage plan; click it to set or change one. Rates: storage ${data?.rates.storage_usd_per_gb_month}/GB-month, bandwidth $
-            {data?.rates.bandwidth_usd_per_gb}/GB, ₹{data?.rates.usd_to_inr}/$.
+            Sorted by our cost. Bandwidth through the CDN costs us ~nothing (flat-rate plan); only traffic served
+            straight from S3 is costed. Plan · extra charge shows included storage / bandwidth and this month's extra charge
+            for institutes on a storage plan; click it to set or change one. Rates: storage ${data?.rates.storage_usd_per_gb_month}/GB-month, direct-S3 bandwidth $
+            {data?.rates.bandwidth_usd_per_gb}/GB, CDN ${data?.rates.cdn_usd_per_gb ?? 0}/GB, ₹{data?.rates.usd_to_inr}/$.
             {unassigned && unassigned.storage_bytes > 0 && (
               <> {formatBytes(unassigned.storage_bytes)} of files ({share(unassigned.storage_bytes, totals?.storage_bytes ?? 0)}) could
                 not be traced to an institute yet.</>
@@ -138,7 +139,14 @@ export default function StoragePage() {
                     <TableCell className="text-right">{formatBytes(r.storage_bytes)}</TableCell>
                     <TableCell className="text-right">{formatBytes(r.recording_bytes)}</TableCell>
                     <TableCell className="text-right">{share(r.storage_bytes, totals?.storage_bytes ?? 0)}</TableCell>
-                    <TableCell className="text-right">{formatBytes(r.bandwidth_bytes)}</TableCell>
+                    <TableCell className="text-right">
+                      {formatBytes(r.bandwidth_bytes)}
+                      {(r.bandwidth_s3_direct_bytes ?? 0) > 0 && (
+                        <div className="text-xs text-muted-foreground" title="Served straight from S3, billed to us per GB (not the flat-rate CDN)">
+                          {formatBytes(r.bandwidth_s3_direct_bytes ?? 0)} direct S3
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">{r.bandwidth_requests.toLocaleString("en-IN")}</TableCell>
                     <TableCell className="text-right font-medium">{inr(r.total_cost_inr)}</TableCell>
                     <TableCell className="text-right">
