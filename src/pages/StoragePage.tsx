@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatBytes } from "@/lib/file-utils";
-import { useMeterNow, useStorageBandwidth, type InstituteUsageRow } from "@/services/storage-usage-api";
+import { money, useMeterNow, useStorageBandwidth, type InstituteUsageRow } from "@/services/storage-usage-api";
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
@@ -101,7 +101,8 @@ export default function StoragePage() {
         <CardHeader>
           <CardTitle>By institute</CardTitle>
           <CardDescription>
-            Sorted by our cost. Rates: storage ${data?.rates.storage_usd_per_gb_month}/GB-month, bandwidth $
+            Sorted by our cost. Plan · extra charge shows included storage / bandwidth and this month's extra charge
+            for institutes on a storage plan; click it to set or change one. Rates: storage ${data?.rates.storage_usd_per_gb_month}/GB-month, bandwidth $
             {data?.rates.bandwidth_usd_per_gb}/GB, ₹{data?.rates.usd_to_inr}/$.
             {unassigned && unassigned.storage_bytes > 0 && (
               <> {formatBytes(unassigned.storage_bytes)} of files ({share(unassigned.storage_bytes, totals?.storage_bytes ?? 0)}) could
@@ -123,6 +124,7 @@ export default function StoragePage() {
                   <TableHead className="text-right">Bandwidth</TableHead>
                   <TableHead className="text-right">Requests</TableHead>
                   <TableHead className="text-right">Our cost / month</TableHead>
+                  <TableHead className="text-right">Plan · extra charge</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -139,6 +141,19 @@ export default function StoragePage() {
                     <TableCell className="text-right">{formatBytes(r.bandwidth_bytes)}</TableCell>
                     <TableCell className="text-right">{r.bandwidth_requests.toLocaleString("en-IN")}</TableCell>
                     <TableCell className="text-right font-medium">{inr(r.total_cost_inr)}</TableCell>
+                    <TableCell className="text-right">
+                      <Link to={`/institutes/${r.institute_id}?tab=storage-plan`} className="hover:underline">
+                        {r.allowance ? (
+                          <span className={r.allowance.total_charge > 0 ? "font-medium text-destructive" : undefined}>
+                            {r.allowance.included_storage_gb.toLocaleString("en-IN")} GB / {r.allowance.included_bandwidth_gb.toLocaleString("en-IN")} GB
+                            {" · "}
+                            {money(r.allowance.total_charge, r.allowance.currency)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Set plan</span>
+                        )}
+                      </Link>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {unassigned && (
@@ -150,11 +165,12 @@ export default function StoragePage() {
                     <TableCell className="text-right">{formatBytes(unassigned.bandwidth_bytes)}</TableCell>
                     <TableCell className="text-right">{unassigned.bandwidth_requests.toLocaleString("en-IN")}</TableCell>
                     <TableCell className="text-right">{inr(unassigned.total_cost_inr)}</TableCell>
+                    <TableCell />
                   </TableRow>
                 )}
                 {rows.length === 0 && !unassigned && (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">No data for this month.</TableCell>
+                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">No data for this month.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
