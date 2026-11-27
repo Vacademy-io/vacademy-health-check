@@ -28,6 +28,7 @@ import {
   UserSquare2,
   GraduationCap,
   Clapperboard,
+  Video,
   Boxes,
   Cpu,
   KeySquare,
@@ -96,6 +97,7 @@ const navSections: Array<{
       { to: "/guides", label: "Guides", icon: BookOpen },
       { to: "/roadmap", label: "Roadmap", icon: Milestone },
       { to: "/training-videos", label: "Training Videos", icon: Clapperboard },
+      { to: "/webinars", label: "Webinars", icon: Video },
     ],
   },
   {

@@ -19,6 +19,8 @@ export const API_PREFIXES = {
   GUIDES: "/community-service/super-admin/v1/guides",
   ROADMAP: "/community-service/super-admin/v1/roadmap",
   TRAINING_VIDEOS: "/community-service/super-admin/v1/training-videos",
+  /** Webinars shown in the admin dashboard's Webinars panel (Join button, LIVE while running). */
+  WEBINARS: "/community-service/super-admin/v1/webinars",
   /** App Registration & Store Management. Only used when VITE_APP_REGISTRY_REMOTE is on — see app-registry-store.ts. */
   APP_REGISTRY: "/community-service/super-admin/v1/app-registry",
 } as const;

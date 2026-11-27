@@ -47,6 +47,7 @@ const BroadcastsPage = lazy(() => import("@/pages/BroadcastsPage"));
 const GuidesAdminPage = lazy(() => import("@/pages/GuidesAdminPage"));
 const RoadmapAdminPage = lazy(() => import("@/pages/RoadmapAdminPage"));
 const TrainingVideosAdminPage = lazy(() => import("@/pages/TrainingVideosAdminPage"));
+const WebinarsAdminPage = lazy(() => import("@/pages/WebinarsAdminPage"));
 const AppRegistrationPage = lazy(() => import("@/pages/AppRegistrationPage"));
 const AppDetailPage = lazy(() => import("@/pages/AppDetailPage"));
 const PmViewPage = lazy(() => import("@/pages/PmViewPage"));
@@ -114,6 +115,7 @@ function App() {
           <Route path="guides" element={<GuidesAdminPage />} />
           <Route path="roadmap" element={<RoadmapAdminPage />} />
           <Route path="training-videos" element={<TrainingVideosAdminPage />} />
+          <Route path="webinars" element={<WebinarsAdminPage />} />
           <Route path="apps" element={<AppRegistrationPage />} />
           <Route path="apps/:id" element={<AppDetailPage />} />
           <Route path="vimotion/waitlist" element={<VimotionWaitlistPage />} />
