@@ -17,6 +17,8 @@ export interface WebinarDto {
   /** Recording (S3 upload or any video link); null until added. */
   recordingUrl: string | null;
   recordingFileId: string | null;
+  /** The webinar's live class (session schedule id): admins of PROD institutes join it in one click. */
+  liveScheduleId: string | null;
   /** false = hidden from institute admins. */
   active: boolean;
   createdAt: string;
@@ -32,6 +34,8 @@ export interface UpsertWebinarPayload {
   joinUrl: string;
   recordingUrl: string;
   recordingFileId: string | null;
+  /** "" clears it. */
+  liveScheduleId: string;
   active: boolean;
 }
 

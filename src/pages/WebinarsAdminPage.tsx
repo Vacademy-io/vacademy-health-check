@@ -101,6 +101,7 @@ export default function WebinarsAdminPage() {
                             {when(w)}
                             {g.phase === "live" ? <Badge variant="destructive">LIVE</Badge> : null}
                             {!w.active ? <Badge variant="outline">Hidden</Badge> : null}
+                            {w.liveScheduleId && g.phase !== "past" ? <Badge variant="secondary">1-click join for PROD</Badge> : null}
                             {g.phase !== "past" && !w.joinUrl ? (
                               <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-px text-[11px] text-amber-800">No join link yet</span>
                             ) : null}

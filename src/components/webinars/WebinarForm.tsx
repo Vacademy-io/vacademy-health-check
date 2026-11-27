@@ -76,13 +76,16 @@ export function WebinarForm({
   const [recordingName, setRecordingName] = useState("");
   const [progress, setProgress] = useState<number | null>(null);
   const [active, setActive] = useState(webinar?.active ?? true);
+  const [liveScheduleId, setLiveScheduleId] = useState(webinar?.liveScheduleId ?? "");
 
   const duration = Number(minutes);
   const start = startsAt ? new Date(startsAt) : null;
   const joinOk = !joinUrl.trim() || isHttpUrl(joinUrl.trim());
   const recordingOk = !recordingUrl.trim() || isHttpUrl(recordingUrl.trim());
   const durationOk = Number.isFinite(duration) && duration >= 5 && duration <= 720;
-  const canSubmit = !!title.trim() && !!start && !Number.isNaN(start.getTime()) && durationOk && joinOk && recordingOk;
+  const scheduleOk = !/\s/.test(liveScheduleId.trim());
+  const canSubmit =
+    !!title.trim() && !!start && !Number.isNaN(start.getTime()) && durationOk && joinOk && recordingOk && scheduleOk;
   const saving = create.isPending || update.isPending || upload.isPending;
   const saveError = create.error ?? update.error;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -113,6 +116,7 @@ export function WebinarForm({
       recordingUrl: encodedLink(recordingUrl),
       // Set by an upload; typing a link clears it (a pasted link has no media-service file).
       recordingFileId,
+      liveScheduleId: liveScheduleId.trim(),
       active,
     };
     try {
@@ -165,6 +169,25 @@ export function WebinarForm({
             </p>
           ) : (
             <p className="text-xs text-destructive">Paste the full link, starting with https://</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="webinar-schedule">Live class schedule ID (one-click join)</Label>
+          <Input
+            id="webinar-schedule"
+            value={liveScheduleId}
+            onChange={(e) => setLiveScheduleId(e.target.value)}
+            placeholder="Schedule id (UUID)"
+          />
+          {scheduleOk ? (
+            <p className="text-xs text-muted-foreground">
+              The schedule of this webinar's live class in the institute that runs the webinars. Admins of PROD institutes then
+              join it in one click from their dashboard, in their own name, and their attendance is recorded. Everyone else
+              uses the join link above.
+            </p>
+          ) : (
+            <p className="text-xs text-destructive">Paste just the id, without spaces.</p>
           )}
         </div>
 
